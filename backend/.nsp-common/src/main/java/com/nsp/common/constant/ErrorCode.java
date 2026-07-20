@@ -1,0 +1,71 @@
+package com.nsp.common.constant;
+
+/**
+ * 业务错误码常量 — 按域分段，便于 pytest 断言具体业务错误
+ *
+ * <p>分段规则：
+ * <ul>
+ *   <li>{@code 0} — 成功</li>
+ *   <li>{@code 1000 ~ 1999} — 通用错误（鉴权、参数校验、系统）</li>
+ *   <li>{@code 2000 ~ 2999} — 用户域（注册、登录、地址）</li>
+ *   <li>{@code 3000 ~ 3999} — 商品/商家域</li>
+ *   <li>{@code 4000 ~ 4999} — 订单域</li>
+ *   <li>{@code 5000 ~ 5999} — 支付域</li>
+ *   <li>{@code 6000 ~ 6999} — 上传域</li>
+ * </ul>
+ */
+public final class ErrorCode {
+
+    private ErrorCode() { /* 工具类禁止实例化 */ }
+
+    // ==================== 成功 ====================
+    public static final int SUCCESS = 0;
+
+    // ==================== 通用 1000 ~ 1999 ====================
+    public static final int UNAUTHORIZED           = 1001; // 未登录
+    public static final int FORBIDDEN              = 1002; // 无权限
+    public static final int TOKEN_EXPIRED          = 1003; // Token 已过期
+    public static final int TOKEN_INVALID          = 1004; // Token 无效
+    public static final int PARAM_ERROR            = 1100; // 参数校验失败
+    public static final int SYSTEM_ERROR           = 1999; // 系统内部错误
+
+    // ==================== 用户域 2000 ~ 2999 ====================
+    public static final int USERNAME_EXISTS        = 2001; // 用户名已存在
+    public static final int PHONE_EXISTS           = 2002; // 手机号已注册
+    public static final int USER_NOT_FOUND         = 2003; // 用户不存在
+    public static final int PASSWORD_ERROR         = 2004; // 密码错误
+    public static final int ADDRESS_NOT_FOUND      = 2101; // 地址不存在
+    public static final int ADDRESS_LIMIT_EXCEEDED  = 2102; // 地址数量超限
+    public static final int CART_ITEM_LIMIT         = 2201; // 购物车商品数量超限
+
+    // ==================== 商品/商家域 3000 ~ 3999 ====================
+    public static final int MERCHANT_NOT_FOUND     = 3001; // 商家不存在
+    public static final int MERCHANT_CLOSED        = 3002; // 商家已打烊
+    public static final int MERCHANT_NOT_APPROVED  = 3003; // 商家未通过审核
+    public static final int PRODUCT_NOT_FOUND      = 3101; // 商品不存在
+    public static final int PRODUCT_OFF_SHELF      = 3102; // 商品已下架
+    public static final int SPEC_NOT_FOUND         = 3103; // 规格不存在
+    public static final int STOCK_INSUFFICIENT     = 3104; // 库存不足
+    public static final int CATEGORY_NOT_FOUND     = 3201; // 品类不存在
+    public static final int NOT_MERCHANT_OWNER     = 3301; // 非本店商家，无权操作
+
+    // ==================== 订单域 4000 ~ 4999 ====================
+    public static final int ORDER_NOT_FOUND        = 4001; // 订单不存在
+    public static final int ORDER_STATUS_ERROR     = 4002; // 订单状态不允许此操作
+    public static final int OUT_OF_DELIVERY_RANGE  = 4003; // 超出配送范围
+    public static final int NOT_IN_BUSINESS_HOURS  = 4004; // 非营业时间
+    public static final int CART_EMPTY             = 4005; // 购物车为空
+
+    // ==================== 支付域 5000 ~ 5999 ====================
+    public static final int PAY_ORDER_NOT_FOUND    = 5001; // 支付订单不存在
+    public static final int PAY_ORDER_PAID         = 5002; // 订单已支付（幂等）
+    public static final int PAY_SIGN_ERROR         = 5003; // 支付签名校验失败
+    public static final int PAY_CHANNEL_ERROR      = 5004; // 支付渠道异常
+
+    // ==================== 上传域 6000 ~ 6999 ====================
+    public static final int UPLOAD_SIGN_LIMIT      = 6001; // 上传签名请求过于频繁
+    public static final int UPLOAD_TYPE_INVALID    = 6002; // 文件类型不允许
+    public static final int UPLOAD_SIZE_EXCEED      = 6003; // 文件大小超限
+    public static final int UPLOAD_CALLBACK_ERROR  = 6004; // OSS 回调校验失败
+
+}
