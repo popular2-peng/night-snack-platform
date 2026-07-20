@@ -6,22 +6,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 角色权限注解 — 标注在 Controller 方法上，声明该方法需要哪些角色才能访问
- *
- * <p>用法：
- * <pre>{@code
- *   @RequireRole("ADMIN")
- *   @GetMapping("/merchant/audit")
- *   public Result<?> audit() { ... }
- *
- *   @RequireRole({"USER", "MERCHANT", "ADMIN"})
- *   @PostMapping("/upload/sign")
- *   public Result<?> getUploadSign() { ... }
- * }</pre>
+ * 角色权限注解 — 标注在 Controller 类或方法上
+ * <p>类上的注解对该类所有方法生效；方法上的注解覆盖类级别注解
  *
  * <p>校验逻辑由 {@code RoleAspect} 切面完成
  */
-@Target(ElementType.METHOD)
+@Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RequireRole {
 

@@ -3,7 +3,8 @@ package com.nsp.server.common;
 import com.nsp.common.constant.ErrorCode;
 import com.nsp.common.exception.BizException;
 import com.nsp.common.result.Result;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -11,24 +12,19 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * 全局异常处理器 — 将所有异常统一转为 Result 结构返回，不向客户端暴露堆栈
+ * 全局异常处理器 — 将所有异常统一转为 Result 结构返回
  */
-@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /**
-     * 业务异常 — 预期内的失败，message 直接返回给客户端
-     */
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(BizException.class)
     public Result<Void> handleBizException(BizException e) {
         log.warn("业务异常: code={}, msg={}", e.getCode(), e.getMessage());
         return Result.fail(e.getCode(), e.getMessage());
     }
 
-    /**
-     * 参数校验失败（@Valid / @Validated 注解触发的）
-     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<Void> handleValidationException(MethodArgumentNotValidException e) {
@@ -40,9 +36,6 @@ public class GlobalExceptionHandler {
         return Result.fail(ErrorCode.PARAM_ERROR, msg);
     }
 
-    /**
-     * 兜底 — 未预期的系统异常，记录 ERROR 日志并返回通用错误提示
-     */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleException(Exception e) {

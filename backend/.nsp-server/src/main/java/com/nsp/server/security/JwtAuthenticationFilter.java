@@ -5,7 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,14 +19,12 @@ import java.util.List;
 
 /**
  * JWT 认证过滤器 — 每个请求都会经过此过滤器，从 Header 中提取并校验 JWT
- *
- * <p>校验通过后，将用户信息写入 SecurityContextHolder，后续 Controller 和切面可以读取
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String HEADER_NAME = "Authorization";
 
@@ -42,7 +41,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             Long userId = jwtTokenProvider.getUserId(token);
             String role = jwtTokenProvider.getRole(token);
 
-            // 构建 Spring Security 认证对象
             List<SimpleGrantedAuthority> authorities = List.of(
                     new SimpleGrantedAuthority("ROLE_" + role)
             );
@@ -57,9 +55,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * 从请求头提取 Bearer Token
-     */
     private String extractToken(HttpServletRequest request) {
         String bearerToken = request.getHeader(HEADER_NAME);
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
