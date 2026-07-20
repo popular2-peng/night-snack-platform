@@ -1,0 +1,15 @@
+# ============================================================
+# 夜宵外卖平台 — 开发环境配置
+# 覆盖 application.yml 中的默认值
+# ============================================================
+
+spring:
+  flyway:
+    enabled: true
+
+logging:
+  level:
+    com.nsp: DEBUG
+    org.springframework.security: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss} %-5level [%thread] %logger{36} - %msg%n"

@@ -1,0 +1,82 @@
+# ============================================================
+# 夜宵外卖平台 — 主配置
+# ⚠️ 所有敏感值走 ${ENV_VAR}，默认值仅用于本地 dev
+# ============================================================
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: night-snack-platform
+
+  # 默认使用 dev profile
+  profiles:
+    active: dev
+
+  # Jackson 全局配置
+  jackson:
+    date-format: yyyy-MM-dd'T'HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+
+  # ========== 数据源（MySQL） ==========
+  datasource:
+    url: ${NSP_DB_URL:jdbc:mysql://localhost:3306/nsp_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai}
+    username: ${NSP_DB_USER:root}
+    password: ${NSP_DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+
+  # ========== Redis ==========
+  data:
+    redis:
+      host: ${NSP_REDIS_HOST:localhost}
+      port: ${NSP_REDIS_PORT:6379}
+      password: ${NSP_REDIS_PASSWORD:}
+      jedis:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+
+  # ========== Flyway 数据库迁移 ==========
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    encoding: UTF-8
+
+# ========== MyBatis-Plus ==========
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.nsp.pojo.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# ========== SpringDoc OpenAPI ==========
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  packages-to-scan: com.nsp.server.controller
+
+# ========== JWT 配置 ==========
+nsp:
+  jwt:
+    secret: ${JWT_SECRET:please-change-me-to-a-secure-random-string}
+    access-expiration-ms: 7200000     # 2 小时
+    refresh-expiration-ms: 604800000  # 7 天

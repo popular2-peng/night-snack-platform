@@ -3,7 +3,7 @@ package com.nsp.pojo.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.nsp.common.enum.MerchantStatus;
+import com.nsp.common.enums.MerchantStatus;
 import lombok.Data;
 
 import java.math.BigDecimal;

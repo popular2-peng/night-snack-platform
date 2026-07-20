@@ -1,4 +1,4 @@
-package com.nsp.common.enum;
+package com.nsp.common.enums;
 
 import lombok.Getter;
 

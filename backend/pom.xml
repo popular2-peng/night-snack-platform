@@ -64,8 +64,8 @@
         <alipay-sdk.version>4.39.28.ALL</alipay-sdk.version>
 
         <!-- 插件版本 -->
-        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.5.0</maven-surefire-plugin.version>
+        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
     </properties>
 
     <!-- ========== 依赖版本管理（仅声明版本，子模块按需引用） ========== -->

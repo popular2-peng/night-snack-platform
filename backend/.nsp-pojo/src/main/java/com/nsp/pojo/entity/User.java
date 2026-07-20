@@ -3,7 +3,7 @@ package com.nsp.pojo.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.nsp.common.enum.UserRole;
+import com.nsp.common.enums.UserRole;
 import lombok.Data;
 
 import java.time.LocalDateTime;

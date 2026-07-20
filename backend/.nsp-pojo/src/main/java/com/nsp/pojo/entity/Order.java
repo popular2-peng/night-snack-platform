@@ -3,8 +3,8 @@ package com.nsp.pojo.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.nsp.common.enum.OrderStatus;
-import com.nsp.common.enum.PayChannel;
+import com.nsp.common.enums.OrderStatus;
+import com.nsp.common.enums.PayChannel;
 import lombok.Data;
 
 import java.math.BigDecimal;
