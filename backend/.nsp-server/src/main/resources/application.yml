@@ -81,6 +81,17 @@ nsp:
     access-expiration-ms: 7200000     # 2 小时
     refresh-expiration-ms: 604800000  # 7 天
 
+# ========== 阿里云 OSS 配置 ==========
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT:oss-cn-shenzhen.aliyuncs.com}
+    bucket: ${ALIYUN_OSS_BUCKET:nsp-upload}
+    access-key-id: ${ALIYUN_OSS_AK:placeholder}
+    access-key-secret: ${ALIYUN_OSS_SK:placeholder}
+    region: ${ALIYUN_OSS_REGION:shenzhen}
+    cdn-domain: ${ALIYUN_OSS_CDN:placeholder}
+    callback-url: ${ALIYUN_OSS_CALLBACK:placeholder}
+
 # ========== 百度地图配置 ==========
 baidu:
   map:

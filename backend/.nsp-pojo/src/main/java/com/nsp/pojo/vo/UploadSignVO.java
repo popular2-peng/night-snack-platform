@@ -19,6 +19,6 @@ public class UploadSignVO {
     /** 上传目录 */
     private String dir;
     /** 签名过期时间（秒） */
-    private Long expire;
+    private Integer expire;
 
 }
