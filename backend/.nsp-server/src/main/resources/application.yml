@@ -80,3 +80,11 @@ nsp:
     secret: ${JWT_SECRET:please-change-me-to-a-secure-random-string}
     access-expiration-ms: 7200000     # 2 小时
     refresh-expiration-ms: 604800000  # 7 天
+
+# ========== 支付宝沙箱配置 ==========
+alipay:
+  app-id: ${ALIPAY_APP_ID:placeholder}
+  private-key: ${ALIPAY_PRIVATE_KEY:placeholder}
+  alipay-public-key: ${ALIPAY_PUBLIC_KEY:placeholder}
+  notify-url: ${ALIPAY_NOTIFY_URL:placeholder}
+  gateway-url: https://openapi-sandbox.dl.alipaydev.com/gateway.do

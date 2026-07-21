@@ -61,7 +61,7 @@
         <aliyun-oss.version>3.17.4</aliyun-oss.version>
 
         <!-- 支付宝 SDK（沙箱，Phase 2 使用） -->
-        <alipay-sdk.version>4.39.28.ALL</alipay-sdk.version>
+        <alipay-sdk.version>4.38.157.ALL</alipay-sdk.version>
 
         <!-- 插件版本 -->
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
