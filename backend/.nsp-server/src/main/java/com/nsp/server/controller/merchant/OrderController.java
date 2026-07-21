@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
  * 商家端订单接口
  */
 @Tag(name = "商家订单", description = "接单、制作、完成、拒单")
-@RestController
+@RestController("merchantOrderController")
 @RequestMapping("/api/merchant/order")
 @RequiredArgsConstructor
 @RequireRole("MERCHANT")

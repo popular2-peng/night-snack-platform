@@ -1,6 +1,7 @@
 # ============================================================
-# 夜宵外卖平台 — 主配置
-# ⚠️ 所有敏感值走 ${ENV_VAR}，默认值仅用于本地 dev
+# 夜宵外卖平台 — 主配置（所有环境共用）
+# 环境相关配置在各 profile 文件中：application-{profile}.yml
+# ⚠️ 敏感值走环境变量 ${ENV_VAR}
 # ============================================================
 
 server:
@@ -20,37 +21,14 @@ spring:
     time-zone: Asia/Shanghai
     default-property-inclusion: non_null
 
-  # ========== 数据源（MySQL） ==========
-  datasource:
-    url: ${NSP_DB_URL:jdbc:mysql://localhost:3306/nsp_db?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai}
-    username: ${NSP_DB_USER:root}
-    password: ${NSP_DB_PASSWORD:root}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    hikari:
-      minimum-idle: 5
-      maximum-pool-size: 20
-      connection-timeout: 30000
-
-  # ========== Redis ==========
-  data:
-    redis:
-      host: ${NSP_REDIS_HOST:localhost}
-      port: ${NSP_REDIS_PORT:6379}
-      password: ${NSP_REDIS_PASSWORD:}
-      jedis:
-        pool:
-          max-active: 20
-          max-idle: 10
-          min-idle: 5
-
-  # ========== Flyway 数据库迁移 ==========
+  # Flyway 数据库迁移（各环境统一启用）
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
     encoding: UTF-8
 
-# ========== MyBatis-Plus ==========
+# MyBatis-Plus
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml
   type-aliases-package: com.nsp.pojo.entity
@@ -64,7 +42,7 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
-# ========== SpringDoc OpenAPI ==========
+# SpringDoc OpenAPI（Swagger UI）
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
@@ -73,35 +51,3 @@ springdoc:
     path: /v3/api-docs
     enabled: true
   packages-to-scan: com.nsp.server.controller
-
-# ========== JWT 配置 ==========
-nsp:
-  jwt:
-    secret: ${JWT_SECRET:please-change-me-to-a-secure-random-string}
-    access-expiration-ms: 7200000     # 2 小时
-    refresh-expiration-ms: 604800000  # 7 天
-
-# ========== 阿里云 OSS 配置 ==========
-aliyun:
-  oss:
-    endpoint: ${ALIYUN_OSS_ENDPOINT:oss-cn-shenzhen.aliyuncs.com}
-    bucket: ${ALIYUN_OSS_BUCKET:nsp-upload}
-    access-key-id: ${ALIYUN_OSS_AK:placeholder}
-    access-key-secret: ${ALIYUN_OSS_SK:placeholder}
-    region: ${ALIYUN_OSS_REGION:shenzhen}
-    cdn-domain: ${ALIYUN_OSS_CDN:placeholder}
-    callback-url: ${ALIYUN_OSS_CALLBACK:placeholder}
-
-# ========== 百度地图配置 ==========
-baidu:
-  map:
-    ak: ${BAIDU_MAP_AK:placeholder}
-    distance-api: https://api.map.baidu.com/directionlite/v1/driving
-
-# ========== 支付宝沙箱配置 ==========
-alipay:
-  app-id: ${ALIPAY_APP_ID:placeholder}
-  private-key: ${ALIPAY_PRIVATE_KEY:placeholder}
-  alipay-public-key: ${ALIPAY_PUBLIC_KEY:placeholder}
-  notify-url: ${ALIPAY_NOTIFY_URL:placeholder}
-  gateway-url: https://openapi-sandbox.dl.alipaydev.com/gateway.do

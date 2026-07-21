@@ -1,0 +1,61 @@
+# ============================================================
+# 夜宵外卖平台 — 生产环境配置
+# spring.profiles.active=prod 时激活
+# ⚠️ 所有敏感值必须走环境变量，不得有默认值
+# ============================================================
+
+spring:
+  datasource:
+    url: ${NSP_DB_URL}
+    username: ${NSP_DB_USER}
+    password: ${NSP_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 10
+      maximum-pool-size: 50
+      connection-timeout: 30000
+
+  data:
+    redis:
+      host: ${NSP_REDIS_HOST}
+      port: ${NSP_REDIS_PORT}
+      password: ${NSP_REDIS_PASSWORD}
+      database: ${NSP_REDIS_DATABASE}
+      jedis:
+        pool:
+          max-active: 50
+          max-idle: 20
+          min-idle: 10
+
+nsp:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-expiration-ms: 7200000
+    refresh-expiration-ms: 604800000
+
+aliyun:
+  oss:
+    endpoint: ${ALIYUN_OSS_ENDPOINT}
+    bucket: ${ALIYUN_OSS_BUCKET}
+    access-key-id: ${ALIYUN_OSS_AK}
+    access-key-secret: ${ALIYUN_OSS_SK}
+    region: ${ALIYUN_OSS_REGION}
+    cdn-domain: ${ALIYUN_OSS_CDN}
+    callback-url: ${ALIYUN_OSS_CALLBACK}
+
+baidu:
+  map:
+    ak: ${BAIDU_MAP_AK}
+    distance-api: https://api.map.baidu.com/directionlite/v1/driving
+
+alipay:
+  app-id: ${ALIPAY_APP_ID}
+  private-key: ${ALIPAY_PRIVATE_KEY}
+  alipay-public-key: ${ALIPAY_PUBLIC_KEY}
+  notify-url: ${ALIPAY_NOTIFY_URL}
+  gateway-url: https://openapi-sandbox.dl.alipaydev.com/gateway.do
+
+logging:
+  level:
+    com.nsp: INFO
+    org.springframework.security: WARN
