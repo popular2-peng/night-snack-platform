@@ -8,6 +8,9 @@
 .env.*
 !.env.example
 
+# --- 本地开发配置（含真实密钥，从 .example 复制） ---
+.nsp-server/src/main/resources/application-dev.yml
+
 # --- 编译产物 ---
 target/
 *.class
