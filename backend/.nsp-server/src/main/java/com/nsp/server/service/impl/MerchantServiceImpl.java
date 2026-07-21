@@ -8,6 +8,7 @@ import com.nsp.common.exception.BizException;
 import com.nsp.pojo.entity.Merchant;
 import com.nsp.pojo.vo.MerchantVO;
 import com.nsp.server.mapper.MerchantMapper;
+import com.nsp.server.service.MapService;
 import com.nsp.server.service.MerchantService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -15,12 +16,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 
 /**
- * 商家业务实现
- *
- * <p>⚡ 配送范围校验和 Haversine 距离计算将在 Phase 2 的 MapService 中实现
+ * 商家业务实现 — 百度地图优先 + Haversine 降级 + Redis 距离缓存
  */
 @Service
 @RequiredArgsConstructor
@@ -29,14 +29,25 @@ public class MerchantServiceImpl implements MerchantService {
     private static final Logger log = LoggerFactory.getLogger(MerchantServiceImpl.class);
 
     private final MerchantMapper merchantMapper;
+    private final MapService mapService;
 
     @Override
     public List<MerchantVO> listNearby(BigDecimal lat, BigDecimal lng) {
-        // TODO Phase 2: 接入百度地图 / Haversine 距离计算 + 按距离排序
         List<Merchant> merchants = merchantMapper.selectList(
                 new LambdaQueryWrapper<Merchant>()
                         .eq(Merchant::getStatus, MerchantStatus.OPEN));
-        return merchants.stream().map(this::toVO).toList();
+
+        // 计算距离并按距离排序
+        return merchants.stream()
+                .map(m -> {
+                    MerchantVO vo = toVO(m);
+                    long dist = mapService.calculateDistanceWithCache(
+                            m.getLat(), m.getLng(), lat, lng, m.getId());
+                    vo.setDistance((int) dist);
+                    return vo;
+                })
+                .sorted(Comparator.comparingInt(MerchantVO::getDistance))
+                .toList();
     }
 
     @Override

@@ -81,6 +81,12 @@ nsp:
     access-expiration-ms: 7200000     # 2 小时
     refresh-expiration-ms: 604800000  # 7 天
 
+# ========== 百度地图配置 ==========
+baidu:
+  map:
+    ak: ${BAIDU_MAP_AK:placeholder}
+    distance-api: https://api.map.baidu.com/directionlite/v1/driving
+
 # ========== 支付宝沙箱配置 ==========
 alipay:
   app-id: ${ALIPAY_APP_ID:placeholder}
