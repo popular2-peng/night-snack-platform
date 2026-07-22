@@ -421,7 +421,7 @@ Thumbs.db
 
 **Phase 3（最后）**
 13. 补全 Flyway SQL 初始化脚本
-15. 生成 `README.md` 说明如何启动、如何导入 Swagger 到 Apifox、如何配置 OSS / 百度 AK / 支付宝沙箱、`.env` 如何复制填写
+15. 生成 `README.md` 说明如何启动、如何导入 Swagger 到 Apifox、如何配置 OSS / 百度 AK / 支付宝沙箱
 
 ---
 
