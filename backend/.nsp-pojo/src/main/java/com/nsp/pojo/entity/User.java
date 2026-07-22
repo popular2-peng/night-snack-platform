@@ -30,6 +30,9 @@ public class User {
     /** 角色：USER / MERCHANT / ADMIN */
     private UserRole role;
 
+    /** 状态：ACTIVE / DISABLED（管理员可封禁用户） */
+    private String status;
+
     /** 头像 OSS URL */
     private String avatarUrl;
 

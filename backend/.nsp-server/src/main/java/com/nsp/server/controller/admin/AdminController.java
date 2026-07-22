@@ -1,26 +1,116 @@
 package com.nsp.server.controller.admin;
 
 import com.nsp.common.result.Result;
+import com.nsp.pojo.dto.AuditDTO;
+import com.nsp.pojo.vo.*;
 import com.nsp.server.annotation.RequireRole;
+import com.nsp.server.service.AdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 /**
- * 平台管理后台接口 — 占位 Controller（Phase 2 实现审核、封禁功能）
+ * 平台管理后台接口
  */
-@Tag(name = "平台管理", description = "管理员审核、封禁、品类管理")
+@Tag(name = "平台管理", description = "管理员：商家审核、用户管理、商家管理、数据统计")
 @RestController
 @RequestMapping("/api/admin")
+@RequiredArgsConstructor
 @RequireRole("ADMIN")
 public class AdminController {
 
-    @Operation(summary = "管理后台首页（占位）")
+    private final AdminService adminService;
+
+    @Operation(summary = "首页统计")
     @GetMapping("/dashboard")
-    public Result<String> dashboard() {
-        return Result.ok("管理后台 — Phase 2 实现");
+    public Result<AdminDashboardVO> dashboard() {
+        return Result.ok(adminService.getDashboardStats());
+    }
+
+    // ──────────────────────────────────────
+    // 商家入驻审核
+    // ──────────────────────────────────────
+
+    @Operation(summary = "待审核商家申请列表")
+    @GetMapping("/merchant-application/pending")
+    public Result<PageVO<AdminApplicationVO>> listApplications(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return Result.ok(adminService.listApplications(page, size));
+    }
+
+    @Operation(summary = "通过商家入驻申请")
+    @PutMapping("/merchant-application/{id}/approve")
+    public Result<Void> approve(@PathVariable Long id,
+                                @AuthenticationPrincipal Long reviewerId) {
+        adminService.approveApplication(id, reviewerId);
+        return Result.ok();
+    }
+
+    @Operation(summary = "拒绝商家入驻申请")
+    @PutMapping("/merchant-application/{id}/reject")
+    public Result<Void> reject(@PathVariable Long id,
+                               @AuthenticationPrincipal Long reviewerId,
+                               @RequestBody AuditDTO dto) {
+        adminService.rejectApplication(id, reviewerId, dto);
+        return Result.ok();
+    }
+
+    // ──────────────────────────────────────
+    // 用户管理
+    // ──────────────────────────────────────
+
+    @Operation(summary = "用户列表")
+    @GetMapping("/users")
+    public Result<PageVO<AdminUserVO>> listUsers(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword) {
+        return Result.ok(adminService.listUsers(page, size, keyword));
+    }
+
+    @Operation(summary = "封禁用户")
+    @PutMapping("/users/{id}/disable")
+    public Result<Void> disableUser(@PathVariable Long id) {
+        adminService.disableUser(id);
+        return Result.ok();
+    }
+
+    @Operation(summary = "解封用户")
+    @PutMapping("/users/{id}/enable")
+    public Result<Void> enableUser(@PathVariable Long id) {
+        adminService.enableUser(id);
+        return Result.ok();
+    }
+
+    // ──────────────────────────────────────
+    // 商家管理
+    // ──────────────────────────────────────
+
+    @Operation(summary = "商家列表")
+    @GetMapping("/merchants")
+    public Result<PageVO<AdminMerchantVO>> listMerchants(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status) {
+        return Result.ok(adminService.listMerchants(page, size, keyword, status));
+    }
+
+    @Operation(summary = "封禁商家")
+    @PutMapping("/merchants/{id}/suspend")
+    public Result<Void> suspendMerchant(@PathVariable Long id) {
+        adminService.suspendMerchant(id);
+        return Result.ok();
+    }
+
+    @Operation(summary = "解封商家")
+    @PutMapping("/merchants/{id}/activate")
+    public Result<Void> activateMerchant(@PathVariable Long id) {
+        adminService.activateMerchant(id);
+        return Result.ok();
     }
 
 }
