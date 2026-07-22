@@ -3,13 +3,16 @@ package com.nsp.server.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.nsp.common.constant.ErrorCode;
-import com.nsp.common.enums.UserRole;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.LoginDTO;
 import com.nsp.pojo.dto.RegisterDTO;
+import com.nsp.pojo.entity.Admin;
+import com.nsp.pojo.entity.Merchant;
 import com.nsp.pojo.entity.User;
 import com.nsp.pojo.vo.LoginVO;
 import com.nsp.pojo.vo.UserVO;
+import com.nsp.server.mapper.AdminMapper;
+import com.nsp.server.mapper.MerchantMapper;
 import com.nsp.server.mapper.UserMapper;
 import com.nsp.server.security.JwtTokenProvider;
 import com.nsp.server.service.UserService;
@@ -20,7 +23,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
- * 用户业务实现
+ * 用户业务实现 — 登录跨 admin / user / merchant 三表
  */
 @Service
 @RequiredArgsConstructor
@@ -29,11 +32,14 @@ public class UserServiceImpl implements UserService {
     private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
 
     private final UserMapper userMapper;
+    private final AdminMapper adminMapper;
+    private final MerchantMapper merchantMapper;
     private final JwtTokenProvider jwtTokenProvider;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Override
     public LoginVO register(RegisterDTO dto) {
+        // 检查用户名是否在 user 表中已存在
         Long usernameCount = userMapper.selectCount(
                 new LambdaQueryWrapper<User>().eq(User::getUsername, dto.getUsername()));
         if (usernameCount > 0) {
@@ -50,18 +56,18 @@ public class UserServiceImpl implements UserService {
         user.setUsername(dto.getUsername());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setPhone(dto.getPhone());
-        user.setRole(UserRole.USER);
+        user.setStatus("ACTIVE");
         userMapper.insert(user);
 
         log.info("新用户注册: userId={}, username={}", user.getId(), user.getUsername());
 
-        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), UserRole.USER.getCode());
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), UserRole.USER.getCode());
+        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), "USER");
 
         return LoginVO.builder()
                 .userId(user.getId())
                 .username(user.getUsername())
-                .role(UserRole.USER.getCode())
+                .role("USER")
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .build();
@@ -69,28 +75,73 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public LoginVO login(LoginDTO dto) {
+        // 1) 尝试 admin 表
+        Admin admin = adminMapper.selectOne(
+                new LambdaQueryWrapper<Admin>().eq(Admin::getUsername, dto.getUsername()));
+        if (admin != null) {
+            if (!passwordEncoder.matches(dto.getPassword(), admin.getPassword())) {
+                throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
+            }
+            if ("DISABLED".equals(admin.getStatus())) {
+                throw new BizException(ErrorCode.FORBIDDEN, "账号已被封禁");
+            }
+            log.info("管理员登录: adminId={}, username={}", admin.getId(), admin.getUsername());
+            String accessToken = jwtTokenProvider.createAccessToken(admin.getId(), "ADMIN");
+            String refreshToken = jwtTokenProvider.createRefreshToken(admin.getId(), "ADMIN");
+            return LoginVO.builder()
+                    .userId(admin.getId())
+                    .username(admin.getUsername())
+                    .role("ADMIN")
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .build();
+        }
+
+        // 2) 尝试 merchant 表
+        Merchant merchant = merchantMapper.selectOne(
+                new LambdaQueryWrapper<Merchant>().eq(Merchant::getUsername, dto.getUsername()));
+        if (merchant != null) {
+            if (!passwordEncoder.matches(dto.getPassword(), merchant.getPassword())) {
+                throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
+            }
+            if ("SUSPENDED".equals(merchant.getStatus())) {
+                throw new BizException(ErrorCode.FORBIDDEN, "商家已被封禁");
+            }
+            log.info("商家登录: merchantId={}, username={}", merchant.getId(), merchant.getUsername());
+            String accessToken = jwtTokenProvider.createAccessToken(merchant.getId(), "MERCHANT");
+            String refreshToken = jwtTokenProvider.createRefreshToken(merchant.getId(), "MERCHANT");
+            return LoginVO.builder()
+                    .userId(merchant.getId())
+                    .username(merchant.getUsername())
+                    .role("MERCHANT")
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .build();
+        }
+
+        // 3) 尝试 user 表（顾客）
         User user = userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getUsername, dto.getUsername()));
-        if (user == null) {
-            throw new BizException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+        if (user != null) {
+            if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+                throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
+            }
+            if ("DISABLED".equals(user.getStatus())) {
+                throw new BizException(ErrorCode.FORBIDDEN, "账号已被封禁");
+            }
+            log.info("用户登录: userId={}, username={}", user.getId(), user.getUsername());
+            String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
+            String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), "USER");
+            return LoginVO.builder()
+                    .userId(user.getId())
+                    .username(user.getUsername())
+                    .role("USER")
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .build();
         }
 
-        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-            throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
-        }
-
-        log.info("用户登录: userId={}, username={}", user.getId(), user.getUsername());
-
-        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getRole().getCode());
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getRole().getCode());
-
-        return LoginVO.builder()
-                .userId(user.getId())
-                .username(user.getUsername())
-                .role(user.getRole().getCode())
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .build();
+        throw new BizException(ErrorCode.USER_NOT_FOUND, "用户不存在");
     }
 
     @Override
@@ -101,7 +152,7 @@ public class UserServiceImpl implements UserService {
         }
         UserVO vo = new UserVO();
         BeanUtil.copyProperties(user, vo);
-        vo.setRole(user.getRole().getCode());
+        vo.setRole("USER");
         return vo;
     }
 

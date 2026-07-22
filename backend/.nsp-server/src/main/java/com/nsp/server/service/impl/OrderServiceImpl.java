@@ -70,7 +70,7 @@ public class OrderServiceImpl implements OrderService {
         if (merchant == null) {
             throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
         }
-        if (!"OPEN".equals(merchant.getStatus().getCode())) {
+        if (!"OPEN".equals(merchant.getStatus())) {
             throw new BizException(ErrorCode.MERCHANT_CLOSED, "商家已打烊或未审核通过");
         }
         validateBusinessHours(merchant);
@@ -180,7 +180,7 @@ public class OrderServiceImpl implements OrderService {
     public PageVO<OrderListVO> getMerchantOrders(Long merchantId, Long userId, int page, int size) {
         // 校验 userId 是该商家店主
         Merchant merchant = merchantMapper.selectById(merchantId);
-        if (merchant == null || !merchant.getOwnerUserId().equals(userId)) {
+        if (merchant == null || !merchant.getId().equals(userId)) {
             throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, "无权查看该店铺订单");
         }
 
@@ -206,7 +206,7 @@ public class OrderServiceImpl implements OrderService {
         }
         if ("MERCHANT".equals(role)) {
             Merchant merchant = merchantMapper.selectById(order.getMerchantId());
-            if (merchant == null || !merchant.getOwnerUserId().equals(userId)) {
+            if (merchant == null || !merchant.getId().equals(userId)) {
                 throw new BizException(ErrorCode.FORBIDDEN, "无权查看该订单");
             }
         }
@@ -388,7 +388,7 @@ public class OrderServiceImpl implements OrderService {
 
     private Order findMerchantOrder(Long orderId, Long merchantId, Long userId) {
         Merchant merchant = merchantMapper.selectById(merchantId);
-        if (merchant == null || !merchant.getOwnerUserId().equals(userId)) {
+        if (merchant == null || !merchant.getId().equals(userId)) {
             throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, "非本店商家");
         }
         Order order = orderMapper.selectById(orderId);

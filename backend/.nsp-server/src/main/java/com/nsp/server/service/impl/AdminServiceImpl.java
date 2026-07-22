@@ -4,7 +4,6 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
-import com.nsp.common.enums.MerchantStatus;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.AuditDTO;
 import com.nsp.pojo.entity.Merchant;
@@ -48,12 +47,10 @@ public class AdminServiceImpl implements AdminService {
         Long totalUsers = userMapper.selectCount(null);
         Long totalMerchants = merchantMapper.selectCount(null);
 
-        // 今日订单
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         Long todayOrders = orderMapper.selectCount(
                 new LambdaQueryWrapper<Order>().ge(Order::getCreatedAt, todayStart));
 
-        // 今日营业额
         List<Order> todayOrderList = orderMapper.selectList(
                 new LambdaQueryWrapper<Order>()
                         .ge(Order::getCreatedAt, todayStart)
@@ -102,8 +99,6 @@ public class AdminServiceImpl implements AdminService {
         app.setReviewedAt(LocalDateTime.now());
         merchantApplicationMapper.updateById(app);
 
-        // 同时将对应商家的状态更新为 OPEN
-        // 注：实际业务中，商家记录在申请时已创建，此处简化为查找并更新
         log.info("商家入驻申请通过: appId={}, reviewerId={}", id, reviewerId);
     }
 
@@ -121,7 +116,7 @@ public class AdminServiceImpl implements AdminService {
     }
 
     // ──────────────────────────────────────
-    // 用户管理
+    // 用户管理（管理顾客 user 表）
     // ──────────────────────────────────────
 
     @Override
@@ -137,7 +132,7 @@ public class AdminServiceImpl implements AdminService {
         List<AdminUserVO> list = result.getRecords().stream().map(u -> {
             AdminUserVO vo = new AdminUserVO();
             BeanUtil.copyProperties(u, vo);
-            vo.setRole(u.getRole().getCode());
+            vo.setRole("USER");
             return vo;
         }).toList();
         return new PageVO<>(result.getTotal(), list);
@@ -176,7 +171,7 @@ public class AdminServiceImpl implements AdminService {
             wrapper.like(Merchant::getName, keyword);
         }
         if (status != null && !status.isBlank()) {
-            wrapper.eq(Merchant::getStatus, MerchantStatus.fromCode(status.toUpperCase()));
+            wrapper.eq(Merchant::getStatus, status.toUpperCase());
         }
         wrapper.orderByDesc(Merchant::getCreatedAt);
 
@@ -184,9 +179,7 @@ public class AdminServiceImpl implements AdminService {
         List<AdminMerchantVO> list = result.getRecords().stream().map(m -> {
             AdminMerchantVO vo = new AdminMerchantVO();
             BeanUtil.copyProperties(m, vo);
-            vo.setStatus(m.getStatus().getCode());
-            User owner = userMapper.selectById(m.getOwnerUserId());
-            vo.setOwnerName(owner != null ? owner.getUsername() : "未知");
+            vo.setOwnerName(m.getUsername());
             return vo;
         }).toList();
         return new PageVO<>(result.getTotal(), list);
@@ -195,7 +188,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public void suspendMerchant(Long id) {
         Merchant merchant = findMerchant(id);
-        merchant.setStatus(MerchantStatus.SUSPENDED);
+        merchant.setStatus("SUSPENDED");
         merchantMapper.updateById(merchant);
         log.info("管理员封禁商家: merchantId={}", id);
     }
@@ -203,7 +196,7 @@ public class AdminServiceImpl implements AdminService {
     @Override
     public void activateMerchant(Long id) {
         Merchant merchant = findMerchant(id);
-        merchant.setStatus(MerchantStatus.OPEN);
+        merchant.setStatus("OPEN");
         merchantMapper.updateById(merchant);
         log.info("管理员解封商家: merchantId={}", id);
     }

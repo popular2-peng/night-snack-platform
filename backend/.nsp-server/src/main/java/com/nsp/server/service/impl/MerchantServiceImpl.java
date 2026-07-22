@@ -3,7 +3,6 @@ package com.nsp.server.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.nsp.common.constant.ErrorCode;
-import com.nsp.common.enums.MerchantStatus;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.entity.Merchant;
 import com.nsp.pojo.vo.MerchantVO;
@@ -35,9 +34,8 @@ public class MerchantServiceImpl implements MerchantService {
     public List<MerchantVO> listNearby(BigDecimal lat, BigDecimal lng) {
         List<Merchant> merchants = merchantMapper.selectList(
                 new LambdaQueryWrapper<Merchant>()
-                        .eq(Merchant::getStatus, MerchantStatus.OPEN));
+                        .eq(Merchant::getStatus, "OPEN"));
 
-        // 计算距离并按距离排序
         return merchants.stream()
                 .map(m -> {
                     MerchantVO vo = toVO(m);
@@ -65,13 +63,14 @@ public class MerchantServiceImpl implements MerchantService {
         if (merchant == null) {
             throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
         }
-        if (!merchant.getOwnerUserId().equals(userId)) {
+        // 商家登录后 JWT 中的 userId 即为 merchant.id，校验一致性
+        if (!merchant.getId().equals(userId)) {
             throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, "非本店商家，无权操作");
         }
 
         Merchant update = new Merchant();
         update.setId(merchantId);
-        update.setStatus(MerchantStatus.fromCode(status));
+        update.setStatus(status.toUpperCase());
         merchantMapper.updateById(update);
         log.info("商家状态更新: merchantId={}, status={}", merchantId, status);
     }
@@ -79,7 +78,7 @@ public class MerchantServiceImpl implements MerchantService {
     private MerchantVO toVO(Merchant merchant) {
         MerchantVO vo = new MerchantVO();
         BeanUtil.copyProperties(merchant, vo);
-        vo.setStatus(merchant.getStatus().getCode());
+        vo.setStatus(merchant.getStatus());
         return vo;
     }
 
