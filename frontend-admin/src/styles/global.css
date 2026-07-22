@@ -1,37 +1,246 @@
-body {
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', sans-serif;
-  -webkit-font-smoothing: antialiased;
+/* ============================================
+   夜宵外卖平台 — 管理后台全局样式
+   ============================================ */
+
+/* === CSS 变量 === */
+:root {
+  --primary: #409EFF;
+  --primary-light: #66b1ff;
+  --primary-dark: #3a8ee6;
+  --success: #67C23A;
+  --warning: #E6A23C;
+  --danger: #F56C6C;
+  --info: #909399;
+  --bg: #f0f2f5;
+  --bg-white: #ffffff;
+  --text-primary: #303133;
+  --text-regular: #606266;
+  --text-secondary: #909399;
+  --border-color: #ebeef5;
+  --sidebar-bg: #1a1a2e;
+  --sidebar-text: #bfcbd9;
+  --sidebar-active: #409EFF;
+  --header-height: 60px;
+  --sidebar-width: 220px;
+  --border-radius: 8px;
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+  --transition: 0.3s ease;
 }
 
-/* 侧边栏 logo 区域 */
+/* === 基础重置 === */
+body {
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* === 滚动条美化 === */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #909399;
+}
+
+/* === 侧边栏 logo 区域 === */
 .sidebar-logo {
   height: 64px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  user-select: none;
+}
+.sidebar-logo .logo-icon {
+  font-size: 28px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+.sidebar-logo .logo-title {
+  font-size: 16px;
   font-weight: 600;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  letter-spacing: 2px;
+}
+.sidebar-logo .logo-subtitle {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 1px;
 }
 
-/* 页面内容区域 */
+/* === 页面内容区域 === */
 .page-container {
-  padding: 20px;
-  background: #f0f2f5;
-  min-height: calc(100vh - 60px);
+  padding: 24px;
+  background: var(--bg);
+  min-height: calc(100vh - var(--header-height));
 }
 
 .page-card {
-  background: #fff;
-  border-radius: 4px;
+  background: var(--bg-white);
+  border-radius: var(--border-radius);
   padding: 24px;
+  box-shadow: var(--shadow-md);
+  transition: box-shadow var(--transition);
 }
 
-/* 搜索栏 */
+/* === 页面标题 === */
+.page-header {
+  margin-bottom: 24px;
+}
+.page-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px 0;
+}
+.page-header .page-breadcrumb {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* === 搜索栏 === */
 .search-bar {
   display: flex;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   align-items: center;
+  flex-wrap: wrap;
+}
+
+/* === 表格增强 === */
+.page-card .el-table {
+  --el-table-header-bg-color: #fafafa;
+  --el-table-row-hover-bg-color: #f5f7fa;
+}
+.page-card .el-table th.el-table__cell {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* === 分页区 === */
+.page-card .pagination-wrap {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* === 过渡动画 === */
+.fade-in {
+  animation: fadeInUp 0.4s ease;
+}
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-scale {
+  animation: fadeInScale 0.35s ease;
+}
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* === 欢迎横幅 === */
+.welcome-banner {
+  background: linear-gradient(135deg, var(--primary) 0%, #66b1ff 100%);
+  border-radius: var(--border-radius);
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.welcome-banner .welcome-text h3 {
+  font-size: 20px;
+  margin: 0 0 6px 0;
+  font-weight: 600;
+}
+.welcome-banner .welcome-text p {
+  font-size: 13px;
+  margin: 0;
+  opacity: 0.85;
+}
+.welcome-banner .welcome-date {
+  text-align: right;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.welcome-banner .welcome-date strong {
+  font-size: 24px;
+  display: block;
+  font-weight: 600;
+}
+
+/* === Element Plus 微调 === */
+
+/* 按钮圆角 */
+.el-button {
+  border-radius: 6px;
+  transition: all var(--transition);
+}
+
+/* 输入框圆角 */
+.el-input .el-input__wrapper {
+  border-radius: 6px;
+}
+
+/* 下拉选择器圆角 */
+.el-select .el-input__wrapper {
+  border-radius: 6px;
+}
+
+/* Tag 圆角 */
+.el-tag {
+  border-radius: 4px;
+}
+
+/* 分页按钮背景 */
+.el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
+  background-color: var(--primary);
+}
+
+/* 表格工具提示增强 */
+.el-tooltip__trigger {
+  cursor: pointer;
+}
+
+/* 菜单项过渡 */
+.el-menu-item {
+  transition: all var(--transition) !important;
+}
+
+/* 卡片增强 */
+.el-card {
+  border-radius: var(--border-radius);
+  border: none;
+  transition: all var(--transition);
 }

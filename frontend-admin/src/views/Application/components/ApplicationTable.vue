@@ -11,6 +11,12 @@ const page = ref(1)
 const size = ref(10)
 const loading = ref(false)
 
+const statusMap: Record<string, { label: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
+  PENDING: { label: '待审核', type: 'warning' },
+  APPROVED: { label: '已通过', type: 'success' },
+  REJECTED: { label: '已拒绝', type: 'info' },
+}
+
 async function fetchApps() {
   loading.value = true
   const res = await listApplications({ page: page.value, size: size.value })
@@ -23,7 +29,7 @@ function handleSizeChange(val: number) { size.value = val; fetchApps() }
 function handlePageChange(val: number) { page.value = val; fetchApps() }
 
 async function handleApprove(row: AppItem) {
-  await ElMessageBox.confirm(`确定通过 "${row.shopName}" 的入驻申请？`, '确认', { type: 'success' })
+  await ElMessageBox.confirm(`确定通过 "${row.shopName}" 的入驻申请？`, '确认通过', { type: 'success' })
   await approveApplication(row.id)
   ElMessage.success('已通过')
   fetchApps()
@@ -46,35 +52,47 @@ onMounted(fetchApps)
 
 <template>
   <div class="page-card">
-    <el-table :data="apps" border stripe v-loading="loading" style="width: 100%">
+    <el-table :data="apps" stripe v-loading="loading" style="width: 100%" :header-cell-style="{ background: '#fafafa', fontWeight: 600, color: '#303133' }">
       <el-table-column prop="id" label="ID" width="80" align="center" />
       <el-table-column prop="shopName" label="申请店铺名" width="160" />
       <el-table-column prop="applicantUsername" label="申请人" width="120" />
       <el-table-column prop="reason" label="申请理由" min-width="200" show-overflow-tooltip />
       <el-table-column prop="status" label="状态" width="100" align="center">
         <template #default="{ row }">
-          <el-tag type="warning" size="small">待审核</el-tag>
+          <el-tag :type="statusMap[row.status]?.type || 'warning'" size="small">
+            {{ statusMap[row.status]?.label || '待审核' }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="createdAt" label="申请时间" width="180" />
       <el-table-column label="操作" width="200" align="center" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" type="success" @click="handleApprove(row)">通过</el-button>
-          <el-button size="small" type="danger" @click="handleReject(row)">拒绝</el-button>
+          <template v-if="row.status === 'PENDING'">
+            <el-button size="small" type="success" @click="handleApprove(row)">通过</el-button>
+            <el-button size="small" type="danger" @click="handleReject(row)">拒绝</el-button>
+          </template>
+          <span v-else class="text-disabled">—</span>
         </template>
       </el-table-column>
     </el-table>
 
-    <div style="margin-top: 16px; display: flex; justify-content: flex-end">
+    <div class="pagination-wrap">
       <el-pagination
         v-model:current-page="page"
         v-model:page-size="size"
         :total="total"
         :page-sizes="[10, 20, 50]"
         layout="total, sizes, prev, pager, next"
+        background
         @size-change="handleSizeChange"
         @current-change="handlePageChange"
       />
     </div>
   </div>
 </template>
+
+<style scoped>
+.text-disabled {
+  color: #c0c4cc;
+}
+</style>

@@ -1,9 +1,22 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { ArrowDown, SwitchButton, UserFilled } from '@element-plus/icons-vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const route = useRoute()
+
+const titleMap: Record<string, string> = {
+  '/dashboard': '数据概览',
+  '/users': '用户管理',
+  '/merchants': '商家管理',
+  '/applications': '入驻审核',
+}
+
+const currentTitle = computed(() => titleMap[route.path] || route.meta?.title || '')
 
 function handleLogout() {
   authStore.logout()
@@ -13,10 +26,28 @@ function handleLogout() {
 
 <template>
   <div class="header-bar">
-    <div class="header-left" />
+    <div class="header-left">
+      <el-breadcrumb separator="/">
+        <el-breadcrumb-item :to="{ path: '/dashboard' }">首页</el-breadcrumb-item>
+        <el-breadcrumb-item v-if="currentTitle">{{ currentTitle }}</el-breadcrumb-item>
+      </el-breadcrumb>
+    </div>
     <div class="header-right">
-      <span class="username">{{ authStore.username }}</span>
-      <el-button text @click="handleLogout">退出</el-button>
+      <el-dropdown trigger="click">
+        <span class="user-info">
+          <el-avatar :size="32" :icon="UserFilled" />
+          <span class="username">{{ authStore.username }}</span>
+          <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+        </span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item @click="handleLogout">
+              <el-icon><SwitchButton /></el-icon>
+              <span>退出登录</span>
+            </el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </div>
   </div>
 </template>
@@ -29,14 +60,40 @@ function handleLogout() {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  z-index: 10;
+  position: relative;
+}
+.header-left {
+  display: flex;
+  align-items: center;
 }
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+}
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.3s;
+}
+.user-info:hover {
+  background: #f5f7fa;
 }
 .username {
-  color: #606266;
+  font-size: 14px;
+  color: #303133;
+}
+.arrow-icon {
+  font-size: 12px;
+  color: #909399;
+  transition: transform 0.3s;
+}
+.user-info:hover .arrow-icon {
+  transform: rotate(180deg);
 }
 </style>
