@@ -46,32 +46,50 @@ function handleSelect(path: string) {
 
 <style scoped>
 .el-menu {
-  height: calc(100% - 64px - 32px);
+  height: calc(100% - 68px - 36px);
   border-right: none !important;
+  padding: 8px 10px;
 }
 
 .el-menu .nav-item {
-  margin: 4px 8px;
-  border-radius: 6px;
+  margin: 2px 0;
+  border-radius: 8px;
   height: 44px;
   line-height: 44px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  position: relative;
 }
 .el-menu .nav-item:hover {
-  background-color: rgba(255, 255, 255, 0.06) !important;
+  background-color: var(--sidebar-hover) !important;
+  color: #fff !important;
+  padding-left: 22px !important;
 }
 .el-menu .nav-item.is-active {
-  background: linear-gradient(90deg, rgba(64, 158, 255, 0.2), transparent) !important;
-  border-left: 3px solid var(--sidebar-active);
+  background: linear-gradient(135deg, rgba(91, 141, 239, 0.18), rgba(91, 141, 239, 0.06)) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+.el-menu .nav-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  background: var(--sidebar-active);
+  border-radius: 0 3px 3px 0;
 }
 
 .sidebar-footer {
-  height: 32px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.25);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   user-select: none;
+  letter-spacing: 1px;
 }
 </style>

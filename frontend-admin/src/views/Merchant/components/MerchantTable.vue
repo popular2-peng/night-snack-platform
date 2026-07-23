@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { listMerchants, suspendMerchant, activateMerchant } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
@@ -56,30 +56,44 @@ const statusOptions = [
   { label: '已封禁', value: 'SUSPENDED' },
 ]
 
+const openCount = computed(() => merchants.value.filter(m => m.status === 'OPEN').length)
+
 onMounted(fetchMerchants)
 </script>
 
 <template>
   <div class="page-card">
+    <!-- 数据统计条 -->
+    <div class="stats-strip">
+      <div class="stat-item">
+        <span class="stat-item-value">{{ total }}</span>
+        <span class="stat-item-label">商家总数</span>
+      </div>
+      <div class="stat-divider" />
+      <div class="stat-item">
+        <span class="stat-item-value text-success">{{ openCount }}</span>
+        <span class="stat-item-label">营业中</span>
+      </div>
+    </div>
+
     <div class="search-bar">
-      <el-input v-model="keyword" placeholder="搜索店铺名" clearable style="width: 220px" @keyup.enter="handleSearch" />
+      <el-input v-model="keyword" placeholder="搜索店铺名" clearable style="width: 220px" @keyup.enter="handleSearch">
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
       <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 140px" @change="handleSearch">
         <el-option v-for="o in statusOptions" :key="o.value" :label="o.label" :value="o.value" />
       </el-select>
-      <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
+      <el-button type="primary" @click="handleSearch">搜索</el-button>
     </div>
 
-    <el-table :data="merchants" stripe v-loading="loading" style="width: 100%" :header-cell-style="{ background: '#fafafa', fontWeight: 600, color: '#303133' }">
+    <el-table :data="merchants" stripe v-loading="loading" style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" align="center" />
-      <el-table-column prop="name" label="店铺名称" />
+      <el-table-column prop="name" label="店铺名称" min-width="140" />
       <el-table-column prop="ownerName" label="店主" width="120" />
       <el-table-column prop="phone" label="联系电话" width="140" />
       <el-table-column prop="status" label="状态" width="100" align="center">
         <template #default="{ row }">
-          <el-tag
-            :type="statusMap[row.status]?.type || 'info'"
-            size="small"
-          >
+          <el-tag :type="statusMap[row.status]?.type || 'info'" size="small" effect="plain">
             {{ statusMap[row.status]?.label || row.status }}
           </el-tag>
         </template>
@@ -107,3 +121,37 @@ onMounted(fetchMerchants)
     </div>
   </div>
 </template>
+
+<style scoped>
+.stats-strip {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: var(--bg);
+  border-radius: var(--border-radius-sm);
+}
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+.stat-item-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.stat-item-value.text-success { color: var(--success); }
+.stat-item-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-color);
+}
+</style>

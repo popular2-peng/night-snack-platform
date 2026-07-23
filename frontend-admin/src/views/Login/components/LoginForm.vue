@@ -90,17 +90,18 @@ async function handleLogin() {
 <style scoped>
 .login-btn {
   width: 100%;
-  height: 44px;
+  height: 46px;
   font-size: 16px;
-  letter-spacing: 6px;
+  font-weight: 600;
+  letter-spacing: 8px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #409EFF 0%, #337ecc 100%);
+  background: linear-gradient(135deg, #5B8DEF 0%, #3D6FCF 100%);
   border: none;
-  transition: all 0.3s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .login-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.45);
+  box-shadow: 0 8px 24px rgba(91, 141, 239, 0.4);
 }
 .login-btn:active {
   transform: translateY(0);

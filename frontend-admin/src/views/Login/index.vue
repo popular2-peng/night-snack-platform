@@ -26,7 +26,7 @@ import LoginForm from './components/LoginForm.vue'
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background: linear-gradient(140deg, #1A1D2E 0%, #1F2744 40%, #1A2F55 100%);
   position: relative;
   overflow: hidden;
 }

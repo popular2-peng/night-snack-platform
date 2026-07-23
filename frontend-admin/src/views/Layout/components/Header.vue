@@ -59,8 +59,8 @@ function handleLogout() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  padding: 0 28px;
+  box-shadow: 0 1px 0 var(--border-light);
   z-index: 10;
   position: relative;
 }
@@ -75,23 +75,25 @@ function handleLogout() {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background 0.3s;
+  padding: 6px 14px 6px 6px;
+  border-radius: 24px;
+  transition: all var(--transition);
+  background: var(--bg);
 }
 .user-info:hover {
-  background: #f5f7fa;
+  background: var(--primary-bg);
 }
 .username {
   font-size: 14px;
-  color: #303133;
+  color: var(--text-primary);
+  font-weight: 500;
 }
 .arrow-icon {
   font-size: 12px;
-  color: #909399;
-  transition: transform 0.3s;
+  color: var(--text-secondary);
+  transition: transform var(--transition);
 }
 .user-info:hover .arrow-icon {
   transform: rotate(180deg);

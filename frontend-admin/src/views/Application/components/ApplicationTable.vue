@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { listApplications, approveApplication, rejectApplication } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -47,19 +47,34 @@ async function handleReject(row: AppItem) {
   }
 }
 
+const pendingCount = computed(() => apps.value.filter(a => a.status === 'PENDING').length)
+
 onMounted(fetchApps)
 </script>
 
 <template>
   <div class="page-card">
-    <el-table :data="apps" stripe v-loading="loading" style="width: 100%" :header-cell-style="{ background: '#fafafa', fontWeight: 600, color: '#303133' }">
+    <!-- 数据统计条 -->
+    <div class="stats-strip">
+      <div class="stat-item">
+        <span class="stat-item-value">{{ total }}</span>
+        <span class="stat-item-label">申请总数</span>
+      </div>
+      <div class="stat-divider" />
+      <div class="stat-item">
+        <span class="stat-item-value text-warning">{{ pendingCount }}</span>
+        <span class="stat-item-label">待审核</span>
+      </div>
+    </div>
+
+    <el-table :data="apps" stripe v-loading="loading" style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" align="center" />
       <el-table-column prop="shopName" label="申请店铺名" width="160" />
       <el-table-column prop="applicantUsername" label="申请人" width="120" />
       <el-table-column prop="reason" label="申请理由" min-width="200" show-overflow-tooltip />
       <el-table-column prop="status" label="状态" width="100" align="center">
         <template #default="{ row }">
-          <el-tag :type="statusMap[row.status]?.type || 'warning'" size="small">
+          <el-tag :type="statusMap[row.status]?.type || 'warning'" size="small" effect="plain">
             {{ statusMap[row.status]?.label || '待审核' }}
           </el-tag>
         </template>
@@ -71,7 +86,7 @@ onMounted(fetchApps)
             <el-button size="small" type="success" @click="handleApprove(row)">通过</el-button>
             <el-button size="small" type="danger" @click="handleReject(row)">拒绝</el-button>
           </template>
-          <span v-else class="text-disabled">—</span>
+          <span v-else class="text-disabled">-</span>
         </template>
       </el-table-column>
     </el-table>
@@ -92,7 +107,36 @@ onMounted(fetchApps)
 </template>
 
 <style scoped>
-.text-disabled {
-  color: #c0c4cc;
+.stats-strip {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: var(--bg);
+  border-radius: var(--border-radius-sm);
 }
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+.stat-item-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.stat-item-value.text-warning { color: var(--warning); }
+.stat-item-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-color);
+}
+.text-disabled { color: var(--text-placeholder); }
 </style>

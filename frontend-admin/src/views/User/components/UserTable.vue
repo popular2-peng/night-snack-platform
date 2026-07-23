@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { listUsers, disableUser, enableUser } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
@@ -27,11 +27,7 @@ async function fetchUsers() {
   loading.value = false
 }
 
-function handleSearch() {
-  page.value = 1
-  fetchUsers()
-}
-
+function handleSearch() { page.value = 1; fetchUsers() }
 function handleSizeChange(val: number) { size.value = val; fetchUsers() }
 function handlePageChange(val: number) { page.value = val; fetchUsers() }
 
@@ -48,19 +44,36 @@ async function handleEnable(row: UserItem) {
   fetchUsers()
 }
 
+const activeCount = computed(() => users.value.filter(u => u.status === 'ACTIVE').length)
+
 onMounted(fetchUsers)
 </script>
 
 <template>
   <div class="page-card">
-    <div class="search-bar">
-      <el-input v-model="keyword" placeholder="搜索用户名/手机号" clearable style="width: 260px" @clear="handleSearch" @keyup.enter="handleSearch" />
-      <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
+    <!-- 数据统计条 -->
+    <div class="stats-strip">
+      <div class="stat-item">
+        <span class="stat-item-value">{{ total }}</span>
+        <span class="stat-item-label">用户总数</span>
+      </div>
+      <div class="stat-divider" />
+      <div class="stat-item">
+        <span class="stat-item-value text-success">{{ activeCount }}</span>
+        <span class="stat-item-label">活跃用户</span>
+      </div>
     </div>
 
-    <el-table :data="users" stripe v-loading="loading" style="width: 100%" :header-cell-style="{ background: '#fafafa', fontWeight: 600, color: '#303133' }">
+    <div class="search-bar">
+      <el-input v-model="keyword" placeholder="搜索用户名/手机号" clearable style="width: 280px" @clear="handleSearch" @keyup.enter="handleSearch">
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
+      <el-button type="primary" @click="handleSearch">搜索</el-button>
+    </div>
+
+    <el-table :data="users" stripe v-loading="loading" style="width: 100%">
       <el-table-column prop="id" label="ID" width="80" align="center" />
-      <el-table-column prop="username" label="用户名" />
+      <el-table-column prop="username" label="用户名" min-width="120" />
       <el-table-column prop="phone" label="手机号" width="140" />
       <el-table-column prop="role" label="角色" width="100" align="center">
         <template #default="{ row }">
@@ -71,7 +84,7 @@ onMounted(fetchUsers)
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100" align="center">
         <template #default="{ row }">
-          <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" size="small">
+          <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'danger'" size="small" effect="plain">
             {{ row.status === 'ACTIVE' ? '正常' : '已封禁' }}
           </el-tag>
         </template>
@@ -83,7 +96,7 @@ onMounted(fetchUsers)
             <el-button v-if="row.status === 'ACTIVE'" size="small" type="danger" plain @click="handleDisable(row)">封禁</el-button>
             <el-button v-else size="small" type="success" plain @click="handleEnable(row)">解封</el-button>
           </template>
-          <span v-else class="text-disabled">—</span>
+          <span v-else class="text-disabled">-</span>
         </template>
       </el-table-column>
     </el-table>
@@ -104,7 +117,36 @@ onMounted(fetchUsers)
 </template>
 
 <style scoped>
-.text-disabled {
-  color: #c0c4cc;
+.stats-strip {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: var(--bg);
+  border-radius: var(--border-radius-sm);
 }
+.stat-item {
+  display: flex;
+  flex-direction: column;
+}
+.stat-item-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.stat-item-value.text-success { color: var(--success); }
+.stat-item-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.stat-divider {
+  width: 1px;
+  height: 32px;
+  background: var(--border-color);
+}
+.text-disabled { color: var(--text-placeholder); }
 </style>

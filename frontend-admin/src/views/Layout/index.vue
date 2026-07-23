@@ -21,13 +21,14 @@ import Header from './components/Header.vue'
 
 <style scoped>
 .layout-container {
-  height: 100vh;
+  min-height: 100dvh;
 }
 .layout-aside {
   background: var(--sidebar-bg);
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.18);
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.12);
   z-index: 20;
   overflow: hidden;
+  transition: width var(--transition);
 }
 .layout-header {
   padding: 0;

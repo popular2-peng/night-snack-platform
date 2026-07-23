@@ -130,34 +130,44 @@ function formatMoney(n: number) {
   <el-row :gutter="20" style="margin-top: 8px">
     <!-- 订单状态分布饼图 -->
     <el-col :xs="24" :lg="12" style="margin-bottom: 20px">
-      <el-card shadow="hover" v-loading="loading">
+      <el-card shadow="hover" v-loading="loading" class="chart-card">
         <template #header>
-          <span class="card-title">📊 订单状态分布</span>
+          <div class="card-title">
+            <span class="card-title-icon" style="background:#EEF3FD;color:#5B8DEF;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M2 12h20"/></svg>
+            </span>
+            订单状态分布
+          </div>
         </template>
-        <v-chart :option="pieOption" style="height: 320px" autoresize />
+        <v-chart :option="pieOption" style="height: 340px" autoresize />
       </el-card>
     </el-col>
 
     <!-- 最新订单 -->
     <el-col :xs="24" :lg="12" style="margin-bottom: 20px">
-      <el-card shadow="hover" v-loading="loading">
+      <el-card shadow="hover" v-loading="loading" class="table-card">
         <template #header>
-          <span class="card-title">📋 最新订单</span>
+          <div class="card-title">
+            <span class="card-title-icon" style="background:#F0FAF0;color:#52C41A;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+            </span>
+            最新订单
+          </div>
         </template>
-        <el-table :data="recentOrders" stripe size="small" max-height="320">
-          <el-table-column prop="orderNo" label="订单号" width="160" />
-          <el-table-column prop="username" label="用户" width="80" />
-          <el-table-column prop="merchantName" label="商家" width="100" show-overflow-tooltip />
-          <el-table-column prop="status" label="状态" width="85">
+        <el-table :data="recentOrders" stripe size="small" max-height="340" class="compact-table">
+          <el-table-column prop="orderNo" label="订单号" width="155" />
+          <el-table-column prop="username" label="用户" width="75" />
+          <el-table-column prop="merchantName" label="商家" width="95" show-overflow-tooltip />
+          <el-table-column prop="status" label="状态" width="80" align="center">
             <template #default="{ row }">
               <el-tag :type="STATUS_TAG[row.status] || 'info'" size="small" disable-transitions>
                 {{ row.status }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="totalAmount" label="金额" width="85">
+          <el-table-column prop="totalAmount" label="金额" width="80" align="right">
             <template #default="{ row }">
-              {{ formatMoney(row.totalAmount) }}
+              <span class="money-cell">{{ formatMoney(row.totalAmount) }}</span>
             </template>
           </el-table-column>
         </el-table>
@@ -165,3 +175,26 @@ function formatMoney(n: number) {
     </el-col>
   </el-row>
 </template>
+
+<style scoped>
+.card-title-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.money-cell {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.compact-table :deep(.el-table__header th) {
+  padding: 10px 0;
+}
+.compact-table :deep(.el-table__body td) {
+  padding: 8px 0;
+}
+</style>
