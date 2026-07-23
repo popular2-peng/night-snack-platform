@@ -73,7 +73,7 @@ async function handleLogin() {
         </template>
       </el-input>
     </el-form-item>
-    <el-form-item>
+    <el-form-item class="login-btn-item">
       <el-button
         type="primary"
         size="large"
@@ -88,6 +88,9 @@ async function handleLogin() {
 </template>
 
 <style scoped>
+.login-btn-item {
+  margin-top: 12px;
+}
 .login-btn {
   width: 100%;
   height: 46px;
