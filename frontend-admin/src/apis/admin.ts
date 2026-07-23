@@ -1,8 +1,18 @@
 import request from './request'
 
-// 首页统计
+// 首页统计卡片
 export function getDashboardStats() {
-  return request.get('/admin/dashboard')
+  return request.get('/admin/dashboard/stats')
+}
+
+// 订单状态分布
+export function getOrderStatusDistribution() {
+  return request.get('/admin/dashboard/order-stats')
+}
+
+// 最新订单
+export function getRecentOrders(limit = 10) {
+  return request.get('/admin/dashboard/recent-orders', { params: { limit } })
 }
 
 // ---- 商家入驻审核 ----

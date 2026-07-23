@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * 平台管理后台接口
  */
@@ -23,10 +25,27 @@ public class AdminController {
 
     private final AdminService adminService;
 
-    @Operation(summary = "首页统计")
-    @GetMapping("/dashboard")
-    public Result<AdminDashboardVO> dashboard() {
-        return Result.ok(adminService.getDashboardStats());
+    // ──────────────────────────────────────
+    // 首页仪表盘（拆分）
+    // ──────────────────────────────────────
+
+    @Operation(summary = "核心统计卡片")
+    @GetMapping("/dashboard/stats")
+    public Result<AdminDashboardVO> stats() {
+        return Result.ok(adminService.getStats());
+    }
+
+    @Operation(summary = "订单状态分布")
+    @GetMapping("/dashboard/order-stats")
+    public Result<List<OrderStatusStatVO>> orderStats() {
+        return Result.ok(adminService.getOrderStatusDistribution());
+    }
+
+    @Operation(summary = "最新订单")
+    @GetMapping("/dashboard/recent-orders")
+    public Result<List<AdminRecentOrderVO>> recentOrders(
+            @RequestParam(defaultValue = "10") int limit) {
+        return Result.ok(adminService.getRecentOrders(limit));
     }
 
     // ──────────────────────────────────────

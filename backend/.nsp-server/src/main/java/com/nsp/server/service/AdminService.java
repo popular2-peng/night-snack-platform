@@ -8,8 +8,14 @@ import com.nsp.pojo.vo.*;
  */
 public interface AdminService {
 
-    /** 首页统计 */
-    AdminDashboardVO getDashboardStats();
+    /** 首页核心统计 */
+    AdminDashboardVO getStats();
+
+    /** 订单状态分布（饼图/柱状图数据） */
+    java.util.List<OrderStatusStatVO> getOrderStatusDistribution();
+
+    /** 最新订单列表 */
+    java.util.List<AdminRecentOrderVO> getRecentOrders(int limit);
 
     /** 商家入驻申请列表（分页） */
     PageVO<AdminApplicationVO> listApplications(int page, int size);

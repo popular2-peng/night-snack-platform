@@ -3,13 +3,12 @@ package com.nsp.server.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.AuditDTO;
-import com.nsp.pojo.entity.Merchant;
-import com.nsp.pojo.entity.MerchantApplication;
-import com.nsp.pojo.entity.Order;
-import com.nsp.pojo.entity.User;
+import com.nsp.pojo.entity.*;
 import com.nsp.pojo.vo.*;
 import com.nsp.server.mapper.*;
 import com.nsp.server.service.AdminService;
@@ -19,10 +18,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 管理员业务实现
@@ -43,28 +43,87 @@ public class AdminServiceImpl implements AdminService {
     // ──────────────────────────────────────
 
     @Override
-    public AdminDashboardVO getDashboardStats() {
+    public AdminDashboardVO getStats() {
         Long totalUsers = userMapper.selectCount(null);
         Long totalMerchants = merchantMapper.selectCount(null);
-
-        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
-        Long todayOrders = orderMapper.selectCount(
-                new LambdaQueryWrapper<Order>().ge(Order::getCreatedAt, todayStart));
-
-        List<Order> todayOrderList = orderMapper.selectList(
-                new LambdaQueryWrapper<Order>()
-                        .ge(Order::getCreatedAt, todayStart)
-                        .ne(Order::getStatus, com.nsp.common.enums.OrderStatus.CANCELLED));
-        BigDecimal todayRevenue = todayOrderList.stream()
-                .map(Order::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        Long totalOrders = orderMapper.selectCount(null);
+        Long pendingApplications = merchantApplicationMapper.selectCount(
+                new LambdaQueryWrapper<MerchantApplication>()
+                        .eq(MerchantApplication::getStatus, "PENDING"));
 
         return AdminDashboardVO.builder()
                 .totalUsers(totalUsers)
                 .totalMerchants(totalMerchants)
-                .todayOrders(todayOrders)
-                .todayRevenue(todayRevenue)
+                .totalOrders(totalOrders)
+                .pendingApplications(pendingApplications)
                 .build();
+    }
+
+    @Override
+    public List<OrderStatusStatVO> getOrderStatusDistribution() {
+        // 全表查 order 按 status 分组统计
+        List<Order> all = orderMapper.selectList(null);
+
+        // status → 中文名映射
+        Map<String, String> labelMap = Map.of(
+                "PENDING_PAY", "待支付",
+                "PAID", "已支付",
+                "ACCEPTED", "已接单",
+                "COOKING", "制作中",
+                "COMPLETED", "已完成",
+                "CANCELLED", "已取消",
+                "REFUNDING", "退款中",
+                "REFUNDED", "已退款"
+        );
+
+        Map<String, Long> countMap = all.stream()
+                .collect(Collectors.groupingBy(
+                        o -> o.getStatus().getCode(), Collectors.counting()));
+
+        // 按固定顺序输出，保证前端图表一致
+        List<String> orderedStatuses = List.of(
+                "PENDING_PAY", "PAID", "ACCEPTED", "COOKING",
+                "COMPLETED", "CANCELLED", "REFUNDING", "REFUNDED");
+
+        List<OrderStatusStatVO> result = new ArrayList<>();
+        for (String status : orderedStatuses) {
+            Long count = countMap.getOrDefault(status, 0L);
+            if (count > 0) {
+                result.add(OrderStatusStatVO.builder()
+                        .status(status)
+                        .label(labelMap.getOrDefault(status, status))
+                        .count(count)
+                        .build());
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public List<AdminRecentOrderVO> getRecentOrders(int limit) {
+        List<Order> orders = orderMapper.selectList(
+                new LambdaQueryWrapper<Order>()
+                        .orderByDesc(Order::getCreatedAt)
+                        .last("LIMIT " + Math.min(limit, 50)));
+
+        return orders.stream().map(o -> {
+            String username = "";
+            User user = userMapper.selectById(o.getUserId());
+            if (user != null) username = user.getUsername();
+
+            String merchantName = "";
+            Merchant m = merchantMapper.selectById(o.getMerchantId());
+            if (m != null) merchantName = m.getName();
+
+            return AdminRecentOrderVO.builder()
+                    .orderNo(o.getOrderNo())
+                    .username(username)
+                    .merchantName(merchantName)
+                    .status(o.getStatus().getCode())
+                    .totalAmount(o.getTotalAmount())
+                    .createdAt(o.getCreatedAt())
+                    .build();
+        }).toList();
     }
 
     // ──────────────────────────────────────
