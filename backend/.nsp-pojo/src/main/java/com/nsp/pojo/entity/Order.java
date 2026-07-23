@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
  * 订单 — 一条订单包含一个商家的多个商品
  */
 @Data
-@TableName("order")
+@TableName("`order`")
 public class Order {
 
     @TableId(type = IdType.AUTO)
