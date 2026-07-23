@@ -258,16 +258,16 @@ CREATE TABLE `merchant_application` (
 
 -- ───── 1. 平台管理员 ─────
 INSERT INTO `admin` (`id`, `username`, `password`, `phone`, `status`) VALUES
-(1, 'admin',     '$2b$10$LA1ZKB2DpzMatDBtHq7zSOWO9TQb.HRszyosnQkQKZRXxPILYPDSu', '13800000001', 'ACTIVE'),
-(2, 'superadmin','$2b$10$LA1ZKB2DpzMatDBtHq7zSOWO9TQb.HRszyosnQkQKZRXxPILYPDSu', '13800000000', 'ACTIVE');
+(1, 'admin',     '$2b$10$RnfmrSWD7e41HQGEWwXhXeCw982sMKxoPe2wkICq9mp2GrfNy/dpO', '13800000001', 'ACTIVE'),
+(2, 'superadmin','$2b$10$RnfmrSWD7e41HQGEWwXhXeCw982sMKxoPe2wkICq9mp2GrfNy/dpO', '13800000000', 'ACTIVE');
 
 -- ───── 2. 普通用户（顾客） ─────
 INSERT INTO `user` (`id`, `username`, `password`, `phone`, `status`) VALUES
-(1, 'tester',   '$2b$10$VicOZfWSYkHPfsIw7IZscew36cAAIG21LbESuSqtdlUvJQYokaeTC', '13800000003', 'ACTIVE'),
-(2, 'zhangsan', '$2b$10$VicOZfWSYkHPfsIw7IZscew36cAAIG21LbESuSqtdlUvJQYokaeTC', '13811111111', 'ACTIVE'),
-(3, 'lisi',     '$2b$10$VicOZfWSYkHPfsIw7IZscew36cAAIG21LbESuSqtdlUvJQYokaeTC', '13822222222', 'ACTIVE'),
-(4, 'wangwu',   '$2b$10$VicOZfWSYkHPfsIw7IZscew36cAAIG21LbESuSqtdlUvJQYokaeTC', '13833333333', 'ACTIVE'),
-(5, 'zhaoliu',  '$2b$10$VicOZfWSYkHPfsIw7IZscew36cAAIG21LbESuSqtdlUvJQYokaeTC', '13844444444', 'DISABLED');
+(1, 'tester',   '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800000003', 'ACTIVE'),
+(2, 'zhangsan', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111111', 'ACTIVE'),
+(3, 'lisi',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822222222', 'ACTIVE'),
+(4, 'wangwu',   '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13833333333', 'ACTIVE'),
+(5, 'zhaoliu',  '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13844444444', 'DISABLED');
 
 -- ───── 3. 用户收货地址 ─────
 INSERT INTO `user_address` (`id`, `user_id`, `receiver`, `phone`, `detail`, `lat`, `lng`, `is_default`) VALUES
@@ -280,9 +280,9 @@ INSERT INTO `user_address` (`id`, `user_id`, `receiver`, `phone`, `detail`, `lat
 
 -- ───── 4. 商家（含登录凭据） ─────
 INSERT INTO `merchant` (`id`, `username`, `password`, `name`, `phone`, `address`, `lat`, `lng`, `status`, `business_hours_start`, `business_hours_end`, `delivery_radius`) VALUES
-(1, 'nightbb',  '$2b$10$0Bj3CG7mRR0.xFB7XKAGtuNhjsPeRtp1qBn7kMKV5IvBocU/2CLue', '深夜食堂',   '13800000002', '北京市朝阳区望京SOHO T1 B1-101', 39.9963200, 116.4809000, 'OPEN',    '18:00:00', '03:00:00', 5000),
-(2, 'spicyhot', '$2b$10$0Bj3CG7mRR0.xFB7XKAGtuNhjsPeRtp1qBn7kMKV5IvBocU/2CLue', '辣翻天小龙虾', '13855555555', '北京市朝阳区双井桥东200米',       39.8984700, 116.4675500, 'OPEN',    '16:00:00', '02:00:00', 4000),
-(3, 'teahouse', '$2b$10$0Bj3CG7mRR0.xFB7XKAGtuNhjsPeRtp1qBn7kMKV5IvBocU/2CLue', '老王糖水铺',  '13866666666', '北京市海淀区五道口地铁站B口旁',   39.9929200, 116.3383200, 'OPEN',    '14:00:00', '23:00:00', 3500);
+(1, 'nightbb',  '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.', '深夜食堂',   '13800000002', '北京市朝阳区望京SOHO T1 B1-101', 39.9963200, 116.4809000, 'OPEN',    '18:00:00', '03:00:00', 5000),
+(2, 'spicyhot', '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.', '辣翻天小龙虾', '13855555555', '北京市朝阳区双井桥东200米',       39.8984700, 116.4675500, 'OPEN',    '16:00:00', '02:00:00', 4000),
+(3, 'teahouse', '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.', '老王糖水铺',  '13866666666', '北京市海淀区五道口地铁站B口旁',   39.9929200, 116.3383200, 'OPEN',    '14:00:00', '23:00:00', 3500);
 
 -- ───── 5. 品类 ─────
 INSERT INTO `category` (`id`, `merchant_id`, `name`, `sort`) VALUES

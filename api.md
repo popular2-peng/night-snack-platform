@@ -146,11 +146,21 @@ POST /api/user/register
 
 ```json
 {
-  "accessToken": "eyJ...",
+  "userId": 1,
   "username": "zhangsan",
-  "role": "USER"
+  "role": "USER",
+  "accessToken": "eyJ...",
+  "refreshToken": "eyJ..."
 }
 ```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `userId` | long | 用户 ID |
+| `username` | string | 用户名 |
+| `role` | string | `USER` |
+| `accessToken` | string | 访问令牌（有效期 2 小时） |
+| `refreshToken` | string | 刷新令牌（有效期 7 天） |
 
 **可能错误码：** `2001`, `2002`
 
@@ -161,6 +171,8 @@ POST /api/user/register
 ```
 POST /api/user/login
 ```
+
+> **跨表登录**：同一个接口依次查询 `admin` → `merchant` → `user` 三张表，匹配到即返回对应角色的 Token。无需区分登录入口。
 
 **请求体：**
 
@@ -173,11 +185,21 @@ POST /api/user/login
 
 ```json
 {
-  "accessToken": "eyJ...",
+  "userId": 1,
   "username": "admin",
-  "role": "ADMIN"
+  "role": "ADMIN",
+  "accessToken": "eyJ...",
+  "refreshToken": "eyJ..."
 }
 ```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `userId` | long | 用户/管理员/商家 ID |
+| `username` | string | 用户名 |
+| `role` | string | 角色：`USER` / `MERCHANT` / `ADMIN` |
+| `accessToken` | string | 访问令牌（有效期 2 小时） |
+| `refreshToken` | string | 刷新令牌（有效期 7 天） |
 
 **可能错误码：** `2003`, `2004`
 
@@ -1022,3 +1044,24 @@ PAID ──(退款)──→ REFUNDING ──(退款成功)──→ REFUNDED
 | **审核状态** | `PENDING` | 待审核 |
 | | `APPROVED` | 已通过 |
 | | `REJECTED` | 已拒绝 |
+
+---
+
+## 十、测试账号（种子数据）
+
+> Flyway 启动时自动插入，BCrypt 加密存储。
+
+| 角色 | 用户名 | 密码 | 说明 |
+|------|--------|------|------|
+| 管理员 | `admin` | `admin123` | 平台管理员，可登录管理后台 |
+| 超级管理员 | `superadmin` | `admin123` | 备用管理员 |
+| 顾客 | `tester` | `test123` | 测试用户（有地址 + 历史订单） |
+| 顾客 | `zhangsan` | `test123` | 普通用户 |
+| 顾客 | `lisi` | `test123` | 普通用户 |
+| 顾客 | `wangwu` | `test123` | 普通用户 |
+| 顾客 | `zhaoliu` | `test123` | 已封禁用户（`DISABLED`） |
+| 商家 | `nightbb` | `m123456` | 深夜食堂（营业中 18:00-03:00） |
+| 商家 | `spicyhot` | `m123456` | 辣翻天小龙虾（营业中 16:00-02:00） |
+| 商家 | `teahouse` | `m123456` | 老王糖水铺（营业中 14:00-23:00） |
+
+> **注意**：数据库重建后密码生效。若重建前已启动过，需 `DROP TABLE flyway_schema_history` 并删库重建。

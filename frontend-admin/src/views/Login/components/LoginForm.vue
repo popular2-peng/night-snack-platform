@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
@@ -8,21 +9,38 @@ import { User, Lock } from '@element-plus/icons-vue'
 const router = useRouter()
 const authStore = useAuthStore()
 
+const formRef = ref<FormInstance>()
 const form = reactive({ username: '', password: '' })
 const loading = ref(false)
 
+/** 账号：4-20位，字母开头，字母/数字/下划线 */
+const ACCOUNT_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{3,19}$/
+
+/** 密码：6-20位，必须包含字母和数字 */
+const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+]{6,20}$/
+
+const rules: FormRules = {
+  username: [
+    { required: true, message: '请输入账号', trigger: 'blur' },
+    { pattern: ACCOUNT_REGEX, message: '4-20位，字母开头，支持字母/数字/下划线', trigger: 'blur' },
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { pattern: PASSWORD_REGEX, message: '6-20位，必须包含字母和数字', trigger: 'blur' },
+  ],
+}
+
 async function handleLogin() {
-  if (!form.username || !form.password) {
-    ElMessage.warning('请输入用户名和密码')
-    return
-  }
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
+
   loading.value = true
   try {
     await authStore.login(form)
     ElMessage.success('登录成功')
     router.push('/dashboard')
   } catch {
-    ElMessage.error('用户名或密码错误')
+    // 错误消息已由请求拦截器统一展示，此处不再重复弹出
   } finally {
     loading.value = false
   }
@@ -30,8 +48,8 @@ async function handleLogin() {
 </script>
 
 <template>
-  <el-form @submit.prevent="handleLogin" label-position="top">
-    <el-form-item label="用户名">
+  <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin" label-position="top">
+    <el-form-item label="用户名" prop="username">
       <el-input
         v-model="form.username"
         placeholder="请输入管理员账号"
@@ -42,7 +60,7 @@ async function handleLogin() {
         </template>
       </el-input>
     </el-form-item>
-    <el-form-item label="密码">
+    <el-form-item label="密码" prop="password">
       <el-input
         v-model="form.password"
         type="password"
