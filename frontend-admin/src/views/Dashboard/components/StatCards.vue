@@ -43,6 +43,17 @@ const STATUS_COLORS: Record<string, string> = {
 
 type TagType = 'info' | 'success' | 'warning' | 'danger' | ''
 
+const STATUS_LABEL: Record<string, string> = {
+  'PENDING_PAY': '待支付',
+  'PAID': '已支付',
+  'ACCEPTED': '已接单',
+  'COOKING': '制作中',
+  'COMPLETED': '已完成',
+  'CANCELLED': '已取消',
+  'REFUNDING': '退款中',
+  'REFUNDED': '已退款',
+}
+
 const STATUS_TAG: Record<string, TagType> = {
   'PENDING_PAY': 'info',
   'PAID': '',
@@ -54,21 +65,58 @@ const STATUS_TAG: Record<string, TagType> = {
   'REFUNDED': 'info',
 }
 
+/** 格式化时间，去掉秒和 T */
+function formatTime(iso: string) {
+  if (!iso) return ''
+  return iso.replace('T', ' ').substring(0, 16)
+}
+
 /** 饼图配置 */
 const pieOption = computed(() => ({
-  tooltip: { trigger: 'item' as const },
-  legend: { bottom: 0 },
+  tooltip: {
+    trigger: 'item' as const,
+    formatter: '{b}: {c} 单 ({d}%)',
+  },
+  legend: {
+    bottom: 0,
+    formatter: (name: string) => {
+      const item = orderStats.value.find(s => s.label === name)
+      if (item) {
+        const total = orderStats.value.reduce((sum, s) => sum + s.count, 0)
+        const pct = total > 0 ? ((item.count / total) * 100).toFixed(1) : '0'
+        return `${name}  ${item.count}单  ${pct}%`
+      }
+      return name
+    },
+    textStyle: { fontSize: 12 },
+  },
   series: [{
     name: '订单状态',
     type: 'pie' as const,
     radius: ['45%', '75%'],
-    avoidLabelOverlap: false,
+    center: ['50%', '48%'],
+    avoidLabelOverlap: true,
     itemStyle: {
       borderRadius: 6,
       borderColor: '#fff',
       borderWidth: 2,
     },
-    label: { show: true, formatter: '{b}\n{d}%' },
+    label: {
+      show: true,
+      position: 'outside' as const,
+      formatter: '{d}%',
+      fontSize: 12,
+      lineHeight: 16,
+    },
+    labelLine: {
+      length: 16,
+      length2: 28,
+      smooth: true,
+    },
+    emphasis: {
+      label: { fontSize: 16, fontWeight: 'bold' },
+      scaleSize: 12,
+    },
     data: orderStats.value.map(s => ({
       name: s.label,
       value: s.count,
@@ -139,7 +187,7 @@ function formatMoney(n: number) {
             订单状态分布
           </div>
         </template>
-        <v-chart :option="pieOption" style="height: 340px" autoresize />
+        <v-chart :option="pieOption" style="height: 360px" autoresize />
       </el-card>
     </el-col>
 
@@ -154,20 +202,25 @@ function formatMoney(n: number) {
             最新订单
           </div>
         </template>
-        <el-table :data="recentOrders" stripe size="small" max-height="340" class="compact-table">
-          <el-table-column prop="orderNo" label="订单号" width="155" />
-          <el-table-column prop="username" label="用户" width="75" />
-          <el-table-column prop="merchantName" label="商家" width="95" show-overflow-tooltip />
-          <el-table-column prop="status" label="状态" width="80" align="center">
+        <el-table :data="recentOrders" stripe size="small" height="360" class="compact-table" style="width: 100%">
+          <el-table-column prop="orderNo" label="订单号" min-width="120" show-overflow-tooltip />
+          <el-table-column prop="username" label="用户" min-width="60" />
+          <el-table-column prop="merchantName" label="商家" min-width="80" show-overflow-tooltip />
+          <el-table-column label="状态" min-width="70" align="center">
             <template #default="{ row }">
               <el-tag :type="STATUS_TAG[row.status] || 'info'" size="small" disable-transitions>
-                {{ row.status }}
+                {{ STATUS_LABEL[row.status] || row.status }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="totalAmount" label="金额" width="80" align="right">
+          <el-table-column prop="totalAmount" label="金额" min-width="75" align="right">
             <template #default="{ row }">
               <span class="money-cell">{{ formatMoney(row.totalAmount) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="时间" min-width="115">
+            <template #default="{ row }">
+              <span class="time-cell">{{ formatTime(row.createdAt) }}</span>
             </template>
           </el-table-column>
         </el-table>
@@ -191,10 +244,21 @@ function formatMoney(n: number) {
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
+.time-cell {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
 .compact-table :deep(.el-table__header th) {
   padding: 10px 0;
 }
 .compact-table :deep(.el-table__body td) {
   padding: 8px 0;
+}
+/* 小屏时表格可横向滚动 */
+@media (max-width: 768px) {
+  .compact-table {
+    overflow-x: auto;
+  }
 }
 </style>

@@ -16,7 +16,22 @@ const titleMap: Record<string, string> = {
   '/applications': '入驻审核',
 }
 
-const currentTitle = computed(() => titleMap[route.path] || route.meta?.title || '')
+const currentTitle = computed<string>(() => titleMap[route.path] || String(route.meta?.title || ''))
+
+interface Crumb { label: string; to?: string }
+
+/** 面包屑：首页仪表盘只显示"数据概览"，其余页面显示"首页 / 模块名" */
+const breadcrumbItems = computed<Crumb[]>(() => {
+  const items: Crumb[] = []
+  if (route.path !== '/dashboard') {
+    items.push({ label: '首页', to: '/dashboard' } satisfies Crumb)
+  }
+  if (currentTitle.value) {
+    const label: string = currentTitle.value
+    items.push({ label } satisfies Crumb)
+  }
+  return items
+})
 
 function handleLogout() {
   authStore.logout()
@@ -28,8 +43,14 @@ function handleLogout() {
   <div class="header-bar">
     <div class="header-left">
       <el-breadcrumb separator="/">
-        <el-breadcrumb-item :to="{ path: '/dashboard' }">首页</el-breadcrumb-item>
-        <el-breadcrumb-item v-if="currentTitle">{{ currentTitle }}</el-breadcrumb-item>
+        <template v-for="(item, i) in breadcrumbItems" :key="i">
+          <el-breadcrumb-item v-if="item.to" :to="{ path: item.to }">
+            {{ item.label }}
+          </el-breadcrumb-item>
+          <el-breadcrumb-item v-else>
+            {{ item.label }}
+          </el-breadcrumb-item>
+        </template>
       </el-breadcrumb>
     </div>
     <div class="header-right">
