@@ -6,7 +6,7 @@ import ApplicationTable from './components/ApplicationTable.vue'
   <div class="fade-in">
     <div class="page-header">
       <h2>商家入驻审核</h2>
-      <p class="page-breadcrumb">首页 / 入驻审核</p>
+
     </div>
     <ApplicationTable />
   </div>
