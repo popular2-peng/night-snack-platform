@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import {
-  listApplications, getApplicationDetail,
+  listApplications,
   approveApplicationV2, rejectApplicationV2,
 } from '@/apis/admin'
 import { ElMessage } from 'element-plus'
 import SearchFilterBar from '@/components/SearchFilterBar.vue'
+import ApplicationDetailDrawer from './ApplicationDetailDrawer.vue'
 
 interface AppItem {
   id: number; shopName: string; applicantUsername: string; phone: string
@@ -107,14 +108,11 @@ async function confirmReject() {
 
 // ---- 详情抽屉 ----
 const detailVisible = ref(false)
-const detail = ref<any>({})
+const detailAppId = ref<number | null>(null)
 
-async function openDetail(row: AppItem) {
-  try {
-    const res = await getApplicationDetail(row.id)
-    detail.value = res.data
-    detailVisible.value = true
-  } catch { ElMessage.error('获取详情失败') }
+function openDetail(row: AppItem) {
+  detailAppId.value = row.id
+  detailVisible.value = true
 }
 
 // ---- 格式化 ----
@@ -248,36 +246,12 @@ onMounted(() => { fetchStats(); fetchApps() })
       </template>
     </el-dialog>
 
-    <!-- ====== 详情抽屉 ====== -->
-    <el-drawer v-model="detailVisible" title="申请详情" size="480px">
-      <template v-if="detail.id">
-        <div class="detail-logo">
-          <el-image v-if="detail.logoUrl" :src="detail.logoUrl" :preview-src-list="[detail.logoUrl]" fit="cover"
-            style="width:72px;height:72px;border-radius:6px;flex-shrink:0" :preview-teleported="true" />
-          <el-avatar v-else :size="72" shape="square" style="font-size:28px;background:#EEF3FD;color:#5B8DEF;">
-            {{ detail.shopName?.charAt(0) || '店' }}
-          </el-avatar>
-          <div>
-            <h3>{{ detail.shopName }}</h3>
-            <p>申请人: {{ detail.applicantUsername }}</p>
-          </div>
-        </div>
-        <el-descriptions :column="1" border size="small" style="margin-top:16px">
-          <el-descriptions-item label="联系电话">{{ detail.phone }}</el-descriptions-item>
-          <el-descriptions-item label="品类">{{ detail.categoryName || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="申请理由">{{ detail.reason }}</el-descriptions-item>
-          <el-descriptions-item v-if="detail.rejectReason" label="拒绝原因">
-            <span style="color:var(--danger)">{{ detail.rejectReason }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="statusMap[detail.status]?.type || 'warning'" size="small" effect="plain">
-              {{ statusMap[detail.status]?.label || detail.status }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="申请时间">{{ formatTime(detail.createdAt) }}</el-descriptions-item>
-        </el-descriptions>
-      </template>
-    </el-drawer>
+    <!-- ====== 详情抽屉（子组件） ====== -->
+    <ApplicationDetailDrawer
+      :visible="detailVisible"
+      :application-id="detailAppId"
+      @update:visible="detailVisible = $event"
+    />
 
   </div>
 </template>
@@ -300,11 +274,6 @@ onMounted(() => { fetchStats(); fetchApps() })
 .stat-item-value.text-danger  { color: var(--danger); }
 .stat-item-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
 .stat-divider { width: 1px; height: 32px; background: var(--border-color); }
-
-/* ---- 详情 ---- */
-.detail-logo { display: flex; align-items: center; gap: 16px; }
-.detail-logo h3 { margin: 0 0 4px 0; font-size: 18px; }
-.detail-logo p { margin: 0; color: var(--text-secondary); font-size: 13px; }
 
 @media (max-width: 768px) {
   .stats-strip { gap: 16px; padding: 12px; }
