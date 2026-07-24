@@ -3,11 +3,12 @@ package com.nsp.server.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
 import com.nsp.common.exception.BizException;
+import com.nsp.common.util.PhoneMaskUtil;
+import com.nsp.pojo.dto.ApproveApplicationDTO;
 import com.nsp.pojo.dto.AuditDTO;
+import com.nsp.pojo.dto.RejectApplicationDTO;
 import com.nsp.pojo.entity.*;
 import com.nsp.pojo.vo.*;
 import com.nsp.server.mapper.*;
@@ -37,6 +38,7 @@ public class AdminServiceImpl implements AdminService {
     private final MerchantMapper merchantMapper;
     private final MerchantApplicationMapper merchantApplicationMapper;
     private final OrderMapper orderMapper;
+    private final CategoryMapper categoryMapper;
 
     // ──────────────────────────────────────
     // 首页统计
@@ -135,17 +137,74 @@ public class AdminServiceImpl implements AdminService {
         Page<MerchantApplication> result = merchantApplicationMapper.selectPage(
                 new Page<>(page, size),
                 new LambdaQueryWrapper<MerchantApplication>()
-                        .eq(MerchantApplication::getStatus, "PENDING")
                         .orderByAsc(MerchantApplication::getCreatedAt));
 
         List<AdminApplicationVO> list = result.getRecords().stream().map(a -> {
             AdminApplicationVO vo = new AdminApplicationVO();
             BeanUtil.copyProperties(a, vo);
+
             User applicant = userMapper.selectById(a.getApplicantUserId());
             vo.setApplicantUsername(applicant != null ? applicant.getUsername() : "未知");
+            vo.setPhone(applicant != null ? PhoneMaskUtil.mask(applicant.getPhone()) : "");
+
+            // 品类名称
+            if (a.getCategoryId() != null) {
+                Category c = categoryMapper.selectById(a.getCategoryId());
+                vo.setCategoryName(c != null ? c.getName() : "");
+            }
+
             return vo;
         }).toList();
         return new PageVO<>(result.getTotal(), list);
+    }
+
+    @Override
+    public AdminApplicationVO getApplicationDetail(Long id) {
+        MerchantApplication a = findApplication(id);
+        AdminApplicationVO vo = new AdminApplicationVO();
+        BeanUtil.copyProperties(a, vo);
+
+        User applicant = userMapper.selectById(a.getApplicantUserId());
+        vo.setApplicantUsername(applicant != null ? applicant.getUsername() : "未知");
+        vo.setPhone(applicant != null ? PhoneMaskUtil.mask(applicant.getPhone()) : "");
+
+        if (a.getCategoryId() != null) {
+            Category c = categoryMapper.selectById(a.getCategoryId());
+            vo.setCategoryName(c != null ? c.getName() : "");
+        }
+
+        return vo;
+    }
+
+    @Override
+    @Transactional
+    public void approveApplicationV2(Long id, Long reviewerId, ApproveApplicationDTO dto) {
+        MerchantApplication app = findApplication(id);
+
+        app.setStatus("APPROVED");
+        app.setReviewerId(reviewerId);
+        app.setReviewedAt(LocalDateTime.now());
+        if (dto.getReviewNote() != null) {
+            app.setReviewNote(dto.getReviewNote());
+        }
+        merchantApplicationMapper.updateById(app);
+
+        log.info("商家入驻申请通过(V2): appId={}, reviewerId={}, initialStatus={}, deliveryRadius={}",
+                id, reviewerId, dto.getInitialStatus(), dto.getDeliveryRadius());
+    }
+
+    @Override
+    @Transactional
+    public void rejectApplicationV2(Long id, Long reviewerId, RejectApplicationDTO dto) {
+        MerchantApplication app = findApplication(id);
+
+        app.setStatus("REJECTED");
+        app.setReviewerId(reviewerId);
+        app.setReviewedAt(LocalDateTime.now());
+        app.setRejectReason(dto.getRejectReason());
+        merchantApplicationMapper.updateById(app);
+
+        log.info("商家入驻申请被拒绝(V2): appId={}, reason={}", id, dto.getRejectReason());
     }
 
     @Override
@@ -227,7 +286,9 @@ public class AdminServiceImpl implements AdminService {
     public PageVO<AdminMerchantVO> listMerchants(int page, int size, String keyword, String status) {
         LambdaQueryWrapper<Merchant> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
-            wrapper.like(Merchant::getName, keyword);
+            wrapper.and(w -> w.like(Merchant::getName, keyword)
+                            .or().like(Merchant::getUsername, keyword)
+                            .or().like(Merchant::getPhone, keyword));
         }
         if (status != null && !status.isBlank()) {
             wrapper.eq(Merchant::getStatus, status.toUpperCase());
@@ -239,6 +300,13 @@ public class AdminServiceImpl implements AdminService {
             AdminMerchantVO vo = new AdminMerchantVO();
             BeanUtil.copyProperties(m, vo);
             vo.setOwnerName(m.getUsername());
+            vo.setPhone(PhoneMaskUtil.mask(m.getPhone()));
+
+            if (m.getCategoryId() != null) {
+                Category c = categoryMapper.selectById(m.getCategoryId());
+                vo.setCategoryName(c != null ? c.getName() : "");
+            }
+
             return vo;
         }).toList();
         return new PageVO<>(result.getTotal(), list);

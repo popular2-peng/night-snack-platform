@@ -68,4 +68,14 @@ public final class ErrorCode {
     public static final int UPLOAD_SIZE_EXCEED      = 6003; // 文件大小超限
     public static final int UPLOAD_CALLBACK_ERROR  = 6004; // OSS 回调校验失败
 
+    // ==================== 商家管理域 7000 ~ 7999 ====================
+    public static final int REJECT_REASON_EMPTY    = 7001; // 拒绝原因不能为空
+    public static final int BAN_REASON_EMPTY       = 7002; // 封禁原因不能为空
+    public static final int MERCHANT_ALREADY_BANNED = 7003; // 商家已被封禁，无需重复操作
+    public static final int MERCHANT_NOT_BANNED    = 7004; // 商家未被封禁，无法解封
+    public static final int LICENSE_IMG_MISSING    = 7005; // 营业执照图片不存在或已过期
+    public static final int FOOD_PERMIT_MISSING    = 7006; // 食品许可证图片不存在或已过期
+    public static final int REVIEW_NOTE_TOO_LONG   = 7007; // 审核备注长度超限（10-200 字）
+    public static final int DUPLICATE_APPLICATION  = 7008; // 该商家已有待审核申请，请勿重复提交
+
 }

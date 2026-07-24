@@ -38,4 +38,24 @@ public class MerchantApplication {
     /** 创建时间 */
     private LocalDateTime createdAt;
 
+    // ==================== V2 新增字段 ====================
+
+    /** 申请时上传的店铺 LOGO */
+    private String logoUrl;
+
+    /** 申请的主营品类 ID */
+    private Long categoryId;
+
+    /** 店铺简介 */
+    private String description;
+
+    /** 店主身份证号（加密） */
+    private String idCardNo;
+
+    /** 审核备注（通过/拒绝时填写） */
+    private String reviewNote;
+
+    /** 拒绝原因（展示给商家看） */
+    private String rejectReason;
+
 }

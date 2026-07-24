@@ -61,4 +61,45 @@ public class Merchant {
     /** 更新时间 */
     private LocalDateTime updatedAt;
 
+    // ==================== V2 新增字段 ====================
+
+    /** 店铺 LOGO/头像 OSS URL */
+    private String logoUrl;
+
+    /** 主营品类 ID（关联 category 表） */
+    private Long categoryId;
+
+    /** 店铺简介/招牌描述 */
+    private String description;
+
+    /** 店主身份证号（加密存储） */
+    private String idCardNo;
+
+    /** 店铺平均评分 */
+    private BigDecimal avgRating;
+
+    /** 历史总订单数 */
+    private Integer totalOrders;
+
+    /** 今日订单数（缓存） */
+    private Integer todayOrders;
+
+    /** 今日营收（缓存） */
+    private BigDecimal todayRevenue;
+
+    /** 封禁原因（管理员填写） */
+    private String bannedReason;
+
+    /** 封禁时间 */
+    private LocalDateTime bannedAt;
+
+    /** 封禁操作人（关联 user.id） */
+    private Long bannedBy;
+
+    /** 商家最后登录时间 */
+    private LocalDateTime lastLoginAt;
+
+    /** 店铺公告/营业备注 */
+    private String notice;
+
 }

@@ -1,12 +1,15 @@
 package com.nsp.server.controller.admin;
 
 import com.nsp.common.result.Result;
+import com.nsp.pojo.dto.ApproveApplicationDTO;
 import com.nsp.pojo.dto.AuditDTO;
+import com.nsp.pojo.dto.RejectApplicationDTO;
 import com.nsp.pojo.vo.*;
 import com.nsp.server.annotation.RequireRole;
 import com.nsp.server.service.AdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -74,6 +77,30 @@ public class AdminController {
                                @AuthenticationPrincipal Long reviewerId,
                                @RequestBody AuditDTO dto) {
         adminService.rejectApplication(id, reviewerId, dto);
+        return Result.ok();
+    }
+
+    @Operation(summary = "入驻申请详情")
+    @GetMapping("/merchant-application/{id}/detail")
+    public Result<AdminApplicationVO> applicationDetail(@PathVariable Long id) {
+        return Result.ok(adminService.getApplicationDetail(id));
+    }
+
+    @Operation(summary = "通过入驻申请（V2，含初始营业状态/配送半径/审核备注）")
+    @PostMapping("/application/{id}/approve")
+    public Result<Void> approveV2(@PathVariable Long id,
+                                  @AuthenticationPrincipal Long reviewerId,
+                                  @RequestBody ApproveApplicationDTO dto) {
+        adminService.approveApplicationV2(id, reviewerId, dto);
+        return Result.ok();
+    }
+
+    @Operation(summary = "拒绝入驻申请（V2，拒绝原因必填）")
+    @PostMapping("/application/{id}/reject")
+    public Result<Void> rejectV2(@PathVariable Long id,
+                                  @AuthenticationPrincipal Long reviewerId,
+                                  @Valid @RequestBody RejectApplicationDTO dto) {
+        adminService.rejectApplicationV2(id, reviewerId, dto);
         return Result.ok();
     }
 
