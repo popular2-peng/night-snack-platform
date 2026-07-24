@@ -85,8 +85,11 @@ public class UploadServiceImpl implements UploadService {
             throw new BizException(ErrorCode.UPLOAD_TYPE_INVALID, "不支持的业务类型: " + bizType);
         }
 
-        // 生成上传目录
-        String dir = type.getDirPrefix() + "/" + (targetId != null ? targetId : userId) + "/";
+        // 生成上传目录: {项目根}/{yyyy-MM}/{dd}/{uuid}.{ext}
+        LocalDateTime now = LocalDateTime.now();
+        String monthDir = String.format("%d-%02d", now.getYear(), now.getMonthValue());
+        String dayDir = String.format("%02d", now.getDayOfMonth());
+        String dir = "nsp/" + monthDir + "/" + dayDir + "/";
         String objectKey = dir + UUID.randomUUID() + "." + ext;
 
         // 生成 Policy + Signature
