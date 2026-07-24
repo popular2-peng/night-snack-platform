@@ -33,6 +33,8 @@
 Authorization: Bearer <jwt>
 ```
 
+Token 有效期 2 小时，Refresh Token 有效期 7 天。
+
 ### 1.3 分页
 
 统一参数 `?page=1&size=20`，响应格式：
@@ -47,6 +49,10 @@ Authorization: Bearer <jwt>
   }
 }
 ```
+
+### 1.4 时间格式
+
+所有时间字段统一使用 ISO-8601 格式：`"2025-07-18T21:30:00"`
 
 ---
 
@@ -122,6 +128,19 @@ Authorization: Bearer <jwt>
 | `6002` | 文件类型不允许 |
 | `6003` | 文件大小超限 |
 | `6004` | OSS 回调校验失败 |
+
+### 2.8 商家入驻审核（7000 ~ 7999）
+
+| code | 说明 |
+|------|------|
+| `7001` | 拒绝原因不能为空 |
+| `7002` | 封禁原因不能为空 |
+| `7003` | 商家已被封禁 |
+| `7004` | 商家未被封禁 |
+| `7005` | 营业执照图片缺失 |
+| `7006` | 食品经营许可证图片缺失 |
+| `7007` | 审核备注过长 |
+| `7008` | 重复申请 |
 
 ---
 
@@ -211,7 +230,7 @@ POST /api/user/login
 POST /api/pay/alipay/callback
 ```
 
-> 支付宝异步通知回调，由支付宝服务器发起。需在 `SecurityConfig` 中放行。
+> 支付宝异步通知回调，由支付宝服务器发起。SecurityConfig 中已放行。
 > 返回 `"success"` 或 `"fail"` 字符串（非 JSON）。
 
 **可能错误码：** `5001`, `5003`
@@ -242,6 +261,7 @@ GET /api/user/info
   "phone": "13800138000",
   "role": "USER",
   "status": "ACTIVE",
+  "avatarUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/avatar/1/xxx.jpg",
   "createdAt": "2025-07-01T00:00:00"
 }
 ```
@@ -250,7 +270,7 @@ GET /api/user/info
 
 ---
 
-### 4.3 收货地址
+### 4.2 收货地址
 
 #### 获取地址列表
 
@@ -325,9 +345,9 @@ PUT /api/user/address/{id}/default
 
 ---
 
-### 4.4 购物车
+### 4.3 购物车
 
-> 购物车存储在 Redis Hash 中，未登录不可使用。
+> 购物车存储在 Redis Hash 中，Key: `cart:{user_id}`，TTL 7 天。
 
 #### 查询购物车
 
@@ -349,7 +369,7 @@ POST /api/user/cart?merchantId={merchantId}
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `merchantId` | long | 是 | 商家 ID |
+| `merchantId` | long | 是 | 商家 ID，跨店会提示清空其他店铺商品 |
 
 **请求体：**
 
@@ -388,7 +408,7 @@ DELETE /api/user/cart
 
 ---
 
-### 4.5 订单
+### 4.4 订单
 
 #### 创建订单（下单）
 
@@ -403,6 +423,9 @@ POST /api/user/order
 | `merchantId` | long | 是 | 商家 ID |
 | `addressId` | long | 是 | 收货地址 ID |
 | `remark` | string | 否 | 备注 |
+| `channel` | string | 是 | 支付渠道：`ALIPAY` / `WECHAT_MOCK` |
+
+> 业务规则：校验商家营业状态 + 营业时间 + 配送范围（服务端 Haversine），Redis Lua 预扣库存。
 
 **可能错误码：** `3002`, `3104`, `4003`, `4004`, `4005`
 
@@ -434,11 +457,13 @@ GET /api/user/order/{id}
 POST /api/user/order/{id}/cancel
 ```
 
+> 仅 `PENDING_PAY` 状态可取消，取消后释放预扣库存。
+
 **可能错误码：** `4001`, `4002`
 
 ---
 
-### 4.6 支付
+### 4.5 支付
 
 #### 发起支付
 
@@ -478,9 +503,9 @@ GET /api/user/pay/{orderNo}/status
 
 ---
 
-### 4.7 公共浏览
+### 4.6 公共浏览
 
-> 以下接口在商家端定义，但用户端也可调用，权限标注为多角色。
+> 以下接口在商家端 Controller 定义，但用户端也可调用，权限标注为多角色。
 
 #### 商家列表
 
@@ -488,7 +513,7 @@ GET /api/user/pay/{orderNo}/status
 GET /api/merchant/list?lat=39.99632&lng=116.48090
 ```
 
-> 按距离排序（近→远），使用百度地图 API + Haversine 降级
+> 按距离排序（近→远），百度地图 API + Haversine 降级。
 
 ---
 
@@ -533,7 +558,7 @@ GET /api/merchant/product/{id}
 GET /api/merchant/shop
 ```
 
-> 根据当前登录用户关联的商家返回
+> 根据当前登录用户关联的商家返回。
 
 ---
 
@@ -545,7 +570,8 @@ PUT /api/merchant/shop/status?merchantId={merchantId}&status={status}
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `status` | string | `OPEN`(营业中) / `CLOSED`(已打烊) |
+| `merchantId` | long | 商家 ID |
+| `status` | string | `OPEN`(营业中) / `CLOSED`(打烊) |
 
 **可能错误码：** `3001`, `3301`
 
@@ -566,6 +592,12 @@ GET /api/merchant/category?merchantId={merchantId}
 ```
 POST /api/merchant/category?merchantId={merchantId}&name={name}&sort=0
 ```
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `merchantId` | long | 是 | - | 商家 ID |
+| `name` | string | 是 | - | 品类名称 |
+| `sort` | int | 否 | 0 | 排序 |
 
 ---
 
@@ -606,6 +638,7 @@ POST /api/merchant/product?merchantId={merchantId}
 | `imageUrl` | string | 否 | 商品图片 OSS URL |
 | `description` | string | 否 | 商品描述 |
 | `categoryId` | long | 是 | 所属品类 ID |
+| `specs` | array | 否 | 规格列表 |
 
 ---
 
@@ -691,7 +724,7 @@ GET /api/merchant/order/{id}
 PUT /api/merchant/order/{id}/accept?merchantId={merchantId}
 ```
 
-> 状态：`PENDING_PAY`/`PAID` → `ACCEPTED`
+> 状态迁移：`PAID` → `ACCEPTED`
 
 **可能错误码：** `4001`, `4002`
 
@@ -703,7 +736,7 @@ PUT /api/merchant/order/{id}/accept?merchantId={merchantId}
 PUT /api/merchant/order/{id}/cooking?merchantId={merchantId}
 ```
 
-> 状态：`ACCEPTED` → `COOKING`
+> 状态迁移：`ACCEPTED` → `COOKING`
 
 **可能错误码：** `4001`, `4002`
 
@@ -715,7 +748,7 @@ PUT /api/merchant/order/{id}/cooking?merchantId={merchantId}
 PUT /api/merchant/order/{id}/complete?merchantId={merchantId}
 ```
 
-> 状态：`COOKING` → `COMPLETED`
+> 状态迁移：`COOKING` → `COMPLETED`
 
 **可能错误码：** `4001`, `4002`
 
@@ -727,7 +760,7 @@ PUT /api/merchant/order/{id}/complete?merchantId={merchantId}
 PUT /api/merchant/order/{id}/reject?merchantId={merchantId}&reason={reason}
 ```
 
-> 状态：`PAID` → `CANCELLED`（触发退款）
+> 状态迁移：`PAID` → `CANCELLED`（触发退款）
 
 **可能错误码：** `4001`, `4002`
 
@@ -738,32 +771,78 @@ PUT /api/merchant/order/{id}/reject?merchantId={merchantId}&reason={reason}
 > 鉴权：Header `Authorization: Bearer <token>`  
 > 权限：`ADMIN`
 
-### 6.1 首页统计
+### 6.1 仪表盘
+
+> Dashboard 已拆分为 3 个独立接口，前端首页并行调用。
+
+#### 核心统计卡片
 
 ```
-GET /api/admin/dashboard
+GET /api/admin/dashboard/stats
 ```
 
-**响应 data：**
+**响应 data：** `AdminDashboardVO`
 
 ```json
 {
-  "totalUsers": 128,
-  "totalMerchants": 15,
-  "todayOrders": 42,
-  "todayRevenue": 3890.50
+  "totalOrders": 156,
+  "pendingApplications": 3,
+  "totalMerchants": 8,
+  "totalUsers": 13
 }
 ```
 
 ---
 
+#### 订单状态分布
+
+```
+GET /api/admin/dashboard/order-stats
+```
+
+**响应 data：** `List<OrderStatusStatVO>`
+
+```json
+[
+  { "status": "PENDING_PAY", "label": "待支付", "count": 5 },
+  { "status": "PAID", "label": "已支付", "count": 3 },
+  { "status": "ACCEPTED", "label": "已接单", "count": 2 },
+  { "status": "COOKING", "label": "制作中", "count": 4 },
+  { "status": "COMPLETED", "label": "已完成", "count": 12 },
+  { "status": "CANCELLED", "label": "已取消", "count": 1 }
+]
+```
+
+---
+
+#### 最新订单
+
+```
+GET /api/admin/dashboard/recent-orders?limit=10
+```
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `limit` | int | 否 | 10 | 返回条数 |
+
+**响应 data：** `List<AdminRecentOrderVO>`
+
+---
+
 ### 6.2 商家入驻审核
 
-#### 待审核申请列表
+#### 申请列表（支持关键词 + 状态筛选）
 
 ```
-GET /api/admin/merchant-application/pending?page=1&size=20
+GET /api/admin/merchant-application/pending?page=1&size=20&keyword=&status=
 ```
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `page` | int | 否 | 1 | 页码 |
+| `size` | int | 否 | 20 | 每页条数 |
+| `keyword` | string | 否 | - | 搜索店铺名/申请人 |
+| `status` | string | 否 | - | 状态筛选：`PENDING` / `APPROVED` / `REJECTED` |
 
 **响应 data：** `PageVO<AdminApplicationVO>`
 
@@ -775,8 +854,12 @@ GET /api/admin/merchant-application/pending?page=1&size=20
       "id": 1,
       "shopName": "深夜食堂",
       "applicantUsername": "zhangsan",
+      "phone": "138****1234",
+      "logoUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/nsp/2025-07/25/xxx.jpg",
+      "categoryName": "中式快餐",
       "reason": "我有3年餐饮经验",
       "status": "PENDING",
+      "rejectReason": null,
       "createdAt": "2025-07-18T21:30:00"
     }
   ]
@@ -785,7 +868,23 @@ GET /api/admin/merchant-application/pending?page=1&size=20
 
 ---
 
-#### 通过申请
+#### 申请详情
+
+```
+GET /api/admin/merchant-application/{id}/detail
+```
+
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | long | 申请 ID |
+
+**响应 data：** `AdminApplicationVO`（含分类名称、申请原因、拒绝原因、审核备注等完整字段）
+
+---
+
+#### 通过申请（V1）
 
 ```
 PUT /api/admin/merchant-application/{id}/approve
@@ -797,7 +896,7 @@ PUT /api/admin/merchant-application/{id}/approve
 
 ---
 
-#### 拒绝申请
+#### 拒绝申请（V1）
 
 ```
 PUT /api/admin/merchant-application/{id}/reject
@@ -812,6 +911,52 @@ PUT /api/admin/merchant-application/{id}/reject
 > 申请状态 → `REJECTED`
 
 **可能错误码：** `3003`
+
+---
+
+#### 通过申请（V2，推荐）
+
+```
+POST /api/admin/application/{id}/approve
+```
+
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | long | 申请 ID |
+
+**请求体：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `initialStatus` | string | 是 | 初始营业状态：`OPEN`(营业中) / `CLOSED`(打烊) |
+| `deliveryRadius` | int | 是 | 配送半径（米），范围 500–20000 |
+| `reviewNote` | string | 否 | 审核备注（内部留存，≤200 字） |
+
+**可能错误码：** `3003`, `7007`
+
+---
+
+#### 拒绝申请（V2，推荐）
+
+```
+POST /api/admin/application/{id}/reject
+```
+
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | long | 申请 ID |
+
+**请求体：**
+
+| 参数 | 类型 | 必填 | 校验 | 说明 |
+|------|------|------|------|------|
+| `reason` | string | 是 | @NotBlank，10–200 字 | 拒绝原因（将展示给商家） |
+
+**可能错误码：** `3003`, `7001`, `7007`
 
 ---
 
@@ -836,7 +981,7 @@ GET /api/admin/users?page=1&size=20&keyword={keyword}
     {
       "id": 1,
       "username": "admin",
-      "phone": "13800138000",
+      "phone": "138****0001",
       "role": "ADMIN",
       "status": "ACTIVE",
       "createdAt": "2025-07-01T00:00:00"
@@ -871,7 +1016,7 @@ PUT /api/admin/users/{id}/enable
 
 ---
 
-### 6.4 商家管理
+### 6.4 商家管理（V1）
 
 #### 商家列表
 
@@ -881,8 +1026,8 @@ GET /api/admin/merchants?page=1&size=20&keyword={keyword}&status={status}
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `keyword` | string | 否 | 搜索店铺名 |
-| `status` | string | 否 | `OPEN` / `CLOSED` / `SUSPENDED` |
+| `keyword` | string | 否 | 搜索店铺名/店主/电话 |
+| `status` | string | 否 | `OPEN` / `CLOSED` / `SUSPENDED` / `PENDING` |
 
 **响应 data：** `PageVO<AdminMerchantVO>`
 
@@ -894,8 +1039,14 @@ GET /api/admin/merchants?page=1&size=20&keyword={keyword}&status={status}
       "id": 1,
       "name": "深夜食堂",
       "ownerName": "zhangsan",
-      "phone": "13800138001",
+      "phone": "138****0001",
+      "logoUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/nsp/2025-07/25/xxx.jpg",
+      "categoryName": "中式快餐",
+      "todayOrders": 12,
+      "todayRevenue": 890.50,
+      "avgRating": 4.8,
       "status": "OPEN",
+      "lastLoginAt": "2025-07-23T18:30:00",
       "createdAt": "2025-07-15T00:00:00"
     }
   ]
@@ -904,7 +1055,7 @@ GET /api/admin/merchants?page=1&size=20&keyword={keyword}&status={status}
 
 ---
 
-#### 封禁商家
+#### 封禁商家（V1）
 
 ```
 PUT /api/admin/merchants/{id}/suspend
@@ -916,7 +1067,7 @@ PUT /api/admin/merchants/{id}/suspend
 
 ---
 
-#### 解封商家
+#### 解封商家（V1）
 
 ```
 PUT /api/admin/merchants/{id}/activate
@@ -925,6 +1076,143 @@ PUT /api/admin/merchants/{id}/activate
 > 状态 → `OPEN`
 
 **可能错误码：** `3001`
+
+---
+
+### 6.5 商家管理（V2，推荐）
+
+> 以下接口提供更细粒度的商家操作，含封禁原因校验和操作日志。
+
+#### 商家统计概览
+
+```
+GET /api/admin/merchant/stats
+```
+
+**响应 data：** `MerchantStatsVO`
+
+```json
+{
+  "total": 8,
+  "openCount": 5,
+  "pendingCount": 1,
+  "suspendedCount": 1,
+  "closedCount": 1
+}
+```
+
+---
+
+#### 商家详情
+
+```
+GET /api/admin/merchant/{id}/detail
+```
+
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | long | 商家 ID |
+
+**响应 data：** `MerchantDetailVO`（含完整字段：店铺信息、店主、品类、评分、历史订单/今日订单/今日营收、营业时间、配送半径、简介、公告、封禁原因、入驻时间、最后登录等）
+
+---
+
+#### 暂停营业
+
+```
+PUT /api/admin/merchant/{id}/pause
+```
+
+> 状态 → `CLOSED`（计入操作日志）
+
+**可能错误码：** `3001`
+
+---
+
+#### 恢复营业
+
+```
+PUT /api/admin/merchant/{id}/resume
+```
+
+> 状态 → `OPEN`（计入操作日志）
+
+**可能错误码：** `3001`
+
+---
+
+#### 封禁商家（V2）
+
+```
+PUT /api/admin/merchant/{id}/ban
+```
+
+**请求体：**
+
+| 参数 | 类型 | 必填 | 校验 | 说明 |
+|------|------|------|------|------|
+| `reason` | string | 是 | @NotBlank | 封禁原因 |
+
+> 状态 → `SUSPENDED`，记录封禁原因、时间、操作人。计入操作日志。
+
+**可能错误码：** `3001`, `7002`, `7003`
+
+---
+
+#### 解封商家（V2）
+
+```
+PUT /api/admin/merchant/{id}/unban
+```
+
+> 状态 → `OPEN`，清除封禁原因。计入操作日志。
+
+**可能错误码：** `3001`, `7004`
+
+---
+
+#### 删除商家（软删）
+
+```
+DELETE /api/admin/merchant/{id}
+```
+
+> 软删除，数据不可恢复。计入操作日志。
+
+**可能错误码：** `3001`
+
+---
+
+#### 操作日志列表
+
+```
+GET /api/admin/merchant/{id}/logs
+```
+
+**路径参数：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `id` | long | 商家 ID |
+
+**响应 data：** `List<Map<String, Object>>`
+
+```json
+[
+  {
+    "time": "2025-07-23T18:30:00",
+    "action": "封禁商家",
+    "detail": "多次用户投诉，核实后封禁"
+  },
+  {
+    "time": "2025-07-20T09:15:00",
+    "action": "通过入驻申请",
+    "detail": "初始状态: 营业中, 配送半径: 3000m"
+  }
+]
+```
 
 ---
 
@@ -949,14 +1237,16 @@ GET /api/upload/sign?bizType={bizType}&targetId={targetId}&fileName={fileName}
 
 ```json
 {
-  "host": "https://nsp-upload.oss-cn-beijing.aliyuncs.com",
-  "dir": "product/1/",
+  "host": "https://nsp-upload.oss-cn-shenzhen.aliyuncs.com",
+  "dir": "nsp/2025-07/25/",
   "policy": "eyJleHBpcmF...",
   "signature": "abc123...",
   "accessId": "LTAI5t...",
   "expire": 60
 }
 ```
+
+**OSS 文件命名规则**：`nsp/yyyy-MM/dd/{uuid}.{ext}`，按上传日期自动归类。
 
 **可能错误码：** `6001`, `6002`
 
@@ -977,7 +1267,7 @@ POST /api/upload/bind
 | `targetId` | long | 否 | 关联业务对象 ID |
 | `url` | string | 是 | 文件访问 URL |
 
-> 前端直传 OSS 成功后调用此接口，后端将文件记录入库
+> 前端直传 OSS 成功后调用此接口，后端将文件记录落 `uploaded_file` 表。
 
 ---
 
@@ -987,7 +1277,7 @@ POST /api/upload/bind
 GET /api/upload/url?ossKey={ossKey}
 ```
 
-> 用于私有 Bucket，生成带签名的临时访问 URL
+> 用于私有 Bucket，生成带签名的临时访问 URL。
 
 ---
 
@@ -997,7 +1287,7 @@ GET /api/upload/url?ossKey={ossKey}
 POST /api/upload/callback
 ```
 
-> 由阿里云 OSS 服务端回调，需配置白名单 IP 校验。  
+> 由阿里云 OSS 服务端回调，需校验回调签名防止伪造。
 > 返回 `"success"` 或 `"fail"` 字符串。
 
 **可能错误码：** `6004`
@@ -1038,6 +1328,8 @@ PAID ──(退款)──→ REFUNDING ──(退款成功)──→ REFUNDED
 | | `DISABLED` | 已封禁 |
 | **支付渠道** | `ALIPAY` | 支付宝 |
 | | `WECHAT_MOCK` | 微信模拟 |
+| **商品状态** | `ON` | 上架 |
+| | `OFF` | 下架 |
 | **上传业务类型** | `AVATAR` | 头像 |
 | | `SHOP_LOGO` | 店铺图 |
 | | `PRODUCT_IMAGE` | 商品图 |
@@ -1047,21 +1339,102 @@ PAID ──(退款)──→ REFUNDING ──(退款成功)──→ REFUNDED
 
 ---
 
-## 十、测试账号（种子数据）
+## 十、完整接口索引
+
+| 序号 | 方法 | URL | 说明 | 鉴权 |
+|------|------|-----|------|------|
+| 1 | POST | `/api/user/register` | 用户注册 | 匿名 |
+| 2 | POST | `/api/user/login` | 用户登录（跨表） | 匿名 |
+| 3 | GET | `/api/user/info` | 获取当前用户信息 | 登录 |
+| 4 | GET | `/api/user/address` | 地址列表 | USER |
+| 5 | GET | `/api/user/address/{id}` | 地址详情 | USER |
+| 6 | POST | `/api/user/address` | 新增地址 | USER |
+| 7 | PUT | `/api/user/address/{id}` | 更新地址 | USER |
+| 8 | DELETE | `/api/user/address/{id}` | 删除地址 | USER |
+| 9 | PUT | `/api/user/address/{id}/default` | 设为默认地址 | USER |
+| 10 | GET | `/api/user/cart` | 查询购物车 | USER |
+| 11 | POST | `/api/user/cart` | 添加购物车商品 | USER |
+| 12 | PUT | `/api/user/cart` | 更新购物车数量 | USER |
+| 13 | DELETE | `/api/user/cart/{specId}` | 移除购物车商品 | USER |
+| 14 | DELETE | `/api/user/cart` | 清空购物车 | USER |
+| 15 | POST | `/api/user/order` | 创建订单 | USER |
+| 16 | GET | `/api/user/order` | 我的订单列表 | USER |
+| 17 | GET | `/api/user/order/{id}` | 订单详情 | USER |
+| 18 | POST | `/api/user/order/{id}/cancel` | 取消订单 | USER |
+| 19 | POST | `/api/user/pay` | 发起支付 | USER |
+| 20 | GET | `/api/user/pay/{orderNo}/status` | 支付状态查询 | USER |
+| 21 | POST | `/api/pay/alipay/callback` | 支付宝回调 | 匿名 |
+| 22 | GET | `/api/merchant/list` | 浏览商家列表 | 登录 |
+| 23 | GET | `/api/merchant/{id}` | 商家详情 | 登录 |
+| 24 | GET | `/api/merchant/shop` | 获取店铺信息 | MERCHANT |
+| 25 | PUT | `/api/merchant/shop/status` | 更新营业状态 | MERCHANT |
+| 26 | GET | `/api/merchant/category` | 品类列表 | MERCHANT |
+| 27 | POST | `/api/merchant/category` | 新增品类 | MERCHANT |
+| 28 | PUT | `/api/merchant/category/{id}` | 更新品类 | MERCHANT |
+| 29 | DELETE | `/api/merchant/category/{id}` | 删除品类 | MERCHANT |
+| 30 | GET | `/api/merchant/product/list` | 商品列表 | 登录 |
+| 31 | GET | `/api/merchant/product/{id}` | 商品详情 | 登录 |
+| 32 | POST | `/api/merchant/product` | 新增商品 | MERCHANT |
+| 33 | PUT | `/api/merchant/product/{id}` | 更新商品 | MERCHANT |
+| 34 | PUT | `/api/merchant/product/{id}/status` | 上架/下架 | MERCHANT |
+| 35 | POST | `/api/merchant/product/{productId}/spec` | 添加规格 | MERCHANT |
+| 36 | DELETE | `/api/merchant/product/spec/{specId}` | 删除规格 | MERCHANT |
+| 37 | GET | `/api/merchant/order` | 店铺订单列表 | MERCHANT |
+| 38 | GET | `/api/merchant/order/{id}` | 订单详情 | MERCHANT |
+| 39 | PUT | `/api/merchant/order/{id}/accept` | 接单 | MERCHANT |
+| 40 | PUT | `/api/merchant/order/{id}/cooking` | 开始制作 | MERCHANT |
+| 41 | PUT | `/api/merchant/order/{id}/complete` | 完成制作 | MERCHANT |
+| 42 | PUT | `/api/merchant/order/{id}/reject` | 拒单 | MERCHANT |
+| 43 | GET | `/api/admin/dashboard/stats` | 核心统计卡片 | ADMIN |
+| 44 | GET | `/api/admin/dashboard/order-stats` | 订单状态分布 | ADMIN |
+| 45 | GET | `/api/admin/dashboard/recent-orders` | 最新订单 | ADMIN |
+| 46 | GET | `/api/admin/merchant-application/pending` | 入驻申请列表 | ADMIN |
+| 47 | GET | `/api/admin/merchant-application/{id}/detail` | 申请详情 | ADMIN |
+| 48 | PUT | `/api/admin/merchant-application/{id}/approve` | 通过申请(V1) | ADMIN |
+| 49 | PUT | `/api/admin/merchant-application/{id}/reject` | 拒绝申请(V1) | ADMIN |
+| 50 | POST | `/api/admin/application/{id}/approve` | 通过申请(V2) | ADMIN |
+| 51 | POST | `/api/admin/application/{id}/reject` | 拒绝申请(V2) | ADMIN |
+| 52 | GET | `/api/admin/users` | 用户列表 | ADMIN |
+| 53 | PUT | `/api/admin/users/{id}/disable` | 封禁用户 | ADMIN |
+| 54 | PUT | `/api/admin/users/{id}/enable` | 解封用户 | ADMIN |
+| 55 | GET | `/api/admin/merchants` | 商家列表(V1) | ADMIN |
+| 56 | PUT | `/api/admin/merchants/{id}/suspend` | 封禁商家(V1) | ADMIN |
+| 57 | PUT | `/api/admin/merchants/{id}/activate` | 解封商家(V1) | ADMIN |
+| 58 | GET | `/api/admin/merchant/stats` | 商家统计概览 | ADMIN |
+| 59 | GET | `/api/admin/merchant/{id}/detail` | 商家详情(V2) | ADMIN |
+| 60 | PUT | `/api/admin/merchant/{id}/pause` | 暂停营业 | ADMIN |
+| 61 | PUT | `/api/admin/merchant/{id}/resume` | 恢复营业 | ADMIN |
+| 62 | PUT | `/api/admin/merchant/{id}/ban` | 封禁商家(V2) | ADMIN |
+| 63 | PUT | `/api/admin/merchant/{id}/unban` | 解封商家(V2) | ADMIN |
+| 64 | DELETE | `/api/admin/merchant/{id}` | 删除商家 | ADMIN |
+| 65 | GET | `/api/admin/merchant/{id}/logs` | 操作日志 | ADMIN |
+| 66 | GET | `/api/upload/sign` | OSS 上传签名 | 登录 |
+| 67 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
+| 68 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
+| 69 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
+
+---
+
+## 十一、测试账号（种子数据）
 
 > Flyway 启动时自动插入，BCrypt 加密存储。
 
 | 角色 | 用户名 | 密码 | 说明 |
 |------|--------|------|------|
-| 管理员 | `admin` | `admin123` | 平台管理员，可登录管理后台 |
+| 管理员 | `admin` | `admin123` | 平台管理员 |
 | 超级管理员 | `superadmin` | `admin123` | 备用管理员 |
 | 顾客 | `tester` | `test123` | 测试用户（有地址 + 历史订单） |
 | 顾客 | `zhangsan` | `test123` | 普通用户 |
 | 顾客 | `lisi` | `test123` | 普通用户 |
 | 顾客 | `wangwu` | `test123` | 普通用户 |
-| 顾客 | `zhaoliu` | `test123` | 已封禁用户（`DISABLED`） |
-| 商家 | `nightbb` | `m123456` | 深夜食堂（营业中 18:00-03:00） |
-| 商家 | `spicyhot` | `m123456` | 辣翻天小龙虾（营业中 16:00-02:00） |
-| 商家 | `teahouse` | `m123456` | 老王糖水铺（营业中 14:00-23:00） |
+| 顾客 | `zhaoliu` | `test123` | 已封禁用户 |
+| 商家 | `nightbb` | `m123456` | 深夜食堂（18:00-03:00） |
+| 商家 | `spicyhot` | `m123456` | 辣翻天小龙虾（16:00-02:00） |
+| 商家 | `teahouse` | `m123456` | 老王糖水铺（14:00-23:00） |
+| 商家 | `bbqmaster` | `m123456` | 老李烧烤（17:00-02:00） |
+| 商家 | `noodleking` | `m123456` | 一碗面馆（06:00-22:00） |
+| 商家 | `dumpling` | `m123456` | 饺子王（10:00-21:00） |
+| 商家 | `friedchicken` | `m123456` | 炸鸡啤酒屋（15:00-01:00） |
+| 商家 | `malatang` | `m123456` | 麻辣烫大王（11:00-23:00） |
 
 > **注意**：数据库重建后密码生效。若重建前已启动过，需 `DROP TABLE flyway_schema_history` 并删库重建。
