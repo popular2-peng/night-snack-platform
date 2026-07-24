@@ -46,6 +46,38 @@ export function listMerchants(params: { page: number; size: number; keyword?: st
   return request.get('/admin/merchants', { params })
 }
 
+export function getMerchantStats() {
+  return request.get('/admin/merchant/stats')
+}
+
+export function getMerchantDetail(id: number) {
+  return request.get(`/admin/merchant/${id}/detail`)
+}
+
+export function pauseMerchant(id: number) {
+  return request.put(`/admin/merchant/${id}/pause`)
+}
+
+export function resumeMerchant(id: number) {
+  return request.put(`/admin/merchant/${id}/resume`)
+}
+
+export function banMerchant(id: number, reason: string) {
+  return request.put(`/admin/merchant/${id}/ban`, { reason })
+}
+
+export function unbanMerchant(id: number) {
+  return request.put(`/admin/merchant/${id}/unban`)
+}
+
+export function deleteMerchant(id: number) {
+  return request.delete(`/admin/merchant/${id}`)
+}
+
+export function getMerchantLogs(id: number) {
+  return request.get(`/admin/merchant/${id}/logs`)
+}
+
 export function suspendMerchant(id: number) {
   return request.put(`/admin/merchants/${id}/suspend`)
 }

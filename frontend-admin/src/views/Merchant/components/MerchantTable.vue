@@ -1,11 +1,22 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { listMerchants, suspendMerchant, activateMerchant } from '@/apis/admin'
+import { ref, onMounted } from 'vue'
+import {
+  listMerchants, getMerchantStats, getMerchantDetail, getMerchantLogs,
+  banMerchant, unbanMerchant, pauseMerchant, resumeMerchant, deleteMerchant,
+} from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Refresh, MoreFilled } from '@element-plus/icons-vue'
 
-interface MerchantItem { id: number; name: string; ownerName: string; phone: string; status: string; createdAt: string }
+// ---- 类型 ----
+interface MerchantItem {
+  id: number; name: string; ownerName: string; phone: string
+  logoUrl: string; categoryName: string; todayOrders: number; todayRevenue: number
+  avgRating: number; status: string; lastLoginAt: string; createdAt: string
+}
+interface Stats { total: number; openCount: number; pendingCount: number; suspendedCount: number; closedCount: number }
+interface LogItem { time: string; action: string; detail: string }
 
+// ---- 数据 ----
 const merchants = ref<MerchantItem[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -14,6 +25,26 @@ const keyword = ref('')
 const statusFilter = ref('')
 const loading = ref(false)
 
+const stats = ref<Stats>({ total: 0, openCount: 0, pendingCount: 0, suspendedCount: 0, closedCount: 0 })
+
+// 选中行
+const selectedIds = ref<number[]>([])
+
+// 详情抽屉
+const drawerVisible = ref(false)
+const detail = ref<any>({})
+const detailLogs = ref<LogItem[]>([])
+
+// 封禁弹窗
+const banVisible = ref(false)
+const banTarget = ref<MerchantItem | null>(null)
+const banReason = ref('')
+
+// 编辑弹窗（占位）
+const editVisible = ref(false)
+const editTarget = ref<MerchantItem | null>(null)
+
+// ---- 状态映射 ----
 const statusMap: Record<string, { label: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
   OPEN: { label: '营业中', type: 'success' },
   CLOSED: { label: '已打烊', type: 'info' },
@@ -21,137 +52,353 @@ const statusMap: Record<string, { label: string; type: '' | 'success' | 'warning
   PENDING: { label: '审核中', type: 'warning' },
 }
 
+const statusOptions = [
+  { label: '全部状态', value: '' },
+  { label: '营业中', value: 'OPEN' },
+  { label: '已打烊', value: 'CLOSED' },
+  { label: '已封禁', value: 'SUSPENDED' },
+  { label: '审核中', value: 'PENDING' },
+]
+
+// ---- 数据获取 ----
 async function fetchMerchants() {
   loading.value = true
-  const params: any = { page: page.value, size: size.value }
-  if (keyword.value) params.keyword = keyword.value
-  if (statusFilter.value) params.status = statusFilter.value
-  const res = await listMerchants(params)
-  merchants.value = res.data.list
-  total.value = res.data.total
-  loading.value = false
+  try {
+    const params: any = { page: page.value, size: size.value }
+    if (keyword.value) params.keyword = keyword.value
+    if (statusFilter.value) params.status = statusFilter.value
+    const res = await listMerchants(params)
+    merchants.value = res.data.list || []
+    total.value = res.data.total || (res.data.list || []).length
+  } finally {
+    loading.value = false
+  }
+}
+
+async function fetchStats() {
+  try {
+    const res = await getMerchantStats()
+    stats.value = res.data
+  } catch { /* ignore */ }
 }
 
 function handleSearch() { page.value = 1; fetchMerchants() }
 function handleSizeChange(val: number) { size.value = val; fetchMerchants() }
 function handlePageChange(val: number) { page.value = val; fetchMerchants() }
 
-async function handleSuspend(row: MerchantItem) {
-  await ElMessageBox.confirm(`确定封禁商家 "${row.name}"？`, '提示', { type: 'warning' })
-  await suspendMerchant(row.id)
+// ---- 选择 ----
+function handleSelectionChange(rows: MerchantItem[]) {
+  selectedIds.value = rows.map(r => r.id)
+}
+
+// ---- 详情抽屉 ----
+async function openDetail(row: MerchantItem) {
+  try {
+    const [dRes, lRes] = await Promise.all([
+      getMerchantDetail(row.id),
+      getMerchantLogs(row.id),
+    ])
+    detail.value = dRes.data
+    detailLogs.value = lRes.data || []
+    drawerVisible.value = true
+  } catch { ElMessage.error('获取详情失败') }
+}
+
+// ---- 暂停/恢复 ----
+async function handlePause(row: MerchantItem) {
+  await ElMessageBox.confirm(`确定暂停「${row.name}」营业？`, '提示', { type: 'warning' })
+  await pauseMerchant(row.id)
+  ElMessage.success('已暂停营业')
+  refreshAll()
+}
+async function handleResume(row: MerchantItem) {
+  await resumeMerchant(row.id)
+  ElMessage.success('已恢复营业')
+  refreshAll()
+}
+
+// ---- 封禁/解封 ----
+function openBan(row: MerchantItem) {
+  banTarget.value = row
+  banReason.value = ''
+  banVisible.value = true
+}
+async function confirmBan() {
+  if (!banReason.value.trim()) { ElMessage.warning('请输入封禁原因'); return }
+  await banMerchant(banTarget.value!.id, banReason.value)
   ElMessage.success('封禁成功')
-  fetchMerchants()
+  banVisible.value = false
+  refreshAll()
 }
-
-async function handleActivate(row: MerchantItem) {
-  await activateMerchant(row.id)
+async function handleUnban(row: MerchantItem) {
+  await unbanMerchant(row.id)
   ElMessage.success('解封成功')
-  fetchMerchants()
+  refreshAll()
 }
 
-const statusOptions = [
-  { label: '全部状态', value: '' },
-  { label: '营业中', value: 'OPEN' },
-  { label: '已打烊', value: 'CLOSED' },
-  { label: '已封禁', value: 'SUSPENDED' },
-]
+// ---- 删除 ----
+async function handleDelete(row: MerchantItem) {
+  await ElMessageBox.confirm(`确定删除「${row.name}」？此操作不可恢复。`, '危险操作', { type: 'error', confirmButtonText: '确认删除' })
+  await deleteMerchant(row.id)
+  ElMessage.success('已删除')
+  refreshAll()
+}
 
-const openCount = computed(() => merchants.value.filter(m => m.status === 'OPEN').length)
+// ---- 批量操作 ----
+async function batchBan() {
+  if (!selectedIds.value.length) { ElMessage.warning('请先勾选商家'); return }
+  const { value: reason } = await ElMessageBox.prompt('请输入封禁原因', '批量封禁', { confirmButtonText: '确定', inputType: 'textarea' })
+  if (!reason) return
+  for (const id of selectedIds.value) {
+    try { await banMerchant(id, reason) } catch { /* continue */ }
+  }
+  ElMessage.success('批量封禁完成')
+  refreshAll()
+}
+async function batchDelete() {
+  if (!selectedIds.value.length) { ElMessage.warning('请先勾选商家'); return }
+  await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个商家？`, '危险操作', { type: 'error' })
+  for (const id of selectedIds.value) {
+    try { await deleteMerchant(id) } catch { /* continue */ }
+  }
+  ElMessage.success('批量删除完成')
+  refreshAll()
+}
 
-onMounted(fetchMerchants)
+function refreshAll() {
+  fetchMerchants()
+  fetchStats()
+}
+
+// ---- 格式化 ----
+function formatMoney(n: number) { return n != null ? '¥' + Number(n).toFixed(2) : '¥0.00' }
+function formatTime(s: string) { return s ? s.replace('T', ' ').substring(0, 16) : '' }
+
+onMounted(refreshAll)
 </script>
 
 <template>
   <div class="page-card">
-    <!-- 数据统计条 -->
+
+    <!-- ====== 统计条 ====== -->
     <div class="stats-strip">
       <div class="stat-item">
-        <span class="stat-item-value">{{ total }}</span>
+        <span class="stat-item-value">{{ stats.total }}</span>
         <span class="stat-item-label">商家总数</span>
       </div>
       <div class="stat-divider" />
       <div class="stat-item">
-        <span class="stat-item-value text-success">{{ openCount }}</span>
+        <span class="stat-item-value text-success">{{ stats.openCount }}</span>
         <span class="stat-item-label">营业中</span>
+      </div>
+      <div class="stat-divider" />
+      <div class="stat-item">
+        <span class="stat-item-value text-warning">{{ stats.pendingCount }}</span>
+        <span class="stat-item-label">待审核</span>
+      </div>
+      <div class="stat-divider" />
+      <div class="stat-item">
+        <span class="stat-item-value text-danger">{{ stats.suspendedCount }}</span>
+        <span class="stat-item-label">已封禁</span>
+      </div>
+      <div class="stat-divider" />
+      <div class="stat-item">
+        <span class="stat-item-value text-info">{{ stats.closedCount }}</span>
+        <span class="stat-item-label">打烊中</span>
       </div>
     </div>
 
+    <!-- ====== 搜索 + 批量操作 ====== -->
     <div class="search-bar">
-      <el-input v-model="keyword" placeholder="搜索店铺名" clearable style="width: 220px" @keyup.enter="handleSearch">
+      <el-input v-model="keyword" placeholder="搜索店铺名/店主/电话" clearable style="width: 240px" @keyup.enter="handleSearch">
         <template #prefix><el-icon><Search /></el-icon></template>
       </el-input>
-      <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 140px" @change="handleSearch">
+      <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 130px" @change="handleSearch">
         <el-option v-for="o in statusOptions" :key="o.value" :label="o.label" :value="o.value" />
       </el-select>
       <el-button type="primary" @click="handleSearch">搜索</el-button>
+      <el-button :icon="Refresh" @click="refreshAll">刷新</el-button>
+
+      <span style="flex:1" />
+      <template v-if="selectedIds.length">
+        <el-button type="warning" plain @click="batchBan">批量封禁 ({{ selectedIds.length }})</el-button>
+        <el-button type="danger" plain @click="batchDelete">批量删除 ({{ selectedIds.length }})</el-button>
+      </template>
     </div>
 
-    <el-table :data="merchants" stripe v-loading="loading" style="width: 100%">
-      <el-table-column prop="id" label="ID" width="80" align="center" />
-      <el-table-column prop="name" label="店铺名称" min-width="140" />
-      <el-table-column prop="ownerName" label="店主" width="120" />
-      <el-table-column prop="phone" label="联系电话" width="140" />
-      <el-table-column prop="status" label="状态" width="100" align="center">
+    <!-- ====== 表格 ====== -->
+    <el-table :data="merchants" stripe v-loading="loading" style="width: 100%"
+      @selection-change="handleSelectionChange">
+      <el-table-column type="selection" width="42" fixed="left" />
+      <el-table-column type="index" label="编号" width="56" align="center" />
+
+      <el-table-column label="LOGO" width="72" align="center">
+        <template #default="{ row }">
+          <el-avatar v-if="row.logoUrl" :src="row.logoUrl" :size="36" shape="square" />
+          <el-avatar v-else :size="36" shape="square" style="background:#EEF3FD;color:#5B8DEF;">
+            {{ row.name?.charAt(0) || '店' }}
+          </el-avatar>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="name" label="店铺名称" min-width="130" show-overflow-tooltip sortable="custom" align="left" header-align="center" />
+      <el-table-column prop="ownerName" label="店主" width="105" align="center" />
+      <el-table-column prop="phone" label="联系电话" width="130" align="center" />
+      <el-table-column prop="categoryName" label="品类" width="95" align="center" />
+      <el-table-column label="今日订单/营收" width="155" align="center">
+        <template #default="{ row }">
+          <span class="order-revenue-cell">
+            <strong>{{ row.todayOrders ?? 0 }}</strong> 单 / {{ formatMoney(row.todayRevenue) }}
+          </span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="avgRating" label="评分" width="80" align="center" sortable="custom" />
+      <el-table-column label="状态" width="90" align="center">
         <template #default="{ row }">
           <el-tag :type="statusMap[row.status]?.type || 'info'" size="small" effect="plain">
             {{ statusMap[row.status]?.label || row.status }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="入驻时间" width="180" />
-      <el-table-column label="操作" width="160" align="center" fixed="right">
+      <el-table-column label="入驻时间" width="150" sortable="custom" align="center">
+        <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
+      </el-table-column>
+      <el-table-column label="最后登录" width="150" align="center">
+        <template #default="{ row }">{{ formatTime(row.lastLoginAt) || '-' }}</template>
+      </el-table-column>
+
+      <!-- 操作列：下拉菜单 -->
+      <el-table-column label="操作" width="90" align="center" fixed="right">
         <template #default="{ row }">
-          <el-button v-if="row.status === 'SUSPENDED'" size="small" type="success" plain @click="handleActivate(row)">解封</el-button>
-          <el-button v-else size="small" type="danger" plain @click="handleSuspend(row)">封禁</el-button>
+          <el-dropdown trigger="click">
+            <el-button size="small" :icon="MoreFilled" circle />
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="openDetail(row)">查看详情</el-dropdown-item>
+                <el-dropdown-item @click="editTarget = row; editVisible = true">编辑</el-dropdown-item>
+                <template v-if="row.status === 'SUSPENDED'">
+                  <el-dropdown-item @click="handleUnban(row)" style="color:#67C23A">解封</el-dropdown-item>
+                </template>
+                <template v-else>
+                  <el-dropdown-item v-if="row.status === 'OPEN'" @click="handlePause(row)">暂停营业</el-dropdown-item>
+                  <el-dropdown-item v-if="row.status === 'CLOSED'" @click="handleResume(row)">恢复营业</el-dropdown-item>
+                  <el-dropdown-item divided @click="openBan(row)" style="color:#F56C6C">封禁</el-dropdown-item>
+                </template>
+                <el-dropdown-item divided @click="handleDelete(row)" style="color:#F56C6C">删除</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
 
+    <!-- 分页 -->
     <div class="pagination-wrap">
       <el-pagination
-        v-model:current-page="page"
-        v-model:page-size="size"
-        :total="total"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next"
-        background
-        @size-change="handleSizeChange"
-        @current-change="handlePageChange"
+        v-model:current-page="page" v-model:page-size="size"
+        :total="total" :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next" background
+        @size-change="handleSizeChange" @current-change="handlePageChange"
       />
     </div>
+
+    <!-- ====== 详情抽屉 ====== -->
+    <el-drawer v-model="drawerVisible" title="商家详情" size="480px">
+      <template v-if="detail.id">
+        <div class="detail-section">
+          <div class="detail-logo">
+            <el-avatar v-if="detail.logoUrl" :src="detail.logoUrl" :size="72" shape="square" />
+            <el-avatar v-else :size="72" shape="square" style="font-size:28px;background:#EEF3FD;color:#5B8DEF;">
+              {{ detail.name?.charAt(0) || '店' }}
+            </el-avatar>
+            <div>
+              <h3>{{ detail.name }}</h3>
+              <p>店主: {{ detail.username }}</p>
+            </div>
+          </div>
+          <el-descriptions :column="1" border size="small" style="margin-top:16px">
+            <el-descriptions-item label="电话">{{ detail.phone }}</el-descriptions-item>
+            <el-descriptions-item label="地址">{{ detail.address }}</el-descriptions-item>
+            <el-descriptions-item label="品类">{{ detail.categoryName || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="简介">{{ detail.description || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="公告">{{ detail.notice || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="评分">{{ detail.avgRating ?? '-' }}</el-descriptions-item>
+            <el-descriptions-item label="历史订单">{{ detail.totalOrders ?? 0 }}</el-descriptions-item>
+            <el-descriptions-item label="今日订单">{{ detail.todayOrders ?? 0 }}</el-descriptions-item>
+            <el-descriptions-item label="今日营收">{{ formatMoney(detail.todayRevenue) }}</el-descriptions-item>
+            <el-descriptions-item label="营业时间">{{ detail.businessHoursStart }} ~ {{ detail.businessHoursEnd }}</el-descriptions-item>
+            <el-descriptions-item label="配送半径">{{ detail.deliveryRadius }} 米</el-descriptions-item>
+            <el-descriptions-item v-if="detail.bannedReason" label="封禁原因">{{ detail.bannedReason }}</el-descriptions-item>
+            <el-descriptions-item label="入驻时间">{{ formatTime(detail.createdAt) }}</el-descriptions-item>
+            <el-descriptions-item label="最后登录">{{ formatTime(detail.lastLoginAt) || '-' }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+        <div v-if="detailLogs.length" class="detail-section" style="margin-top:20px">
+          <h4>操作记录</h4>
+          <el-timeline style="margin-top:12px">
+            <el-timeline-item v-for="(l, i) in detailLogs" :key="i" :timestamp="formatTime(l.time)" placement="top">
+              <strong>{{ l.action }}</strong>
+              <p v-if="l.detail">{{ l.detail }}</p>
+            </el-timeline-item>
+          </el-timeline>
+        </div>
+      </template>
+    </el-drawer>
+
+    <!-- ====== 封禁弹窗 ====== -->
+    <el-dialog v-model="banVisible" title="封禁商家" width="440px">
+      <p style="margin-bottom:12px">封禁「<strong>{{ banTarget?.name }}</strong>」</p>
+      <el-input v-model="banReason" type="textarea" :rows="3" placeholder="请输入封禁原因（必填）" maxlength="500" show-word-limit />
+      <template #footer>
+        <el-button @click="banVisible = false">取消</el-button>
+        <el-button type="danger" :disabled="!banReason.trim()" @click="confirmBan">确认封禁</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- ====== 编辑弹窗（骨架） ====== -->
+    <el-dialog v-model="editVisible" title="编辑商家" width="500px">
+      <p style="color:var(--text-secondary)">编辑功能将在后续版本实现。</p>
+      <p>当前商家: <strong>{{ editTarget?.name }}</strong></p>
+      <template #footer>
+        <el-button @click="editVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
 <style scoped>
+/* ---- 统计条 ---- */
 .stats-strip {
-  display: flex;
-  align-items: center;
-  gap: 32px;
-  margin-bottom: 20px;
-  padding: 16px 20px;
-  background: var(--bg);
-  border-radius: var(--border-radius-sm);
+  display: flex; align-items: center; gap: 24px;
+  margin-bottom: 20px; padding: 16px 20px;
+  background: var(--bg); border-radius: var(--border-radius-sm);
+  flex-wrap: wrap;
 }
-.stat-item {
-  display: flex;
-  flex-direction: column;
-}
+.stat-item { display: flex; flex-direction: column; }
 .stat-item-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
+  font-size: 22px; font-weight: 700; color: var(--text-primary);
+  line-height: 1.2; font-variant-numeric: tabular-nums;
 }
 .stat-item-value.text-success { color: var(--success); }
-.stat-item-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-.stat-divider {
-  width: 1px;
-  height: 32px;
-  background: var(--border-color);
+.stat-item-value.text-warning { color: var(--warning); }
+.stat-item-value.text-danger  { color: var(--danger); }
+.stat-item-value.text-info    { color: var(--info); }
+.stat-item-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.stat-divider { width: 1px; height: 32px; background: var(--border-color); }
+
+/* ---- 订单营收 ---- */
+.order-revenue-cell { font-size: 13px; white-space: nowrap; }
+
+/* ---- 详情 ---- */
+.detail-logo { display: flex; align-items: center; gap: 16px; }
+.detail-logo h3 { margin: 0 0 4px 0; font-size: 18px; }
+.detail-logo p { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.detail-section h4 { font-size: 15px; font-weight: 600; margin-bottom: 0; }
+
+/* ---- 响应式 ---- */
+@media (max-width: 768px) {
+  .stats-strip { gap: 16px; padding: 12px; }
+  .stat-item-value { font-size: 18px; }
 }
 </style>
