@@ -171,9 +171,9 @@ onMounted(() => { fetchStats(); fetchApps() })
       </el-table-column>
       <el-table-column prop="shopName" label="申请店铺名" min-width="140" show-overflow-tooltip
         header-align="center" />
+      <el-table-column prop="categoryName" label="品类" width="110" align="center" />
       <el-table-column prop="applicantUsername" label="申请人" width="100" align="center" />
       <el-table-column prop="phone" label="联系电话" width="130" align="center" />
-      <el-table-column prop="categoryName" label="品类" width="95" align="center" />
       <el-table-column prop="reason" label="申请理由" min-width="180" show-overflow-tooltip header-align="center" />
       <el-table-column label="状态" width="90" align="center">
         <template #default="{ row }">

@@ -237,9 +237,9 @@ onMounted(refreshAll)
       </el-table-column>
 
       <el-table-column prop="name" label="店铺名称" min-width="130" show-overflow-tooltip sortable="custom" align="left" header-align="center" />
+      <el-table-column prop="categoryName" label="品类" width="110" align="center" />
       <el-table-column prop="ownerName" label="店主" width="105" align="center" />
       <el-table-column prop="phone" label="联系电话" width="130" align="center" />
-      <el-table-column prop="categoryName" label="品类" width="95" align="center" />
       <el-table-column label="今日订单/营收" width="155" align="center">
         <template #default="{ row }">
           <span class="order-revenue-cell">
