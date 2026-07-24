@@ -89,7 +89,8 @@ async function handleLogin() {
 
 <style scoped>
 .login-btn-item {
-  margin-top: 12px;
+  margin-top: 24px;
+  margin-bottom: 0;
 }
 .login-btn {
   width: 100%;
