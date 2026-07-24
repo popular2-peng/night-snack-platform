@@ -5,7 +5,8 @@ import {
   banMerchant, unbanMerchant, pauseMerchant, resumeMerchant, deleteMerchant,
 } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, MoreFilled } from '@element-plus/icons-vue'
+import { MoreFilled } from '@element-plus/icons-vue'
+import SearchFilterBar from '@/components/SearchFilterBar.vue'
 
 // ---- 类型 ----
 interface MerchantItem {
@@ -209,22 +210,22 @@ onMounted(refreshAll)
     </div>
 
     <!-- ====== 搜索 + 批量操作 ====== -->
-    <div class="search-bar">
-      <el-input v-model="keyword" placeholder="搜索店铺名/店主/电话" clearable style="width: 240px" @keyup.enter="handleSearch">
-        <template #prefix><el-icon><Search /></el-icon></template>
-      </el-input>
-      <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 130px" @change="handleSearch">
-        <el-option v-for="o in statusOptions" :key="o.value" :label="o.label" :value="o.value" />
-      </el-select>
-      <el-button type="primary" @click="handleSearch">搜索</el-button>
-      <el-button :icon="Refresh" @click="refreshAll">刷新</el-button>
-
-      <span style="flex:1" />
-      <template v-if="selectedIds.length">
-        <el-button type="warning" plain @click="batchBan">批量封禁 ({{ selectedIds.length }})</el-button>
-        <el-button type="danger" plain @click="batchDelete">批量删除 ({{ selectedIds.length }})</el-button>
+    <SearchFilterBar
+      v-model:keyword="keyword"
+      v-model:filter-value="statusFilter"
+      placeholder="搜索店铺名/店主/电话"
+      :filter-options="statusOptions"
+      filter-placeholder="状态筛选"
+      @search="handleSearch"
+      @refresh="refreshAll"
+    >
+      <template #extra>
+        <template v-if="selectedIds.length">
+          <el-button type="warning" plain @click="batchBan">批量封禁 ({{ selectedIds.length }})</el-button>
+          <el-button type="danger" plain @click="batchDelete">批量删除 ({{ selectedIds.length }})</el-button>
+        </template>
       </template>
-    </div>
+    </SearchFilterBar>
 
     <!-- ====== 表格 ====== -->
     <el-table :data="merchants" stripe v-loading="loading" style="width: 100%"

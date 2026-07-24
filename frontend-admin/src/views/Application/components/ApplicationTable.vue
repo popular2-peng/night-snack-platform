@@ -4,7 +4,8 @@ import {
   listApplications, getApplicationDetail,
   approveApplicationV2, rejectApplicationV2,
 } from '@/apis/admin'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import SearchFilterBar from '@/components/SearchFilterBar.vue'
 
 interface AppItem {
   id: number; shopName: string; applicantUsername: string; phone: string
@@ -16,14 +17,23 @@ const apps = ref<AppItem[]>([])
 const total = ref(0)
 const page = ref(1)
 const size = ref(10)
+const keyword = ref('')
+const statusFilter = ref('')
 const loading = ref(false)
 
-// 统计
+const appStatusOptions = [
+  { label: '全部状态', value: '' },
+  { label: '待审核', value: 'PENDING' },
+  { label: '已通过', value: 'APPROVED' },
+  { label: '已拒绝', value: 'REJECTED' },
+]
+
+// 统计（始终基于全量数据，不受筛选影响）
 const stats = computed(() => ({
-  total: total.value,
-  pending: apps.value.filter(a => a.status === 'PENDING').length,
-  approved: apps.value.filter(a => a.status === 'APPROVED').length,
-  rejected: apps.value.filter(a => a.status === 'REJECTED').length,
+  total: allApps.value.length,
+  pending: allApps.value.filter(a => a.status === 'PENDING').length,
+  approved: allApps.value.filter(a => a.status === 'APPROVED').length,
+  rejected: allApps.value.filter(a => a.status === 'REJECTED').length,
 }))
 
 const statusMap: Record<string, { label: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
@@ -32,16 +42,37 @@ const statusMap: Record<string, { label: string; type: '' | 'success' | 'warning
   REJECTED: { label: '已拒绝', type: 'info' },
 }
 
-// ---- 数据获取 ----
+// ---- 数据获取（全量拉取 + 客户端筛选分页） ----
+const allApps = ref<AppItem[]>([])
+
 async function fetchApps() {
   loading.value = true
   try {
-    const res = await listApplications({ page: page.value, size: size.value })
-    apps.value = res.data.list || []
-    total.value = res.data.total || (res.data.list || []).length
+    // 拉取全量数据（后端暂不支持筛选参数，客户端处理）
+    const res = await listApplications({ page: 1, size: 999 })
+    allApps.value = res.data.list || []
+
+    // 客户端筛选
+    let filtered = [...allApps.value]
+    if (keyword.value) {
+      const kw = keyword.value.toLowerCase()
+      filtered = filtered.filter(a =>
+        a.shopName?.toLowerCase().includes(kw) ||
+        a.applicantUsername?.toLowerCase().includes(kw)
+      )
+    }
+    if (statusFilter.value) {
+      filtered = filtered.filter(a => a.status === statusFilter.value)
+    }
+
+    // 客户端分页
+    total.value = filtered.length
+    const start = (page.value - 1) * size.value
+    apps.value = filtered.slice(start, start + size.value)
   } finally { loading.value = false }
 }
 
+function handleSearch() { page.value = 1; fetchApps() }
 function handleSizeChange(val: number) { size.value = val; fetchApps() }
 function handlePageChange(val: number) { page.value = val; fetchApps() }
 
@@ -126,6 +157,16 @@ onMounted(fetchApps)
         <span class="stat-item-label">已拒绝</span>
       </div>
     </div>
+
+    <!-- ====== 搜索 ====== -->
+    <SearchFilterBar
+      v-model:keyword="keyword"
+      v-model:filter-value="statusFilter"
+      placeholder="搜索店铺名/申请人"
+      :filter-options="appStatusOptions"
+      filter-placeholder="状态筛选"
+      @search="handleSearch"
+    />
 
     <!-- ====== 表格 ====== -->
     <el-table :data="apps" stripe v-loading="loading" style="width: 100%">
