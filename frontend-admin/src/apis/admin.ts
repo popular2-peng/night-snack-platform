@@ -28,6 +28,18 @@ export function rejectApplication(id: number, reason: string) {
   return request.put(`/admin/merchant-application/${id}/reject`, { reason })
 }
 
+export function getApplicationDetail(id: number) {
+  return request.get(`/admin/merchant-application/${id}/detail`)
+}
+
+export function approveApplicationV2(id: number, data: { initialStatus?: string; deliveryRadius?: number; reviewNote?: string }) {
+  return request.post(`/admin/application/${id}/approve`, data)
+}
+
+export function rejectApplicationV2(id: number, rejectReason: string) {
+  return request.post(`/admin/application/${id}/reject`, { rejectReason })
+}
+
 // ---- 用户管理 ----
 export function listUsers(params: { page: number; size: number; keyword?: string }) {
   return request.get('/admin/users', { params })
