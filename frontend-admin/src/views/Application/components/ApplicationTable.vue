@@ -28,13 +28,21 @@ const appStatusOptions = [
   { label: '已拒绝', value: 'REJECTED' },
 ]
 
-// 统计（始终基于全量数据，不受筛选影响）
-const stats = computed(() => ({
-  total: allApps.value.length,
-  pending: allApps.value.filter(a => a.status === 'PENDING').length,
-  approved: allApps.value.filter(a => a.status === 'APPROVED').length,
-  rejected: allApps.value.filter(a => a.status === 'REJECTED').length,
-}))
+// 统计（独立请求全量数据，不受筛选影响）
+const stats = ref({ total: 0, pending: 0, approved: 0, rejected: 0 })
+
+async function fetchStats() {
+  try {
+    const res = await listApplications({ page: 1, size: 999 })
+    const list = res.data.list || []
+    stats.value = {
+      total: res.data.total || list.length,
+      pending: list.filter((a: AppItem) => a.status === 'PENDING').length,
+      approved: list.filter((a: AppItem) => a.status === 'APPROVED').length,
+      rejected: list.filter((a: AppItem) => a.status === 'REJECTED').length,
+    }
+  } catch { /* ignore */ }
+}
 
 const statusMap: Record<string, { label: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
   PENDING: { label: '待审核', type: 'warning' },
@@ -42,33 +50,16 @@ const statusMap: Record<string, { label: string; type: '' | 'success' | 'warning
   REJECTED: { label: '已拒绝', type: 'info' },
 }
 
-// ---- 数据获取（全量拉取 + 客户端筛选分页） ----
-const allApps = ref<AppItem[]>([])
-
+// ---- 数据获取（服务端筛选，与 MerchantTable 逻辑一致） ----
 async function fetchApps() {
   loading.value = true
   try {
-    // 拉取全量数据（后端暂不支持筛选参数，客户端处理）
-    const res = await listApplications({ page: 1, size: 999 })
-    allApps.value = res.data.list || []
-
-    // 客户端筛选
-    let filtered = [...allApps.value]
-    if (keyword.value) {
-      const kw = keyword.value.toLowerCase()
-      filtered = filtered.filter(a =>
-        a.shopName?.toLowerCase().includes(kw) ||
-        a.applicantUsername?.toLowerCase().includes(kw)
-      )
-    }
-    if (statusFilter.value) {
-      filtered = filtered.filter(a => a.status === statusFilter.value)
-    }
-
-    // 客户端分页
-    total.value = filtered.length
-    const start = (page.value - 1) * size.value
-    apps.value = filtered.slice(start, start + size.value)
+    const params: any = { page: page.value, size: size.value }
+    if (keyword.value) params.keyword = keyword.value
+    if (statusFilter.value) params.status = statusFilter.value
+    const res = await listApplications(params)
+    apps.value = res.data.list || []
+    total.value = res.data.total || (res.data.list || []).length
   } finally { loading.value = false }
 }
 
@@ -129,7 +120,7 @@ async function openDetail(row: AppItem) {
 // ---- 格式化 ----
 function formatTime(s: string) { return s ? s.replace('T', ' ').substring(0, 16) : '' }
 
-onMounted(fetchApps)
+onMounted(() => { fetchStats(); fetchApps() })
 </script>
 
 <template>

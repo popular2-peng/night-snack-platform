@@ -19,8 +19,8 @@ public interface AdminService {
     /** 最新订单列表 */
     java.util.List<AdminRecentOrderVO> getRecentOrders(int limit);
 
-    /** 商家入驻申请列表（分页） */
-    PageVO<AdminApplicationVO> listApplications(int page, int size);
+    /** 商家入驻申请列表（分页+筛选） */
+    PageVO<AdminApplicationVO> listApplications(int page, int size, String keyword, String status);
 
     /** 入驻申请详情 */
     AdminApplicationVO getApplicationDetail(Long id);

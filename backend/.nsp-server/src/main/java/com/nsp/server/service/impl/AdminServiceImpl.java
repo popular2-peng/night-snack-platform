@@ -133,11 +133,19 @@ public class AdminServiceImpl implements AdminService {
     // ──────────────────────────────────────
 
     @Override
-    public PageVO<AdminApplicationVO> listApplications(int page, int size) {
+    public PageVO<AdminApplicationVO> listApplications(int page, int size, String keyword, String status) {
+        LambdaQueryWrapper<MerchantApplication> wrapper = new LambdaQueryWrapper<>();
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w -> w.like(MerchantApplication::getShopName, keyword)
+                            .or().like(MerchantApplication::getApplicantUserId, keyword));
+        }
+        if (status != null && !status.isBlank()) {
+            wrapper.eq(MerchantApplication::getStatus, status.toUpperCase());
+        }
+        wrapper.orderByAsc(MerchantApplication::getCreatedAt);
+
         Page<MerchantApplication> result = merchantApplicationMapper.selectPage(
-                new Page<>(page, size),
-                new LambdaQueryWrapper<MerchantApplication>()
-                        .orderByAsc(MerchantApplication::getCreatedAt));
+                new Page<>(page, size), wrapper);
 
         List<AdminApplicationVO> list = result.getRecords().stream().map(a -> {
             AdminApplicationVO vo = new AdminApplicationVO();
