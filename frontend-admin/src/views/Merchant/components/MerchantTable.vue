@@ -235,7 +235,8 @@ onMounted(refreshAll)
 
       <el-table-column label="LOGO" width="72" align="center">
         <template #default="{ row }">
-          <el-avatar v-if="row.logoUrl" :src="row.logoUrl" :size="36" shape="square" />
+          <el-image v-if="row.logoUrl" :src="row.logoUrl" :preview-src-list="[row.logoUrl]" fit="cover"
+            style="width:36px;height:36px;border-radius:4px;vertical-align:middle" :preview-teleported="true" />
           <el-avatar v-else :size="36" shape="square" style="background:#EEF3FD;color:#5B8DEF;">
             {{ row.name?.charAt(0) || '店' }}
           </el-avatar>
@@ -308,7 +309,8 @@ onMounted(refreshAll)
       <template v-if="detail.id">
         <div class="detail-section">
           <div class="detail-logo">
-            <el-avatar v-if="detail.logoUrl" :src="detail.logoUrl" :size="72" shape="square" />
+            <el-image v-if="detail.logoUrl" :src="detail.logoUrl" :preview-src-list="[detail.logoUrl]" fit="cover"
+              style="width:72px;height:72px;border-radius:6px;flex-shrink:0" :preview-teleported="true" />
             <el-avatar v-else :size="72" shape="square" style="font-size:28px;background:#EEF3FD;color:#5B8DEF;">
               {{ detail.name?.charAt(0) || '店' }}
             </el-avatar>
