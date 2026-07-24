@@ -15,7 +15,7 @@ interface MerchantItem {
   logoUrl: string; categoryName: string; todayOrders: number; todayRevenue: number
   avgRating: number; status: string; lastLoginAt: string; createdAt: string
 }
-interface Stats { total: number; openCount: number; pendingCount: number; suspendedCount: number; closedCount: number }
+interface Stats { total: number; openCount: number; suspendedCount: number; closedCount: number }
 
 
 // ---- 数据 ----
@@ -27,7 +27,7 @@ const keyword = ref('')
 const statusFilter = ref('')
 const loading = ref(false)
 
-const stats = ref<Stats>({ total: 0, openCount: 0, pendingCount: 0, suspendedCount: 0, closedCount: 0 })
+const stats = ref<Stats>({ total: 0, openCount: 0, suspendedCount: 0, closedCount: 0 })
 
 // 选中行
 const selectedIds = ref<number[]>([])
@@ -50,7 +50,6 @@ const statusMap: Record<string, { label: string; type: '' | 'success' | 'warning
   OPEN: { label: '营业中', type: 'success' },
   CLOSED: { label: '已打烊', type: 'info' },
   SUSPENDED: { label: '已封禁', type: 'danger' },
-  PENDING: { label: '审核中', type: 'warning' },
 }
 
 const statusOptions = [
@@ -58,7 +57,6 @@ const statusOptions = [
   { label: '营业中', value: 'OPEN' },
   { label: '已打烊', value: 'CLOSED' },
   { label: '已封禁', value: 'SUSPENDED' },
-  { label: '审核中', value: 'PENDING' },
 ]
 
 // ---- 数据获取 ----
@@ -184,11 +182,6 @@ onMounted(refreshAll)
       <div class="stat-item">
         <span class="stat-item-value text-success">{{ stats.openCount }}</span>
         <span class="stat-item-label">营业中</span>
-      </div>
-      <div class="stat-divider" />
-      <div class="stat-item">
-        <span class="stat-item-value text-warning">{{ stats.pendingCount }}</span>
-        <span class="stat-item-label">待审核</span>
       </div>
       <div class="stat-divider" />
       <div class="stat-item">
