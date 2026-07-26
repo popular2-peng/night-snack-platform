@@ -317,6 +317,28 @@ public class AdminServiceImpl implements AdminService {
 
             return vo;
         }).toList();
+
+        // 从 order 表实时计算各商家今日订单数/营收（替代 merchant 表静态缓存字段）
+        if (!list.isEmpty()) {
+            List<Long> merchantIds = list.stream().map(AdminMerchantVO::getId).toList();
+            List<Map<String, Object>> statsList = orderMapper.selectTodayStatsBatch(merchantIds);
+            Map<Long, Map<String, Object>> statsMap = statsList.stream()
+                    .collect(Collectors.toMap(
+                            m -> ((Number) m.get("merchant_id")).longValue(),
+                            m -> m
+                    ));
+            list.forEach(vo -> {
+                Map<String, Object> stats = statsMap.get(vo.getId());
+                if (stats != null) {
+                    vo.setTodayOrders(((Number) stats.get("order_count")).intValue());
+                    vo.setTodayRevenue(new java.math.BigDecimal(stats.get("revenue").toString()));
+                } else {
+                    vo.setTodayOrders(0);
+                    vo.setTodayRevenue(java.math.BigDecimal.ZERO);
+                }
+            });
+        }
+
         return new PageVO<>(result.getTotal(), list);
     }
 

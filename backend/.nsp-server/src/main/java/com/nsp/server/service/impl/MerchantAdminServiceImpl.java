@@ -13,6 +13,7 @@ import com.nsp.pojo.vo.MerchantStatsVO;
 import com.nsp.server.annotation.Loggable;
 import com.nsp.server.mapper.CategoryMapper;
 import com.nsp.server.mapper.MerchantMapper;
+import com.nsp.server.mapper.OrderMapper;
 import com.nsp.server.service.MerchantAdminService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -34,6 +35,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
 
     private final MerchantMapper merchantMapper;
     private final CategoryMapper categoryMapper;
+    private final OrderMapper orderMapper;
 
     @Override
     public MerchantStatsVO getStats() {
@@ -183,6 +185,17 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
             if (c != null) categoryName = c.getName();
         }
 
+        // 从 order 表实时计算今日订单数/营收
+        Map<String, Object> todayStats = orderMapper.selectTodayStats(m.getId());
+        int todayOrders = 0;
+        java.math.BigDecimal todayRevenue = java.math.BigDecimal.ZERO;
+        if (todayStats != null && !todayStats.isEmpty()) {
+            Object orderCount = todayStats.get("order_count");
+            Object revenue = todayStats.get("revenue");
+            if (orderCount != null) todayOrders = ((Number) orderCount).intValue();
+            if (revenue != null) todayRevenue = new java.math.BigDecimal(revenue.toString());
+        }
+
         return MerchantDetailVO.builder()
                 .id(m.getId())
                 .username(m.getUsername())
@@ -197,8 +210,8 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
                 .idCardNo(IdCardMaskUtil.mask(m.getIdCardNo()))
                 .avgRating(m.getAvgRating())
                 .totalOrders(m.getTotalOrders())
-                .todayOrders(m.getTodayOrders())
-                .todayRevenue(m.getTodayRevenue())
+                .todayOrders(todayOrders)
+                .todayRevenue(todayRevenue)
                 .status(m.getStatus())
                 .bannedReason(m.getBannedReason())
                 .bannedAt(m.getBannedAt())

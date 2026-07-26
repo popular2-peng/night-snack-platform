@@ -81,12 +81,6 @@ public class Merchant {
     /** 历史总订单数 */
     private Integer totalOrders;
 
-    /** 今日订单数（缓存） */
-    private Integer todayOrders;
-
-    /** 今日营收（缓存） */
-    private BigDecimal todayRevenue;
-
     /** 封禁原因（管理员填写） */
     private String bannedReason;
 
