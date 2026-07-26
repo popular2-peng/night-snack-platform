@@ -67,6 +67,7 @@ async function handleLogin() {
         placeholder="请输入密码"
         size="large"
         show-password
+        @keyup.enter="handleLogin"
       >
         <template #prefix>
           <el-icon><Lock /></el-icon>
