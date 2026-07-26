@@ -1,16 +1,27 @@
 package com.nsp.server.service;
 
 import com.nsp.pojo.dto.BanMerchantDTO;
+import com.nsp.pojo.vo.AdminMerchantVO;
 import com.nsp.pojo.vo.MerchantDetailVO;
 import com.nsp.pojo.vo.MerchantStatsVO;
+import com.nsp.pojo.vo.PageVO;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * 商家管理业务接口 — 管理员对商家的 CRUD、封禁、操作日志
+ * 商家管理业务接口 — 管理员对商家的列表查询、CRUD、封禁、操作日志
  */
 public interface MerchantAdminService {
+
+    /** 商家列表（分页+筛选+搜索） */
+    PageVO<AdminMerchantVO> listMerchants(int page, int size, String keyword, String status);
+
+    /** 封禁商家（简易版，仅设 SUSPENDED 状态） */
+    void suspendMerchant(Long id);
+
+    /** 解封商家（简易版，恢复 OPEN） */
+    void activateMerchant(Long id);
 
     /** 商家统计概览（总数/营业中/待审核/已封禁/打烊） */
     MerchantStatsVO getStats();

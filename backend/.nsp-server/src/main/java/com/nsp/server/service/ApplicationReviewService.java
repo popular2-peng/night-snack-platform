@@ -3,21 +3,13 @@ package com.nsp.server.service;
 import com.nsp.pojo.dto.ApproveApplicationDTO;
 import com.nsp.pojo.dto.AuditDTO;
 import com.nsp.pojo.dto.RejectApplicationDTO;
-import com.nsp.pojo.vo.*;
+import com.nsp.pojo.vo.AdminApplicationVO;
+import com.nsp.pojo.vo.PageVO;
 
 /**
- * 管理员业务接口 — 商家审核、用户管理、商家管理、数据统计
+ * 入驻审核业务接口 — 申请列表、审核通过/拒绝、申请详情
  */
-public interface AdminService {
-
-    /** 首页核心统计 */
-    AdminDashboardVO getStats();
-
-    /** 订单状态分布（饼图/柱状图数据） */
-    java.util.List<OrderStatusStatVO> getOrderStatusDistribution();
-
-    /** 最新订单列表 */
-    java.util.List<AdminRecentOrderVO> getRecentOrders(int limit);
+public interface ApplicationReviewService {
 
     /** 商家入驻申请列表（分页+筛选） */
     PageVO<AdminApplicationVO> listApplications(int page, int size, String keyword, String status);
@@ -36,23 +28,5 @@ public interface AdminService {
 
     /** 拒绝入驻申请（旧签名，兼容） */
     void rejectApplication(Long id, Long reviewerId, AuditDTO dto);
-
-    /** 用户列表（分页+搜索） */
-    PageVO<AdminUserVO> listUsers(int page, int size, String keyword);
-
-    /** 封禁用户 */
-    void disableUser(Long id);
-
-    /** 解封用户 */
-    void enableUser(Long id);
-
-    /** 商家列表（分页+筛选+搜索）— V2 含新字段 */
-    PageVO<AdminMerchantVO> listMerchants(int page, int size, String keyword, String status);
-
-    /** 封禁商家 */
-    void suspendMerchant(Long id);
-
-    /** 解封商家 */
-    void activateMerchant(Long id);
 
 }

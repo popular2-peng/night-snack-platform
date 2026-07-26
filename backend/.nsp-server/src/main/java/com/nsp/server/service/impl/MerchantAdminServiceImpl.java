@@ -1,6 +1,8 @@
 package com.nsp.server.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
 import com.nsp.common.exception.BizException;
 import com.nsp.common.util.IdCardMaskUtil;
@@ -8,8 +10,10 @@ import com.nsp.common.util.PhoneMaskUtil;
 import com.nsp.pojo.dto.BanMerchantDTO;
 import com.nsp.pojo.entity.Category;
 import com.nsp.pojo.entity.Merchant;
+import com.nsp.pojo.vo.AdminMerchantVO;
 import com.nsp.pojo.vo.MerchantDetailVO;
 import com.nsp.pojo.vo.MerchantStatsVO;
+import com.nsp.pojo.vo.PageVO;
 import com.nsp.server.annotation.Loggable;
 import com.nsp.server.mapper.CategoryMapper;
 import com.nsp.server.mapper.MerchantMapper;
@@ -23,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 商家管理业务实现
@@ -36,6 +41,82 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
     private final MerchantMapper merchantMapper;
     private final CategoryMapper categoryMapper;
     private final OrderMapper orderMapper;
+
+    // ── 商家列表 ──
+
+    @Override
+    public PageVO<AdminMerchantVO> listMerchants(int page, int size, String keyword, String status) {
+        LambdaQueryWrapper<Merchant> wrapper = new LambdaQueryWrapper<>();
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w -> w.like(Merchant::getName, keyword)
+                            .or().like(Merchant::getUsername, keyword)
+                            .or().like(Merchant::getPhone, keyword));
+        }
+        if (status != null && !status.isBlank()) {
+            wrapper.eq(Merchant::getStatus, status.toUpperCase());
+        }
+        wrapper.orderByDesc(Merchant::getCreatedAt);
+
+        Page<Merchant> result = merchantMapper.selectPage(new Page<>(page, size), wrapper);
+        List<AdminMerchantVO> list = result.getRecords().stream().map(m -> {
+            AdminMerchantVO vo = new AdminMerchantVO();
+            BeanUtil.copyProperties(m, vo);
+            vo.setOwnerName(m.getUsername());
+            vo.setPhone(PhoneMaskUtil.mask(m.getPhone()));
+
+            if (m.getCategoryId() != null) {
+                Category c = categoryMapper.selectById(m.getCategoryId());
+                vo.setCategoryName(c != null ? c.getName() : "");
+            }
+
+            return vo;
+        }).toList();
+
+        // 从 order 表实时计算各商家今日订单数/营收
+        if (!list.isEmpty()) {
+            List<Long> merchantIds = list.stream().map(AdminMerchantVO::getId).toList();
+            List<Map<String, Object>> statsList = orderMapper.selectTodayStatsBatch(merchantIds);
+            Map<Long, Map<String, Object>> statsMap = statsList.stream()
+                    .collect(Collectors.toMap(
+                            m -> ((Number) m.get("merchant_id")).longValue(),
+                            m -> m
+                    ));
+            list.forEach(vo -> {
+                Map<String, Object> stats = statsMap.get(vo.getId());
+                if (stats != null) {
+                    vo.setTodayOrders(((Number) stats.get("order_count")).intValue());
+                    vo.setTodayRevenue(new java.math.BigDecimal(stats.get("revenue").toString()));
+                } else {
+                    vo.setTodayOrders(0);
+                    vo.setTodayRevenue(java.math.BigDecimal.ZERO);
+                }
+            });
+        }
+
+        return new PageVO<>(result.getTotal(), list);
+    }
+
+    @Override
+    @Transactional
+    @Loggable(action = "封禁商家(简易)", targetType = "merchant")
+    public void suspendMerchant(Long id) {
+        Merchant merchant = findById(id);
+        merchant.setStatus("SUSPENDED");
+        merchantMapper.updateById(merchant);
+        log.info("管理员封禁商家: merchantId={}", id);
+    }
+
+    @Override
+    @Transactional
+    @Loggable(action = "解封商家(简易)", targetType = "merchant")
+    public void activateMerchant(Long id) {
+        Merchant merchant = findById(id);
+        merchant.setStatus("OPEN");
+        merchantMapper.updateById(merchant);
+        log.info("管理员解封商家: merchantId={}", id);
+    }
+
+    // ── 商家统计 ──
 
     @Override
     public MerchantStatsVO getStats() {

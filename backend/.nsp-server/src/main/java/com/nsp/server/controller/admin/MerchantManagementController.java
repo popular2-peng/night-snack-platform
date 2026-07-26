@@ -2,8 +2,10 @@ package com.nsp.server.controller.admin;
 
 import com.nsp.common.result.Result;
 import com.nsp.pojo.dto.BanMerchantDTO;
+import com.nsp.pojo.vo.AdminMerchantVO;
 import com.nsp.pojo.vo.MerchantDetailVO;
 import com.nsp.pojo.vo.MerchantStatsVO;
+import com.nsp.pojo.vo.PageVO;
 import com.nsp.server.annotation.RequireRole;
 import com.nsp.server.service.MerchantAdminService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,31 +19,61 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 商家管理接口 — 管理员对商家的详细操作
+ * 平台管理后台 — 商家管理（列表 + 详情 + 封禁/解封/暂停/恢复/删除）
  */
-@Tag(name = "商家管理", description = "管理员：商家详情、封禁/解封、暂停/恢复、操作日志")
+@Tag(name = "商家管理", description = "管理员：商家列表、详情、封禁/解封、暂停/恢复、操作日志")
 @RestController
-@RequestMapping("/api/admin/merchant")
+@RequestMapping("/api/admin")
 @RequiredArgsConstructor
 @RequireRole("ADMIN")
-public class MerchantAdminController {
+public class MerchantManagementController {
 
     private final MerchantAdminService merchantAdminService;
 
+    // ── 商家列表（分页+筛选） ──
+
+    @Operation(summary = "商家列表")
+    @GetMapping("/merchants")
+    public Result<PageVO<AdminMerchantVO>> listMerchants(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status) {
+        return Result.ok(merchantAdminService.listMerchants(page, size, keyword, status));
+    }
+
+    @Operation(summary = "封禁商家（简易版，仅设状态）")
+    @PutMapping("/merchants/{id}/suspend")
+    public Result<Void> suspendMerchant(@PathVariable Long id) {
+        merchantAdminService.suspendMerchant(id);
+        return Result.ok();
+    }
+
+    @Operation(summary = "解封商家（简易版）")
+    @PutMapping("/merchants/{id}/activate")
+    public Result<Void> activateMerchant(@PathVariable Long id) {
+        merchantAdminService.activateMerchant(id);
+        return Result.ok();
+    }
+
+    // ── 商家统计 ──
+
     @Operation(summary = "商家统计概览")
-    @GetMapping("/stats")
+    @GetMapping("/merchant/stats")
     public Result<MerchantStatsVO> stats() {
         return Result.ok(merchantAdminService.getStats());
     }
 
+    // ── 商家详情与操作 ──
+
     @Operation(summary = "商家详情")
-    @GetMapping("/{id}/detail")
+    @GetMapping("/merchant/{id}/detail")
     public Result<MerchantDetailVO> detail(@PathVariable Long id) {
         return Result.ok(merchantAdminService.getDetail(id));
     }
 
     @Operation(summary = "暂停营业")
-    @PutMapping("/{id}/pause")
+    @PutMapping("/merchant/{id}/pause")
     public Result<Void> pause(@PathVariable Long id,
                               @AuthenticationPrincipal Long operatorId) {
         merchantAdminService.pause(id, operatorId);
@@ -49,15 +81,15 @@ public class MerchantAdminController {
     }
 
     @Operation(summary = "恢复营业")
-    @PutMapping("/{id}/resume")
+    @PutMapping("/merchant/{id}/resume")
     public Result<Void> resume(@PathVariable Long id,
                                @AuthenticationPrincipal Long operatorId) {
         merchantAdminService.resume(id, operatorId);
         return Result.ok();
     }
 
-    @Operation(summary = "封禁商家")
-    @PutMapping("/{id}/ban")
+    @Operation(summary = "封禁商家（含原因）")
+    @PutMapping("/merchant/{id}/ban")
     public Result<Void> ban(@PathVariable Long id,
                             @AuthenticationPrincipal Long operatorId,
                             @Valid @RequestBody BanMerchantDTO dto) {
@@ -66,7 +98,7 @@ public class MerchantAdminController {
     }
 
     @Operation(summary = "解封商家")
-    @PutMapping("/{id}/unban")
+    @PutMapping("/merchant/{id}/unban")
     public Result<Void> unban(@PathVariable Long id,
                               @AuthenticationPrincipal Long operatorId) {
         merchantAdminService.unban(id, operatorId);
@@ -74,7 +106,7 @@ public class MerchantAdminController {
     }
 
     @Operation(summary = "删除商家（软删）")
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/merchant/{id}")
     public Result<Void> delete(@PathVariable Long id,
                                @AuthenticationPrincipal Long operatorId) {
         merchantAdminService.softDelete(id, operatorId);
@@ -82,7 +114,7 @@ public class MerchantAdminController {
     }
 
     @Operation(summary = "操作日志列表")
-    @GetMapping("/{id}/logs")
+    @GetMapping("/merchant/{id}/logs")
     public Result<List<Map<String, Object>>> logs(@PathVariable Long id) {
         return Result.ok(merchantAdminService.getOperationLogs(id));
     }
