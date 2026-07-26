@@ -41,10 +41,31 @@ export function rejectApplicationV2(id: number, rejectReason: string) {
 }
 
 // ---- 用户管理 ----
-export function listUsers(params: { page: number; size: number; keyword?: string }) {
+export function listUsers(params: { page: number; size: number; keyword?: string; status?: string; dateStart?: string; dateEnd?: string }) {
   return request.get('/admin/users', { params })
 }
 
+export function getUserDetail(id: number) {
+  return request.get(`/admin/users/${id}/detail`)
+}
+
+export function banUser(id: number, data: { reason: string; durationDays?: number | null }) {
+  return request.put(`/admin/users/${id}/ban`, data)
+}
+
+export function unbanUser(id: number) {
+  return request.put(`/admin/users/${id}/unban`)
+}
+
+export function resetPassword(id: number) {
+  return request.put(`/admin/users/${id}/reset-password`)
+}
+
+export function getUserLogs(id: number) {
+  return request.get(`/admin/users/${id}/logs`)
+}
+
+// 旧版兼容
 export function disableUser(id: number) {
   return request.put(`/admin/users/${id}/disable`)
 }

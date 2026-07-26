@@ -16,11 +16,24 @@ defineProps<{
 
 const keyword = defineModel<string>('keyword', { default: '' })
 const filterValue = defineModel<string>('filterValue', { default: '' })
+const dateRange = defineModel<string[]>('dateRange', { default: () => ['', ''] })
+
+// 两个独立 date 用于双向绑定，变化时同步回数组
+function onDateStart(val: string) { dateRange.value = [val, dateRange.value[1]]; emit('search') }
+function onDateEnd(val: string)   { dateRange.value = [dateRange.value[0], val]; emit('search') }
 
 const emit = defineEmits<{
   search: []
   refresh: []
+  reset: []
 }>()
+
+function handleReset() {
+  keyword.value = ''
+  filterValue.value = ''
+  dateRange.value = ['', '']
+  emit('reset')
+}
 </script>
 
 <template>
@@ -47,7 +60,30 @@ const emit = defineEmits<{
       <el-option v-for="o in filterOptions" :key="o.value" :label="o.label" :value="o.value" />
     </el-select>
 
+    <div class="date-range-inline">
+      <el-date-picker
+        :model-value="dateRange[0]"
+        type="date"
+        placeholder="开始"
+        format="YYYY-MM-DD"
+        value-format="YYYY-MM-DD"
+        class="date-pick"
+        @update:model-value="onDateStart"
+      />
+      <span class="date-sep">~</span>
+      <el-date-picker
+        :model-value="dateRange[1]"
+        type="date"
+        placeholder="结束"
+        format="YYYY-MM-DD"
+        value-format="YYYY-MM-DD"
+        class="date-pick"
+        @update:model-value="onDateEnd"
+      />
+    </div>
+
     <el-button type="primary" @click="emit('search')">搜索</el-button>
+    <el-button @click="handleReset">重置</el-button>
     <el-button :icon="Refresh" @click="emit('refresh')">刷新</el-button>
 
     <span style="flex:1" />
@@ -62,5 +98,21 @@ const emit = defineEmits<{
   margin-bottom: 20px;
   align-items: center;
   flex-wrap: wrap;
+}
+.date-range-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.date-pick {
+  width: 95px;
+}
+.date-pick :deep(.el-input__wrapper) {
+  padding: 0 4px 0 6px;
+}
+.date-sep {
+  color: var(--text-placeholder, #999);
+  font-size: 13px;
+  flex-shrink: 0;
 }
 </style>

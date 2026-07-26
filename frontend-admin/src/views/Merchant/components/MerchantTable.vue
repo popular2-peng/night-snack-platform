@@ -25,6 +25,7 @@ const page = ref(1)
 const size = ref(10)
 const keyword = ref('')
 const statusFilter = ref('')
+const dateRange = ref<string[]>(['', ''])
 const loading = ref(false)
 
 const stats = ref<Stats>({ total: 0, openCount: 0, suspendedCount: 0, closedCount: 0 })
@@ -199,6 +200,7 @@ onMounted(refreshAll)
     <SearchFilterBar
       v-model:keyword="keyword"
       v-model:filter-value="statusFilter"
+      v-model:date-range="dateRange"
       placeholder="搜索店铺名/店主/电话"
       :filter-options="statusOptions"
       filter-placeholder="状态筛选"

@@ -38,4 +38,18 @@ public interface OrderMapper extends BaseMapper<Order> {
             "</script>")
     List<Map<String, Object>> selectTodayStatsBatch(@Param("merchantIds") List<Long> merchantIds);
 
+    /**
+     * 批量查询用户订单统计（历史总订单数 + 历史总消费金额）
+     * 消费金额排除已取消/已退款订单
+     * 返回每行含 user_id, order_count, total_spent
+     */
+    @Select("<script>" +
+            "SELECT user_id, COUNT(*) AS order_count, " +
+            "COALESCE(SUM(CASE WHEN status NOT IN ('CANCELLED', 'REFUNDED') THEN total_amount ELSE 0 END), 0) AS total_spent " +
+            "FROM `order` WHERE user_id IN " +
+            "<foreach item='id' collection='userIds' open='(' separator=',' close=')'>#{id}</foreach>" +
+            " GROUP BY user_id" +
+            "</script>")
+    List<Map<String, Object>> selectUserOrderStats(@Param("userIds") List<Long> userIds);
+
 }

@@ -53,6 +53,12 @@ public class SecurityConfig {
                                 "/api/user/register"
                         ).permitAll()
 
+                        // 商家端登录
+                        .requestMatchers("/api/merchant/login").permitAll()
+
+                        // 管理端登录
+                        .requestMatchers("/api/admin/login").permitAll()
+
                         // 支付回调 / OSS 回调（Phase 2）
                         .requestMatchers(
                                 "/api/pay/alipay/callback",

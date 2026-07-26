@@ -22,13 +22,27 @@ CREATE TABLE `admin` (
 -- 二、普通用户表（顾客）
 -- ============================================================
 CREATE TABLE `user` (
-    `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
-    `username`   VARCHAR(50)  NOT NULL                COMMENT '用户名',
-    `password`   VARCHAR(200) NOT NULL                COMMENT '密码（BCrypt）',
-    `phone`      VARCHAR(20)  DEFAULT NULL            COMMENT '手机号',
-    `avatar_url` VARCHAR(500) DEFAULT NULL            COMMENT '头像 OSS URL',
-    `status`     VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE' COMMENT '状态：ACTIVE/DISABLED',
-    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
+    `id`            BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `username`      VARCHAR(50)   NOT NULL                COMMENT '用户名',
+    `password`      VARCHAR(200)  NOT NULL                COMMENT '密码（BCrypt）',
+    `phone`         VARCHAR(20)   DEFAULT NULL            COMMENT '手机号',
+    `nickname`      VARCHAR(50)   DEFAULT NULL            COMMENT '用户昵称',
+    `avatar_url`    VARCHAR(500)  DEFAULT NULL            COMMENT '用户头像 OSS URL',
+    `gender`        TINYINT       DEFAULT 0              COMMENT '性别：0-未知 1-男 2-女',
+    `birthday`      DATE          DEFAULT NULL            COMMENT '生日',
+    `status`        VARCHAR(20)   NOT NULL DEFAULT 'ACTIVE' COMMENT '状态：ACTIVE/DISABLED',
+    `total_orders`  INT           DEFAULT 0              COMMENT '历史总订单数（缓存）',
+    `total_spent`   DECIMAL(10,2) DEFAULT 0.00           COMMENT '历史总消费金额（缓存）',
+    `last_login_at` DATETIME      DEFAULT NULL            COMMENT '最后登录时间',
+    `banned_reason` VARCHAR(500)  DEFAULT NULL            COMMENT '封禁原因',
+    `banned_at`     DATETIME      DEFAULT NULL            COMMENT '封禁时间',
+    `banned_by`     BIGINT        DEFAULT NULL            COMMENT '封禁操作人（关联 admin.id）',
+    `unbanned_at`   DATETIME      DEFAULT NULL            COMMENT '解封时间',
+    `unbanned_by`   BIGINT        DEFAULT NULL            COMMENT '解封操作人（关联 admin.id）',
+    `remark`        VARCHAR(500)  DEFAULT NULL            COMMENT '管理员备注',
+    `deleted`       TINYINT       DEFAULT 0              COMMENT '软删：0-否 1-是',
+    `created_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
+    `updated_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_user_username` (`username`),
     KEY `idx_user_status` (`status`)
@@ -266,20 +280,21 @@ INSERT INTO `admin` (`id`, `username`, `password`, `phone`, `status`) VALUES
 (2, 'superadmin', '$2b$10$RnfmrSWD7e41HQGEWwXhXeCw982sMKxoPe2wkICq9mp2GrfNy/dpO', '13800000000', 'ACTIVE');
 
 -- ───── 2. 普通用户（顾客）─ 13 人 ─────
-INSERT INTO `user` (`id`, `username`, `password`, `phone`, `status`) VALUES
-(1,  'tester',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800000003', 'ACTIVE'),
-(2,  'zhangsan',  '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111111', 'ACTIVE'),
-(3,  'lisi',      '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822222222', 'ACTIVE'),
-(4,  'wangwu',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13833333333', 'ACTIVE'),
-(5,  'zhaoliu',   '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13844444444', 'DISABLED'),
-(6,  'sunqi',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13855551111', 'ACTIVE'),
-(7,  'zhouba',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13866661112', 'ACTIVE'),
-(8,  'wujiu',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13877771113', 'ACTIVE'),
-(9,  'zhengshi',  '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13888881114', 'ACTIVE'),
-(10, 'qianyi',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13899991115', 'ACTIVE'),
-(11, 'liuer',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800001116', 'ACTIVE'),
-(12, 'caosan',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111117', 'ACTIVE'),
-(13, 'weisi',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822221118', 'DISABLED');
+-- 密码均为 test123，订单数/消费金额由后端实时查询 order 表计算
+INSERT INTO `user` (`id`, `username`, `password`, `phone`, `nickname`, `gender`, `birthday`, `status`, `last_login_at`, `banned_reason`, `banned_at`, `banned_by`, `created_at`) VALUES
+(1,  'tester',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800000003', '测试员',    1, '1998-03-15', 'ACTIVE', '2026-07-27 21:30:00', NULL, NULL, NULL, '2026-05-01 10:30:00'),
+(2,  'zhangsan',  '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111111', '小张',      1, '1995-08-22', 'ACTIVE', '2026-07-27 20:15:00', NULL, NULL, NULL, '2026-06-15 14:20:00'),
+(3,  'lisi',      '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822222222', '小李',      1, '1997-01-10', 'ACTIVE', '2026-07-27 19:00:00', NULL, NULL, NULL, '2026-06-20 09:00:00'),
+(4,  'wangwu',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13833333333', '老王',      1, '1993-11-05', 'ACTIVE', '2026-07-27 18:45:00', NULL, NULL, NULL, '2026-04-10 16:30:00'),
+(5,  'zhaoliu',   '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13844444444', '老赵',      1, '1990-06-18', 'DISABLED', '2026-07-20 11:00:00', '多次恶意差评投诉', '2026-07-21 10:00:00', 1, '2026-03-01 08:00:00'),
+(6,  'sunqi',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13855551111', '孙小七',    2, '2000-12-01', 'ACTIVE', '2026-07-27 17:30:00', NULL, NULL, NULL, '2026-07-01 12:00:00'),
+(7,  'zhouba',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13866661112', '阿八',      1, '1996-09-09', 'ACTIVE', '2026-07-27 16:20:00', NULL, NULL, NULL, '2026-07-05 10:00:00'),
+(8,  'wujiu',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13877771113', '小九',      2, '1999-04-25', 'ACTIVE', '2026-07-27 15:10:00', NULL, NULL, NULL, '2026-07-10 15:30:00'),
+(9,  'zhengshi',  '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13888881114', '郑十',      1, '1992-07-30', 'ACTIVE', '2026-07-27 14:00:00', NULL, NULL, NULL, '2026-06-01 18:00:00'),
+(10, 'qianyi',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13899991115', '钱小一',    2, '2001-02-14', 'ACTIVE', '2026-07-27 13:30:00', NULL, NULL, NULL, '2026-07-20 08:00:00'),
+(11, 'liuer',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800001116', '刘二',      1, '1994-10-20', 'ACTIVE', '2026-07-27 12:00:00', NULL, NULL, NULL, '2026-07-25 20:00:00'),
+(12, 'caosan',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111117', '曹三',      1, '1991-05-08', 'ACTIVE', '2026-07-26 22:00:00', NULL, NULL, NULL, '2026-07-15 11:00:00'),
+(13, 'weisi',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822221118', '魏四',      1, '1989-12-25', 'DISABLED', '2026-07-18 09:00:00', '发布违规内容', '2026-07-19 15:00:00', 1, '2026-02-01 07:00:00');
 
 -- ───── 3. 用户收货地址 ─────
 INSERT INTO `user_address` (`id`, `user_id`, `receiver`, `phone`, `detail`, `lat`, `lng`, `is_default`) VALUES
