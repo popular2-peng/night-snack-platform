@@ -103,18 +103,18 @@ CREATE TABLE `merchant` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商家/店铺';
 
 -- ============================================================
--- 五、商品品类
+-- 五、商品品类（商家内部分类，如"烧烤类""饮品类"）
 -- ============================================================
-CREATE TABLE `category` (
+CREATE TABLE `product_category` (
     `id`          BIGINT      NOT NULL AUTO_INCREMENT COMMENT '主键',
     `merchant_id` BIGINT      NOT NULL                COMMENT '商家 ID',
     `name`        VARCHAR(50) NOT NULL                COMMENT '品类名称',
     `sort`        INT         DEFAULT 0               COMMENT '排序序号',
     `created_at`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`id`),
-    KEY `idx_category_merchant` (`merchant_id`),
-    CONSTRAINT `fk_category_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `merchant` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品品类';
+    KEY `idx_prod_cat_merchant` (`merchant_id`),
+    CONSTRAINT `fk_prod_cat_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `merchant` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品品类（商家内部）';
 
 -- ============================================================
 -- 六、商品
@@ -134,7 +134,7 @@ CREATE TABLE `product` (
     KEY `idx_product_merchant` (`merchant_id`),
     KEY `idx_product_category` (`category_id`),
     CONSTRAINT `fk_product_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `merchant` (`id`),
-    CONSTRAINT `fk_product_category` FOREIGN KEY (`category_id`) REFERENCES `category` (`id`)
+    CONSTRAINT `fk_product_category` FOREIGN KEY (`category_id`) REFERENCES `product_category` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品';
 
 -- ============================================================
@@ -267,6 +267,44 @@ CREATE TABLE `merchant_application` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商家入驻申请';
 
 -- ============================================================
+-- 十四、平台品类（平台级基础数据，用于商家分类）
+-- ============================================================
+CREATE TABLE `category` (
+    `id`         BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `name`       VARCHAR(50)  NOT NULL                COMMENT '品类名称(2-10字)',
+    `icon`       VARCHAR(500) DEFAULT NULL            COMMENT '图标(Emoji或OSS URL)',
+    `icon_type`  VARCHAR(10)  DEFAULT 'EMOJI'        COMMENT '图标类型:EMOJI/OSS',
+    `sort_order` INT          NOT NULL DEFAULT 0      COMMENT '排序权重(值越小越靠前)',
+    `status`     VARCHAR(20)  NOT NULL DEFAULT 'ENABLED' COMMENT '状态:ENABLED/DISABLED',
+    `remark`     VARCHAR(200) DEFAULT NULL            COMMENT '备注',
+    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted`    TINYINT      DEFAULT 0              COMMENT '软删:0-否 1-是',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_category_name` (`name`),
+    KEY         `idx_category_status` (`status`, `sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='品类管理(平台基础数据)';
+
+-- ============================================================
+-- 十五、商家-品类多对多关联表
+-- ============================================================
+CREATE TABLE `merchant_category` (
+    `id`          BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `merchant_id` BIGINT NOT NULL                COMMENT '商家 ID',
+    `category_id` BIGINT NOT NULL                COMMENT '品类 ID',
+    `sort_order`  INT    DEFAULT 0               COMMENT '排序权重',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_mer_cat` (`merchant_id`, `category_id`),
+    KEY           `idx_mc_merchant` (`merchant_id`),
+    KEY           `idx_mc_category` (`category_id`),
+    CONSTRAINT `fk_mc_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `merchant` (`id`),
+    CONSTRAINT `fk_mc_category` FOREIGN KEY (`category_id`) REFERENCES `category` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商家-品类多对多关联表';
+
+-- 补充 merchant.category_id 外键（表创建顺序：merchant 在 category 之前）
+ALTER TABLE `merchant` ADD CONSTRAINT `fk_merchant_category` FOREIGN KEY (`category_id`) REFERENCES `category` (`id`);
+
+-- ============================================================
 -- ╔══════════════════════════════════════════════════════════╗
 -- ║               种 子 数 据（Seed Data）                  ║
 -- ╚══════════════════════════════════════════════════════════╝
@@ -310,6 +348,19 @@ INSERT INTO `user_address` (`id`, `user_id`, `receiver`, `phone`, `detail`, `lat
 (10, 9,  '郑十',       '13888881114', '通州区万达广场B座2105',           39.9023000, 116.6575000, 1),
 (11, 10, '钱一',       '13899991115', '大兴区亦庄荣华中路8号院3-102',    39.7965000, 116.5076000, 1);
 
+-- ───── 平台品类 — 10 条（商家分类基础数据） ─────
+INSERT INTO `category` (`id`, `name`, `icon`, `icon_type`, `sort_order`, `status`) VALUES
+(1,  '烧烤类',   '🍖', 'EMOJI', 1,  'ENABLED'),
+(2,  '小龙虾',   '🦞', 'EMOJI', 2,  'ENABLED'),
+(3,  '奶茶饮品', '🧋', 'EMOJI', 3,  'ENABLED'),
+(4,  '炒饭盖浇', '🍚', 'EMOJI', 4,  'ENABLED'),
+(5,  '炸鸡汉堡', '🍔', 'EMOJI', 5,  'ENABLED'),
+(6,  '串串香',   '🍢', 'EMOJI', 6,  'ENABLED'),
+(7,  '甜品糖水', '🍦', 'EMOJI', 7,  'ENABLED'),
+(8,  '火锅',     '🍲', 'EMOJI', 8,  'ENABLED'),
+(9,  '披萨',     '🍕', 'EMOJI', 9,  'ENABLED'),
+(10, '轻食沙拉', '🥗', 'EMOJI', 10, 'ENABLED');
+
 -- ───── 4. 商家 — 8 家店（含 LOGO） ─────
 INSERT INTO `merchant` (`id`, `username`, `password`, `name`, `phone`, `address`, `lat`, `lng`, `logo_url`,
   `status`, `category_id`, `description`, `avg_rating`, `total_orders`,
@@ -323,47 +374,58 @@ INSERT INTO `merchant` (`id`, `username`, `password`, `name`, `phone`, `address`
 (2, 'spicyhot',  '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
   '辣翻天小龙虾','13855555555', '朝阳区双井桥东200米', 39.8984700, 116.4675500,
   'https://picsum.photos/seed/spicy-lobster/400/400',
-  'OPEN', 5, '活虾现做！麻辣鲜香！北京小龙虾排行榜TOP3，支持外卖配送', 4.6, 892,
+  'OPEN', 2, '活虾现做！麻辣鲜香！北京小龙虾排行榜TOP3，支持外卖配送', 4.6, 892,
   '16:00:00', '02:00:00', 4000, '新到一批盱眙大虾，个头更大更过瘾'),
 
 (3, 'teahouse',   '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
   '老王糖水铺',  '13866666666', '海淀区五道口地铁站B口旁', 39.9929200, 116.3383200,
   'https://picsum.photos/seed/sweet-soup/400/400',
-  'OPEN', 9, '30年老店，顺德传统糖水手艺传承，每一碗都是记忆中的味道', 4.9, 2100,
+  'OPEN', 7, '30年老店，顺德传统糖水手艺传承，每一碗都是记忆中的味道', 4.9, 2100,
   '14:00:00', '23:00:00', 3500, '夏日特供冰镇系列已上线'),
 
 (4, 'crispychick','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
   '脆皮炸鸡（海淀总店）','13877778888', '海淀区中关村大街27号', 39.9836000, 116.3103000,
   'https://picsum.photos/seed/crispy-chicken/400/400',
-  'OPEN', NULL, '韩式脆皮炸鸡专门店，秘制酱料10+种口味任选', 4.5, 567,
+  'OPEN', 5, '韩式脆皮炸鸡专门店，秘制酱料10+种口味任选', 4.5, 567,
   '10:00:00', '22:00:00', 4000, '新出蜂蜜芥末口味，买一送一！'),
 
 (5, 'hotnoodle',  '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
   '川味牛肉面馆', '13888889999', '朝阳区大望路万达广场B1', 39.9093000, 116.4715000,
   'https://picsum.photos/seed/noodle-soup/400/400',
-  'OPEN', NULL, '正宗重庆牛肉面，大块牛肉+秘制红油，麻辣过瘾', 4.3, 340,
+  'OPEN', 4, '正宗重庆牛肉面，大块牛肉+秘制红油，麻辣过瘾', 4.3, 340,
   '08:00:00', '21:00:00', 3000, NULL),
 
 (6, 'teamilk',    '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
   '元气奶茶实验室','13866667777', '海淀区学院路15号', 39.9888000, 116.3475000,
   'https://picsum.photos/seed/bubble-tea/400/400',
-  'OPEN', NULL, '年轻人的奶茶实验室，每周一款限定新品，好喝又好玩', 4.7, 1890,
+  'OPEN', 3, '年轻人的奶茶实验室，每周一款限定新品，好喝又好玩', 4.7, 1890,
   '09:00:00', '22:00:00', 5000, '本周限定：杨枝甘露波波冰'),
 
 (7, 'pizzaking',  '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
   '披萨大王',    '13855556666', '东城区东直门银座B1', 39.9406000, 116.4352000,
   'https://picsum.photos/seed/pizza-king/400/400',
-  'CLOSED', NULL, '18寸超大披萨，手工现做，芝士拉丝超过1米', 4.1, 210,
+  'CLOSED', 9, '18寸超大披萨，手工现做，芝士拉丝超过1米', 4.1, 210,
   '10:00:00', '21:00:00', 6000, '店铺装修中，预计8月重新开业'),
 
 (8, 'malatang',   '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
   '杨国福麻辣烫（望京店）','13812345678', '朝阳区望京阜通东大街6号', 39.9985000, 116.4812000,
   'https://picsum.photos/seed/malatang/400/400',
-  'SUSPENDED', NULL, '东北正宗麻辣烫，骨汤熬制，食材新鲜，价格实惠', 3.9, 450,
+  'SUSPENDED', 6, '东北正宗麻辣烫，骨汤熬制，食材新鲜，价格实惠', 3.9, 450,
   '08:00:00', '22:00:00', 3000, NULL);
 
--- ───── 5. 品类 ─────
-INSERT INTO `category` (`id`, `merchant_id`, `name`, `sort`) VALUES
+-- ───── 商家-品类关联（多对多） ─────
+INSERT INTO `merchant_category` (`merchant_id`, `category_id`) VALUES
+(1, 1),
+(2, 2),
+(3, 7),
+(4, 5),
+(5, 4),
+(6, 3),
+(7, 9),
+(8, 6);
+
+-- ───── 5. 商品品类（商家内部） ─────
+INSERT INTO `product_category` (`id`, `merchant_id`, `name`, `sort`) VALUES
 -- 深夜食堂
 (1,  1, '烧烤类', 1), (2,  1, '饮品类', 2), (3,  1, '主食类', 3), (4,  1, '凉菜类', 4),
 -- 辣翻天小龙虾

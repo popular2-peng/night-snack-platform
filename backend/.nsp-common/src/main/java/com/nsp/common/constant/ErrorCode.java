@@ -12,6 +12,8 @@ package com.nsp.common.constant;
  *   <li>{@code 4000 ~ 4999} — 订单域</li>
  *   <li>{@code 5000 ~ 5999} — 支付域</li>
  *   <li>{@code 6000 ~ 6999} — 上传域</li>
+ *   <li>{@code 7000 ~ 7999} — 商家管理域</li>
+ *   <li>{@code 8000 ~ 8999} — 品类管理域</li>
  * </ul>
  */
 public final class ErrorCode {
@@ -84,5 +86,14 @@ public final class ErrorCode {
     public static final int FOOD_PERMIT_MISSING    = 7006; // 食品许可证图片不存在或已过期
     public static final int REVIEW_NOTE_TOO_LONG   = 7007; // 审核备注长度超限（10-200 字）
     public static final int DUPLICATE_APPLICATION  = 7008; // 该商家已有待审核申请，请勿重复提交
+
+    // ==================== 品类管理域 8000 ~ 8999 ====================
+    public static final int CATEGORY_NAME_EXISTS     = 8001; // 品类名称已存在
+    public static final int CATEGORY_NAME_LENGTH     = 8002; // 品类名称长度 2-10 字
+    public static final int CATEGORY_NOT_EXISTS      = 8003; // 品类不存在或已被删除
+    public static final int CATEGORY_MUST_DISABLE    = 8004; // 请先停用该品类再删除
+    public static final int CATEGORY_HAS_MERCHANTS   = 8005; // 品类下仍有商家关联，无法删除
+    public static final int CATEGORY_SORT_INVALID    = 8006; // 排序权重必须为正整数
+    public static final int CATEGORY_ICON_UPLOAD_FAIL = 8007; // 图标上传失败（OSS 异常）
 
 }

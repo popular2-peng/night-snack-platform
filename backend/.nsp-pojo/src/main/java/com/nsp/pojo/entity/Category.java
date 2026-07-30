@@ -8,10 +8,10 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 商品品类（如"烧烤类""饮品类"）
+ * 商品品类 — 商家内部的商品分类（如"烧烤类""饮品类"）
  */
 @Data
-@TableName("category")
+@TableName("product_category")
 public class Category {
 
     @TableId(type = IdType.AUTO)
