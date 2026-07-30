@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRouter, useRoute } from 'vue-router'
 import { computed } from 'vue'
-import { Monitor, User, Shop, DocumentChecked } from '@element-plus/icons-vue'
+import { Monitor, User, Shop, DocumentChecked, CollectionTag } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -13,6 +13,7 @@ const menuItems = [
   { path: '/users',        title: '用户管理', icon: User },
   { path: '/merchants',    title: '商家管理', icon: Shop },
   { path: '/applications', title: '入驻审核', icon: DocumentChecked },
+  { path: '/categories',   title: '品类管理', icon: CollectionTag },
 ]
 
 function handleSelect(path: string) {

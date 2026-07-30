@@ -8,15 +8,15 @@ import com.nsp.common.exception.BizException;
 import com.nsp.common.util.IdCardMaskUtil;
 import com.nsp.common.util.PhoneMaskUtil;
 import com.nsp.pojo.dto.BanMerchantDTO;
-import com.nsp.pojo.entity.Category;
 import com.nsp.pojo.entity.Merchant;
+import com.nsp.pojo.entity.PlatformCategory;
 import com.nsp.pojo.vo.AdminMerchantVO;
 import com.nsp.pojo.vo.MerchantDetailVO;
 import com.nsp.pojo.vo.MerchantStatsVO;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.server.annotation.Loggable;
-import com.nsp.server.mapper.CategoryMapper;
 import com.nsp.server.mapper.MerchantMapper;
+import com.nsp.server.mapper.PlatformCategoryMapper;
 import com.nsp.server.mapper.OrderMapper;
 import com.nsp.server.service.MerchantAdminService;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +39,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
     private static final Logger log = LoggerFactory.getLogger(MerchantAdminServiceImpl.class);
 
     private final MerchantMapper merchantMapper;
-    private final CategoryMapper categoryMapper;
+    private final PlatformCategoryMapper platformCategoryMapper;
     private final OrderMapper orderMapper;
 
     // ── 商家列表 ──
@@ -65,7 +65,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
             vo.setPhone(PhoneMaskUtil.mask(m.getPhone()));
 
             if (m.getCategoryId() != null) {
-                Category c = categoryMapper.selectById(m.getCategoryId());
+                PlatformCategory c = platformCategoryMapper.selectById(m.getCategoryId());
                 vo.setCategoryName(c != null ? c.getName() : "");
             }
 
@@ -262,7 +262,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
     private MerchantDetailVO buildDetailVO(Merchant m) {
         String categoryName = "";
         if (m.getCategoryId() != null) {
-            Category c = categoryMapper.selectById(m.getCategoryId());
+            PlatformCategory c = platformCategoryMapper.selectById(m.getCategoryId());
             if (c != null) categoryName = c.getName();
         }
 

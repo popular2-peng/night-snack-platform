@@ -9,14 +9,14 @@ import com.nsp.common.util.PhoneMaskUtil;
 import com.nsp.pojo.dto.ApproveApplicationDTO;
 import com.nsp.pojo.dto.AuditDTO;
 import com.nsp.pojo.dto.RejectApplicationDTO;
-import com.nsp.pojo.entity.Category;
 import com.nsp.pojo.entity.Merchant;
 import com.nsp.pojo.entity.MerchantApplication;
+import com.nsp.pojo.entity.PlatformCategory;
 import com.nsp.pojo.entity.User;
 import com.nsp.pojo.vo.AdminApplicationVO;
 import com.nsp.pojo.vo.PageVO;
-import com.nsp.server.mapper.CategoryMapper;
 import com.nsp.server.mapper.MerchantApplicationMapper;
+import com.nsp.server.mapper.PlatformCategoryMapper;
 import com.nsp.server.mapper.MerchantMapper;
 import com.nsp.server.mapper.UserMapper;
 import com.nsp.server.service.ApplicationReviewService;
@@ -42,7 +42,7 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
     private final MerchantApplicationMapper merchantApplicationMapper;
     private final MerchantMapper merchantMapper;
     private final UserMapper userMapper;
-    private final CategoryMapper categoryMapper;
+    private final PlatformCategoryMapper platformCategoryMapper;
 
     @Override
     public PageVO<AdminApplicationVO> listApplications(int page, int size, String keyword, String status) {
@@ -68,7 +68,7 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
             vo.setPhone(applicant != null ? PhoneMaskUtil.mask(applicant.getPhone()) : "");
 
             if (a.getCategoryId() != null) {
-                Category c = categoryMapper.selectById(a.getCategoryId());
+                PlatformCategory c = platformCategoryMapper.selectById(a.getCategoryId());
                 vo.setCategoryName(c != null ? c.getName() : "");
             }
 
@@ -88,7 +88,7 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         vo.setPhone(applicant != null ? PhoneMaskUtil.mask(applicant.getPhone()) : "");
 
         if (a.getCategoryId() != null) {
-            Category c = categoryMapper.selectById(a.getCategoryId());
+            PlatformCategory c = platformCategoryMapper.selectById(a.getCategoryId());
             vo.setCategoryName(c != null ? c.getName() : "");
         }
 

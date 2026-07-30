@@ -142,6 +142,18 @@ Token 有效期 2 小时，Refresh Token 有效期 7 天。
 | `7007` | 审核备注过长 |
 | `7008` | 重复申请 |
 
+### 2.9 品类管理（8000 ~ 8999）
+
+| code | 说明 |
+|------|------|
+| `8001` | 品类名称已存在 |
+| `8002` | 品类名称长度 2-10 字 |
+| `8003` | 品类不存在或已被删除 |
+| `8004` | 请先停用该品类再删除 |
+| `8005` | 品类下仍有商家关联，无法删除 |
+| `8006` | 排序权重必须为非负整数 |
+| `8007` | 图标上传失败（OSS 异常） |
+
 ---
 
 ## 三、公开接口（无需 Token）
@@ -1216,6 +1228,175 @@ GET /api/admin/merchant/{id}/logs
 
 ---
 
+### 6.6 品类管理
+
+> 平台级商家分类基础数据，管理员可 CRUD + 排序 + 启用/停用。
+
+#### 品类列表（分页+搜索+状态筛选）
+
+```
+GET /api/admin/category?page=1&size=20&keyword={keyword}&status={status}
+```
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `page` | int | 否 | 1 | 页码 |
+| `size` | int | 否 | 20 | 每页条数 |
+| `keyword` | string | 否 | - | 搜索品类名（模糊匹配） |
+| `status` | string | 否 | - | 状态筛选：`ENABLED` / `DISABLED` |
+
+**响应 data：** `PageVO<CategoryVO>`
+
+```json
+{
+  "total": 12,
+  "list": [
+    {
+      "id": 1,
+      "name": "烧烤类",
+      "icon": "🍖",
+      "iconType": "EMOJI",
+      "sortOrder": 1,
+      "status": "ENABLED",
+      "remark": null,
+      "createdAt": "2025-07-18 21:30",
+      "updatedAt": "2025-07-20 14:00"
+    }
+  ]
+}
+```
+
+---
+
+#### 全部启用品类（下拉框用，无分页）
+
+```
+GET /api/admin/category/all
+```
+
+**响应 data：** `List<CategoryVO>`（仅 `ENABLED` 状态，按 `sortOrder` 升序）
+
+---
+
+#### 品类统计
+
+```
+GET /api/admin/category/stats
+```
+
+**响应 data：**
+
+```json
+{
+  "total": 10,
+  "enabled": 8,
+  "disabled": 2
+}
+```
+
+---
+
+#### 品类详情
+
+```
+GET /api/admin/category/{id}
+```
+
+**可能错误码：** `8003`
+
+---
+
+#### 新增品类
+
+```
+POST /api/admin/category
+```
+
+**请求体：**
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `name` | string | 是 | - | 品类名称（2-10 字） |
+| `icon` | string | 否 | - | 图标（Emoji 或 OSS URL） |
+| `iconType` | string | 否 | `EMOJI` | 图标类型：`EMOJI` / `OSS` |
+| `sortOrder` | int | 否 | 最大值+1 | 排序权重（值越小越靠前） |
+| `status` | string | 否 | `ENABLED` | 初始状态 |
+| `remark` | string | 否 | - | 备注（≤200 字） |
+
+> 校验：名称唯一、长度 2-10 字；sortOrder ≥ 0
+
+**可能错误码：** `8001`, `8002`, `8006`
+
+---
+
+#### 修改品类
+
+```
+PUT /api/admin/category/{id}
+```
+
+**请求体：** 同新增（所有字段可选，传了才更新）
+
+**可能错误码：** `8001`, `8002`, `8003`, `8006`
+
+---
+
+#### 启用品类
+
+```
+PUT /api/admin/category/{id}/enable
+```
+
+> 状态 → `ENABLED`（幂等）
+
+**可能错误码：** `8003`
+
+---
+
+#### 停用品类
+
+```
+PUT /api/admin/category/{id}/disable
+```
+
+> 状态 → `DISABLED`（幂等）
+
+**可能错误码：** `8003`
+
+---
+
+#### 删除品类（仅停用状态可删）
+
+```
+DELETE /api/admin/category/{id}
+```
+
+> 软删除。前条件：① 状态必须为 `DISABLED`；② 无商家关联（merchant.category_id + merchant_category 表均无记录）
+
+**可能错误码：** `8003`, `8004`, `8005`
+
+---
+
+#### 批量更新排序
+
+```
+POST /api/admin/category/reorder
+```
+
+**请求体：** `List<CategoryReorderDTO>`
+
+```json
+[
+  { "id": 1, "sortOrder": 3 },
+  { "id": 2, "sortOrder": 1 },
+  { "id": 3, "sortOrder": 2 }
+]
+```
+
+**可能错误码：** `8003`, `8006`
+
+---
+
 ## 七、文件上传接口（`/api/upload/*`）
 
 > 鉴权：Header `Authorization: Bearer <token>`  
@@ -1408,10 +1589,20 @@ PAID ──(退款)──→ REFUNDING ──(退款成功)──→ REFUNDED
 | 63 | PUT | `/api/admin/merchant/{id}/unban` | 解封商家(V2) | ADMIN |
 | 64 | DELETE | `/api/admin/merchant/{id}` | 删除商家 | ADMIN |
 | 65 | GET | `/api/admin/merchant/{id}/logs` | 操作日志 | ADMIN |
-| 66 | GET | `/api/upload/sign` | OSS 上传签名 | 登录 |
-| 67 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
-| 68 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
-| 69 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
+| 66 | GET | `/api/admin/category` | 品类列表 | ADMIN |
+| 67 | GET | `/api/admin/category/all` | 全部启用品类 | ADMIN |
+| 68 | GET | `/api/admin/category/stats` | 品类统计 | ADMIN |
+| 69 | GET | `/api/admin/category/{id}` | 品类详情 | ADMIN |
+| 70 | POST | `/api/admin/category` | 新增品类 | ADMIN |
+| 71 | PUT | `/api/admin/category/{id}` | 修改品类 | ADMIN |
+| 72 | PUT | `/api/admin/category/{id}/enable` | 启用品类 | ADMIN |
+| 73 | PUT | `/api/admin/category/{id}/disable` | 停用品类 | ADMIN |
+| 74 | DELETE | `/api/admin/category/{id}` | 删除品类 | ADMIN |
+| 75 | POST | `/api/admin/category/reorder` | 批量排序 | ADMIN |
+| 76 | GET | `/api/upload/sign` | OSS 上传签名 | 登录 |
+| 77 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
+| 78 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
+| 79 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
 
 ---
 

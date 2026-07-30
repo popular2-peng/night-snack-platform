@@ -118,3 +118,44 @@ export function suspendMerchant(id: number) {
 export function activateMerchant(id: number) {
   return request.put(`/admin/merchants/${id}/activate`)
 }
+
+// ---- 品类管理 ----
+export function listCategories(params: { page: number; size: number; keyword?: string; status?: string }) {
+  return request.get('/admin/category', { params })
+}
+
+export function listAllEnabledCategories() {
+  return request.get('/admin/category/all')
+}
+
+export function getCategoryStats() {
+  return request.get('/admin/category/stats')
+}
+
+export function getCategoryDetail(id: number) {
+  return request.get(`/admin/category/${id}`)
+}
+
+export function createCategory(data: { name: string; sortOrder?: number; icon?: string; iconType?: string; status?: string; remark?: string }) {
+  return request.post('/admin/category', data)
+}
+
+export function updateCategory(id: number, data: { name?: string; sortOrder?: number; icon?: string; iconType?: string; status?: string; remark?: string }) {
+  return request.put(`/admin/category/${id}`, data)
+}
+
+export function enableCategory(id: number) {
+  return request.put(`/admin/category/${id}/enable`)
+}
+
+export function disableCategory(id: number) {
+  return request.put(`/admin/category/${id}/disable`)
+}
+
+export function deleteCategory(id: number) {
+  return request.delete(`/admin/category/${id}`)
+}
+
+export function reorderCategories(items: { id: number; sortOrder: number }[]) {
+  return request.post('/admin/category/reorder', items)
+}
