@@ -23,7 +23,6 @@ import com.nsp.server.service.ApplicationReviewService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,11 +43,6 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
     private final MerchantMapper merchantMapper;
     private final UserMapper userMapper;
     private final CategoryMapper categoryMapper;
-
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-
-    /** 商家默认登录密码（BCrypt 加密前） */
-    private static final String DEFAULT_MERCHANT_PASSWORD = "m123456";
 
     @Override
     public PageVO<AdminApplicationVO> listApplications(int page, int size, String keyword, String status) {
@@ -112,10 +106,18 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
             throw new BizException(ErrorCode.USER_NOT_FOUND, "申请人不存在");
         }
 
-        // 2. 创建商家记录
+        // 2. 校验申请凭据
+        if (app.getUsername() == null || app.getUsername().isBlank()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "申请缺少商家登录用户名");
+        }
+        if (app.getPassword() == null || app.getPassword().isBlank()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "申请缺少商家登录密码");
+        }
+
+        // 3. 创建商家记录（凭据来自商家注册时填写，密码已 BCrypt 加密）
         Merchant merchant = new Merchant();
-        merchant.setUsername("m_" + applicant.getUsername());          // 商家登录用户名
-        merchant.setPassword(passwordEncoder.encode(DEFAULT_MERCHANT_PASSWORD));
+        merchant.setUsername(app.getUsername());
+        merchant.setPassword(app.getPassword());
         merchant.setName(app.getShopName());
         merchant.setPhone(applicant.getPhone());
         merchant.setLogoUrl(app.getLogoUrl());
@@ -130,7 +132,7 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         merchant.setUpdatedAt(LocalDateTime.now());
         merchantMapper.insert(merchant);
 
-        // 3. 更新申请状态
+        // 4. 更新申请状态
         app.setStatus("APPROVED");
         app.setReviewerId(reviewerId);
         app.setReviewedAt(LocalDateTime.now());
@@ -168,10 +170,18 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
             throw new BizException(ErrorCode.USER_NOT_FOUND, "申请人不存在");
         }
 
-        // 2. 创建商家记录（V1 默认值：营业中 + 配送半径 5000m）
+        // 2. 校验申请凭据
+        if (app.getUsername() == null || app.getUsername().isBlank()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "申请缺少商家登录用户名");
+        }
+        if (app.getPassword() == null || app.getPassword().isBlank()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "申请缺少商家登录密码");
+        }
+
+        // 3. 创建商家记录（凭据来自商家注册时填写，密码已 BCrypt 加密）
         Merchant merchant = new Merchant();
-        merchant.setUsername("m_" + applicant.getUsername());
-        merchant.setPassword(passwordEncoder.encode(DEFAULT_MERCHANT_PASSWORD));
+        merchant.setUsername(app.getUsername());
+        merchant.setPassword(app.getPassword());
         merchant.setName(app.getShopName());
         merchant.setPhone(applicant.getPhone());
         merchant.setLogoUrl(app.getLogoUrl());
@@ -186,7 +196,7 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         merchant.setUpdatedAt(LocalDateTime.now());
         merchantMapper.insert(merchant);
 
-        // 3. 更新申请状态
+        // 4. 更新申请状态
         app.setStatus("APPROVED");
         app.setReviewerId(reviewerId);
         app.setReviewedAt(LocalDateTime.now());

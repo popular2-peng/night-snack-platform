@@ -23,6 +23,12 @@ public class MerchantApplication {
     /** 申请的店铺名称 */
     private String shopName;
 
+    /** 商家登录用户名（注册时填写） */
+    private String username;
+
+    /** 商家登录密码（BCrypt，注册时填写） */
+    private String password;
+
     /** 申请理由 */
     private String reason;
 

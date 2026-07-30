@@ -248,6 +248,8 @@ CREATE TABLE `merchant_application` (
     `id`                BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
     `applicant_user_id` BIGINT       NOT NULL                COMMENT '申请人用户 ID',
     `shop_name`         VARCHAR(100) NOT NULL                COMMENT '申请店铺名称',
+    `username`          VARCHAR(50)  DEFAULT NULL            COMMENT '商家登录用户名（注册时填写）',
+    `password`          VARCHAR(200) DEFAULT NULL            COMMENT '商家登录密码（BCrypt，注册时填写）',
     `reason`            TEXT         DEFAULT NULL            COMMENT '申请理由/简介',
     `status`            VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT '审核状态：PENDING/APPROVED/REJECTED',
     `reviewer_id`       BIGINT       DEFAULT NULL            COMMENT '审核人 ID（admin 用户）',
@@ -411,7 +413,13 @@ INSERT INTO `merchant` (`id`, `username`, `password`, `name`, `phone`, `address`
   '杨国福麻辣烫（望京店）','13812345678', '朝阳区望京阜通东大街6号', 39.9985000, 116.4812000,
   'https://picsum.photos/seed/malatang/400/400',
   'SUSPENDED', 6, '东北正宗麻辣烫，骨汤熬制，食材新鲜，价格实惠', 3.9, 450,
-  '08:00:00', '22:00:00', 3000, NULL);
+  '08:00:00', '22:00:00', 3000, NULL),
+	(9, 'zhangsan_bbq', '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+	  '张三烧烤', '13811111111', '朝阳区望京花园东区3-501', 39.9987400, 116.4741200,
+	  'https://picsum.photos/seed/zhangsan-bbq/400/400',
+	  'OPEN', 1, '东北烧烤老店，秘制配方，3年实体经验', 5.0, 0,
+	  '16:00:00', '01:00:00', 4500, NULL);
+
 
 -- ───── 商家-品类关联（多对多） ─────
 INSERT INTO `merchant_category` (`merchant_id`, `category_id`) VALUES
@@ -422,7 +430,8 @@ INSERT INTO `merchant_category` (`merchant_id`, `category_id`) VALUES
 (5, 4),
 (6, 3),
 (7, 9),
-(8, 6);
+(8, 6),
+(9, 1);
 
 -- ───── 5. 商品品类（商家内部） ─────
 INSERT INTO `product_category` (`id`, `merchant_id`, `name`, `sort`) VALUES
@@ -578,19 +587,51 @@ INSERT INTO `product_spec` (`id`, `product_id`, `name`, `price_delta`, `stock`) 
 (87, 59, '标准份', 0.00, 50), (88, 60, '1杯', 0.00, 80);
 
 -- ───── 8. 商家入驻申请 ─────
-INSERT INTO `merchant_application` (`id`, `applicant_user_id`, `shop_name`, `reason`, `status`, `reviewer_id`, `reviewed_at`, `logo_url`, `description`, `category_id`) VALUES
-(1, 2,  '张三烧烤',   '3年烧烤经验，有实体店，想入驻线上平台', 'APPROVED', 1, '2025-07-15 10:00:00',
+INSERT INTO `merchant_application` (`id`, `applicant_user_id`, `shop_name`, `username`, `password`, `reason`, `status`, `reviewer_id`, `reviewed_at`, `logo_url`, `description`, `category_id`) VALUES
+(1, 2,  '张三烧烤',   'zhangsan_bbq',   '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '3年烧烤经验，有实体店，想入驻线上平台', 'APPROVED', 1, '2025-07-15 10:00:00',
   'https://picsum.photos/seed/zhangsan-bbq/400/400', '东北烧烤老店，秘制配方', 1),
-(2, 3,  '李四炸鸡店', '自家配方+实体店面，想拓展外卖业务', 'PENDING', NULL, NULL,
-  'https://picsum.photos/seed/lisi-chicken/400/400', '韩式炸鸡专门店，10+口味', 12),
-(3, 4,  '王五麻辣烫', '证照齐全，有3年餐饮经验', 'PENDING', NULL, NULL,
-  'https://picsum.photos/seed/wangwu-malatang/400/400', '正宗川味麻辣烫，骨汤熬制', 24),
-(4, 1,  '测试深夜小厨','测试入驻流程', 'REJECTED', 1, '2025-07-16 14:30:00',
+(2, 3,  '李四炸鸡店', 'lisi_chicken',    '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '自家配方+实体店面，想拓展外卖业务', 'PENDING', NULL, NULL,
+  'https://picsum.photos/seed/lisi-chicken/400/400', '韩式炸鸡专门店，10+口味', 5),
+(3, 4,  '王五麻辣烫', 'wangwu_mt',       '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '证照齐全，有3年餐饮经验', 'PENDING', NULL, NULL,
+  'https://picsum.photos/seed/wangwu-malatang/400/400', '正宗川味麻辣烫，骨汤熬制', 6),
+(4, 1,  '测试深夜小厨','test_kitchen',   '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '测试入驻流程', 'REJECTED', 1, '2025-07-16 14:30:00',
   NULL, '测试数据', NULL),
-(5, 8,  '吴九日料居酒屋', '在日本学厨5年，想在望京开一家居酒屋', 'PENDING', NULL, NULL,
+(5, 8,  '吴九日料居酒屋', 'wujiu_jp',   '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '在日本学厨5年，想在望京开一家居酒屋', 'PENDING', NULL, NULL,
   'https://picsum.photos/seed/japanese-izakaya/400/400', '东京风味居酒屋，刺身+烤物+清酒', NULL),
-(6, 9,  '郑十螺蛳粉', '柳州学艺归来，正宗螺蛳粉', 'PENDING', NULL, NULL,
-  'https://picsum.photos/seed/luosifen/400/400', '柳州正宗螺蛳粉，酸笋够味', NULL);
+(6, 9,  '郑十螺蛳粉', 'zheng_lsf',       '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '柳州学艺归来，正宗螺蛳粉', 'PENDING', NULL, NULL,
+  'https://picsum.photos/seed/luosifen/400/400', '柳州正宗螺蛳粉，酸笋够味', NULL),
+
+-- 以下为已通过的历史申请（对应现有 8 家商家）
+(7,  6,  '深夜食堂',           'nightbb',    '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '望京地区首家深夜食堂，主打烧烤+啤酒', 'APPROVED', 1, '2025-06-10 10:00:00',
+  'https://picsum.photos/seed/bbq-night/400/400', '望京地区人气深夜食堂，主打烧烤+啤酒，现串现烤，凌晨不打烊！', 1),
+(8,  7,  '辣翻天小龙虾',       'spicyhot',   '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '活虾现做+独家麻辣配方，实体店生意火爆想拓展外卖', 'APPROVED', 1, '2025-06-15 14:00:00',
+  'https://picsum.photos/seed/spicy-lobster/400/400', '活虾现做！麻辣鲜香！北京小龙虾排行榜TOP3，支持外卖配送', 2),
+(9,  10, '老王糖水铺',         'teahouse',   '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '30年顺德糖水老店，传统手艺，想通过线上平台触达更多顾客', 'APPROVED', 2, '2025-06-20 09:30:00',
+  'https://picsum.photos/seed/sweet-soup/400/400', '30年老店，顺德传统糖水手艺传承，每一碗都是记忆中的味道', 7),
+(10, 11, '脆皮炸鸡（海淀总店）','crispychick','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '韩式脆皮炸鸡专门店，秘制酱料10+口味，已有实体店想拓展线上', 'APPROVED', 1, '2025-06-25 16:00:00',
+  'https://picsum.photos/seed/crispy-chicken/400/400', '韩式脆皮炸鸡专门店，秘制酱料10+种口味任选', 5),
+(11, 12, '川味牛肉面馆',       'hotnoodle',  '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '正宗重庆牛肉面，大块牛肉+秘制红油，证照齐全', 'APPROVED', 2, '2025-07-01 11:00:00',
+  'https://picsum.photos/seed/noodle-soup/400/400', '正宗重庆牛肉面，大块牛肉+秘制红油，麻辣过瘾', 4),
+(12, 5,  '元气奶茶实验室',     'teamilk',    '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '年轻人的创意奶茶实验室，每周一款限定新品', 'APPROVED', 1, '2025-07-05 15:30:00',
+  'https://picsum.photos/seed/bubble-tea/400/400', '年轻人的奶茶实验室，每周一款限定新品，好喝又好玩', 3),
+(13, 13, '披萨大王',           'pizzaking',  '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '18寸超大披萨，手工现做，芝士拉丝超过1米', 'APPROVED', 1, '2025-07-10 10:00:00',
+  'https://picsum.photos/seed/pizza-king/400/400', '18寸超大披萨，手工现做，芝士拉丝超过1米', 9),
+(14, 1,  '杨国福麻辣烫（望京店）','malatang', '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '东北正宗麻辣烫，骨汤熬制食材新鲜，品牌加盟店', 'APPROVED', 2, '2025-07-15 13:00:00',
+  'https://picsum.photos/seed/malatang/400/400', '东北正宗麻辣烫，骨汤熬制，食材新鲜，价格实惠', 6);
 
 -- ╔══════════════════════════════════════════════════════════╗
 -- ║            9. 订单 — 28 条（今天+近期）                ║
