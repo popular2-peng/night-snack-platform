@@ -45,7 +45,8 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
     private final PlatformCategoryMapper platformCategoryMapper;
 
     @Override
-    public PageVO<AdminApplicationVO> listApplications(int page, int size, String keyword, String status) {
+    public PageVO<AdminApplicationVO> listApplications(int page, int size, String keyword, String status,
+                                                       String dateStart, String dateEnd) {
         LambdaQueryWrapper<MerchantApplication> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(MerchantApplication::getShopName, keyword)
@@ -53,6 +54,13 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         }
         if (status != null && !status.isBlank()) {
             wrapper.eq(MerchantApplication::getStatus, status.toUpperCase());
+        }
+        // 申请时间范围
+        if (dateStart != null && !dateStart.isBlank()) {
+            wrapper.ge(MerchantApplication::getCreatedAt, LocalDateTime.parse(dateStart + "T00:00:00"));
+        }
+        if (dateEnd != null && !dateEnd.isBlank()) {
+            wrapper.le(MerchantApplication::getCreatedAt, LocalDateTime.parse(dateEnd + "T23:59:59"));
         }
         wrapper.orderByAsc(MerchantApplication::getCreatedAt);
 

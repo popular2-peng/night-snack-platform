@@ -27,14 +27,16 @@ public class ApplicationReviewController {
 
     private final ApplicationReviewService applicationReviewService;
 
-    @Operation(summary = "商家入驻申请列表（支持关键词+状态筛选）")
+    @Operation(summary = "商家入驻申请列表（支持关键词+状态+日期范围筛选）")
     @GetMapping("/merchant-application/pending")
     public Result<PageVO<AdminApplicationVO>> listApplications(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String status) {
-        return Result.ok(applicationReviewService.listApplications(page, size, keyword, status));
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String dateStart,
+            @RequestParam(required = false) String dateEnd) {
+        return Result.ok(applicationReviewService.listApplications(page, size, keyword, status, dateStart, dateEnd));
     }
 
     @Operation(summary = "通过商家入驻申请")

@@ -22,6 +22,7 @@ const page = ref(1)
 const size = ref(10)
 const keyword = ref('')
 const statusFilter = ref('')
+const dateRange = ref<string[]>(['', ''])
 const loading = ref(false)
 
 const stats = ref({ total: 0, enabled: 0, disabled: 0 })
@@ -72,6 +73,8 @@ async function fetchCategories() {
     const params: any = { page: page.value, size: size.value }
     if (keyword.value) params.keyword = keyword.value
     if (statusFilter.value) params.status = statusFilter.value
+    if (dateRange.value?.[0]) params.dateStart = dateRange.value[0]
+    if (dateRange.value?.[1]) params.dateEnd = dateRange.value[1]
     const res = await listCategories(params)
     categories.value = res.data.list || []
     total.value = res.data.total || 0
@@ -215,9 +218,11 @@ onMounted(() => { fetchCategories(); fetchStats() })
     <SearchFilterBar
       v-model:keyword="keyword"
       v-model:filter-value="statusFilter"
+      v-model:date-range="dateRange"
       placeholder="搜索品类名称"
       :filter-options="statusOptions"
       filter-placeholder="状态筛选"
+      date-label="创建"
       @search="handleSearch"
       @reset="handleReset"
       @refresh="handleRefresh"

@@ -38,8 +38,10 @@ public class MerchantManagementController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String status) {
-        return Result.ok(merchantAdminService.listMerchants(page, size, keyword, status));
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String dateStart,
+            @RequestParam(required = false) String dateEnd) {
+        return Result.ok(merchantAdminService.listMerchants(page, size, keyword, status, dateStart, dateEnd));
     }
 
     @Operation(summary = "封禁商家（简易版，仅设状态）")

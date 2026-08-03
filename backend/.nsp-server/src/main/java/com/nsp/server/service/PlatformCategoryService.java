@@ -13,8 +13,9 @@ import java.util.Map;
  */
 public interface PlatformCategoryService {
 
-    /** 品类列表（分页 + 搜索 + 状态筛选） */
-    PageVO<CategoryVO> listCategories(int page, int size, String keyword, String status);
+    /** 品类列表（分页 + 搜索 + 状态筛选 + 日期范围） */
+    PageVO<CategoryVO> listCategories(int page, int size, String keyword, String status,
+                                      String dateStart, String dateEnd);
 
     /** 全部启用品类（下拉框用，无分页） */
     List<CategoryVO> listAllEnabled();

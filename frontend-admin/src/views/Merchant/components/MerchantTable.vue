@@ -67,6 +67,8 @@ async function fetchMerchants() {
     const params: any = { page: page.value, size: size.value }
     if (keyword.value) params.keyword = keyword.value
     if (statusFilter.value) params.status = statusFilter.value
+    if (dateRange.value?.[0]) params.dateStart = dateRange.value[0]
+    if (dateRange.value?.[1]) params.dateEnd = dateRange.value[1]
     const res = await listMerchants(params)
     merchants.value = res.data.list || []
     total.value = res.data.total || (res.data.list || []).length
@@ -83,6 +85,7 @@ async function fetchStats() {
 }
 
 function handleSearch() { page.value = 1; fetchMerchants() }
+function handleReset() { page.value = 1; fetchMerchants() }
 function handleSizeChange(val: number) { size.value = val; fetchMerchants() }
 function handlePageChange(val: number) { page.value = val; fetchMerchants() }
 
@@ -204,7 +207,9 @@ onMounted(refreshAll)
       placeholder="搜索店铺名/店主/电话"
       :filter-options="statusOptions"
       filter-placeholder="状态筛选"
+      date-label="入驻"
       @search="handleSearch"
+      @reset="handleReset"
       @refresh="refreshAll"
     >
       <template #extra>

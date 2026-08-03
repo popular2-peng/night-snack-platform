@@ -28,14 +28,16 @@ public class CategoryAdminController {
 
     private final PlatformCategoryService platformCategoryService;
 
-    @Operation(summary = "品类列表（分页+搜索+状态筛选）")
+    @Operation(summary = "品类列表（分页+搜索+状态+日期范围筛选）")
     @GetMapping("/category")
     public Result<PageVO<CategoryVO>> list(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "关键词（模糊匹配品类名）") @RequestParam(required = false) String keyword,
-            @Parameter(description = "状态：ENABLED / DISABLED") @RequestParam(required = false) String status) {
-        return Result.ok(platformCategoryService.listCategories(page, size, keyword, status));
+            @Parameter(description = "状态：ENABLED / DISABLED") @RequestParam(required = false) String status,
+            @Parameter(description = "创建起始日期 yyyy-MM-dd") @RequestParam(required = false) String dateStart,
+            @Parameter(description = "创建结束日期 yyyy-MM-dd") @RequestParam(required = false) String dateEnd) {
+        return Result.ok(platformCategoryService.listCategories(page, size, keyword, status, dateStart, dateEnd));
     }
 
     @Operation(summary = "全部启用品类（下拉框用，无分页）")

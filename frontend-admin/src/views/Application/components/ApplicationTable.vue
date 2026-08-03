@@ -59,6 +59,8 @@ async function fetchApps() {
     const params: any = { page: page.value, size: size.value }
     if (keyword.value) params.keyword = keyword.value
     if (statusFilter.value) params.status = statusFilter.value
+    if (dateRange.value?.[0]) params.dateStart = dateRange.value[0]
+    if (dateRange.value?.[1]) params.dateEnd = dateRange.value[1]
     const res = await listApplications(params)
     apps.value = res.data.list || []
     total.value = res.data.total || (res.data.list || []).length
@@ -66,6 +68,7 @@ async function fetchApps() {
 }
 
 function handleSearch() { page.value = 1; fetchApps() }
+function handleReset() { page.value = 1; fetchApps() }
 function handleSizeChange(val: number) { size.value = val; fetchApps() }
 function handlePageChange(val: number) { page.value = val; fetchApps() }
 
@@ -156,7 +159,9 @@ onMounted(() => { fetchStats(); fetchApps() })
       placeholder="搜索店铺名/申请人"
       :filter-options="appStatusOptions"
       filter-placeholder="状态筛选"
+      date-label="申请"
       @search="handleSearch"
+      @reset="handleReset"
     />
 
     <!-- ====== 表格 ====== -->

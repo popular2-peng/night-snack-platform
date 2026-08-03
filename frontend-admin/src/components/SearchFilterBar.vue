@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Search, Refresh } from '@element-plus/icons-vue'
+import { computed } from 'vue'
 
 export interface FilterOption {
   label: string
@@ -12,21 +13,33 @@ defineProps<{
   filterPlaceholder?: string
   filterWidth?: number | string
   filterOptions?: FilterOption[]
+  /** 日期范围对应的业务时间字段名，如"注册"/"入驻"/"申请"，用于 placeholder 提示 */
+  dateLabel?: string
 }>()
 
 const keyword = defineModel<string>('keyword', { default: '' })
 const filterValue = defineModel<string>('filterValue', { default: '' })
 const dateRange = defineModel<string[]>('dateRange', { default: () => ['', ''] })
 
-// 两个独立 date 用于双向绑定，变化时同步回数组
-function onDateStart(val: string) { dateRange.value = [val, dateRange.value[1]]; emit('search') }
-function onDateEnd(val: string)   { dateRange.value = [dateRange.value[0], val]; emit('search') }
-
 const emit = defineEmits<{
   search: []
   refresh: []
   reset: []
 }>()
+
+// 日期使用 v-model 双向绑定（保证输入框回显所选日期），
+// 变化时整体赋值 dateRange 以同步父组件，并触发 search
+const startDate = computed({
+  get: () => dateRange.value?.[0] || '',
+  set: (val: string) => { dateRange.value = [val, dateRange.value?.[1] || ''] },
+})
+const endDate = computed({
+  get: () => dateRange.value?.[1] || '',
+  set: (val: string) => { dateRange.value = [dateRange.value?.[0] || '', val] },
+})
+
+function onDateStart() { emit('search') }
+function onDateEnd()   { emit('search') }
 
 function handleReset() {
   keyword.value = ''
@@ -62,23 +75,23 @@ function handleReset() {
 
     <div class="date-range-inline">
       <el-date-picker
-        :model-value="dateRange[0]"
+        v-model="startDate"
         type="date"
-        placeholder="开始"
+        :placeholder="(dateLabel || '日期') + '开始'"
         format="YYYY-MM-DD"
         value-format="YYYY-MM-DD"
         class="date-pick"
-        @update:model-value="onDateStart"
+        @change="onDateStart"
       />
       <span class="date-sep">~</span>
       <el-date-picker
-        :model-value="dateRange[1]"
+        v-model="endDate"
         type="date"
-        placeholder="结束"
+        :placeholder="(dateLabel || '日期') + '结束'"
         format="YYYY-MM-DD"
         value-format="YYYY-MM-DD"
         class="date-pick"
-        @update:model-value="onDateEnd"
+        @change="onDateEnd"
       />
     </div>
 

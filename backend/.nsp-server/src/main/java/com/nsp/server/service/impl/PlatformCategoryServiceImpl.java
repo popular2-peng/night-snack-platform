@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,8 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
     private final MerchantCategoryMapper merchantCategoryMapper;
 
     @Override
-    public PageVO<CategoryVO> listCategories(int page, int size, String keyword, String status) {
+    public PageVO<CategoryVO> listCategories(int page, int size, String keyword, String status,
+                                             String dateStart, String dateEnd) {
         LambdaQueryWrapper<PlatformCategory> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PlatformCategory::getDeleted, 0);
 
@@ -50,6 +52,13 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
         }
         if (status != null && !status.isBlank()) {
             wrapper.eq(PlatformCategory::getStatus, status.toUpperCase());
+        }
+        // 创建时间范围
+        if (dateStart != null && !dateStart.isBlank()) {
+            wrapper.ge(PlatformCategory::getCreatedAt, LocalDateTime.parse(dateStart + "T00:00:00"));
+        }
+        if (dateEnd != null && !dateEnd.isBlank()) {
+            wrapper.le(PlatformCategory::getCreatedAt, LocalDateTime.parse(dateEnd + "T23:59:59"));
         }
         wrapper.orderByAsc(PlatformCategory::getSortOrder)
                .orderByDesc(PlatformCategory::getCreatedAt);

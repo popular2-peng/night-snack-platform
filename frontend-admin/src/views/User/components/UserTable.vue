@@ -217,6 +217,7 @@ onMounted(() => { fetchUsers(); fetchStats() })
       placeholder="搜索用户名/手机号/昵称"
       :filter-options="statusOptions"
       filter-placeholder="状态筛选"
+      date-label="注册"
       @search="handleSearch"
       @reset="handleReset"
       @refresh="handleRefresh"
