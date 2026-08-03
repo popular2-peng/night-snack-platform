@@ -46,7 +46,7 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
 
     @Override
     public PageVO<AdminApplicationVO> listApplications(int page, int size, String keyword, String status,
-                                                       String dateStart, String dateEnd) {
+                                                       Long categoryId, String dateStart, String dateEnd) {
         LambdaQueryWrapper<MerchantApplication> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(MerchantApplication::getShopName, keyword)
@@ -54,6 +54,10 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         }
         if (status != null && !status.isBlank()) {
             wrapper.eq(MerchantApplication::getStatus, status.toUpperCase());
+        }
+        // 品类筛选
+        if (categoryId != null) {
+            wrapper.eq(MerchantApplication::getCategoryId, categoryId);
         }
         // 申请时间范围
         if (dateStart != null && !dateStart.isBlank()) {

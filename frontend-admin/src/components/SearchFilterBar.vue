@@ -13,12 +13,17 @@ defineProps<{
   filterPlaceholder?: string
   filterWidth?: number | string
   filterOptions?: FilterOption[]
+  /** 分类筛选下拉选项（可选，如平台品类；不传则不显示） */
+  categoryOptions?: FilterOption[]
+  /** 分类下拉占位符 */
+  categoryPlaceholder?: string
   /** 日期范围对应的业务时间字段名，如"注册"/"入驻"/"申请"，用于 placeholder 提示 */
   dateLabel?: string
 }>()
 
 const keyword = defineModel<string>('keyword', { default: '' })
 const filterValue = defineModel<string>('filterValue', { default: '' })
+const categoryValue = defineModel<string>('categoryValue', { default: '' })
 const dateRange = defineModel<string[]>('dateRange', { default: () => ['', ''] })
 
 const emit = defineEmits<{
@@ -44,6 +49,7 @@ function onDateEnd()   { emit('search') }
 function handleReset() {
   keyword.value = ''
   filterValue.value = ''
+  categoryValue.value = ''
   dateRange.value = ['', '']
   emit('reset')
 }
@@ -71,6 +77,17 @@ function handleReset() {
       @change="emit('search')"
     >
       <el-option v-for="o in filterOptions" :key="o.value" :label="o.label" :value="o.value" />
+    </el-select>
+
+    <el-select
+      v-if="categoryOptions && categoryOptions.length"
+      v-model="categoryValue"
+      :placeholder="categoryPlaceholder || '分类筛选'"
+      clearable
+      :style="{ width: '130px' }"
+      @change="emit('search')"
+    >
+      <el-option v-for="o in categoryOptions" :key="o.value" :label="o.label" :value="o.value" />
     </el-select>
 
     <div class="date-range-inline">

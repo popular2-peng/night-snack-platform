@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import {
-  listApplications,
+  listApplications, listAllEnabledCategories,
   approveApplicationV2, rejectApplicationV2,
 } from '@/apis/admin'
 import { ElMessage } from 'element-plus'
@@ -20,6 +20,8 @@ const page = ref(1)
 const size = ref(10)
 const keyword = ref('')
 const statusFilter = ref('')
+const categoryId = ref('')
+const categoryOptions = ref<{ label: string; value: string }[]>([])
 const dateRange = ref<string[]>(['', ''])
 const loading = ref(false)
 
@@ -46,6 +48,13 @@ async function fetchStats() {
   } catch { /* ignore */ }
 }
 
+async function fetchCategories() {
+  try {
+    const res = await listAllEnabledCategories()
+    categoryOptions.value = (res.data || []).map((c: any) => ({ label: `${c.icon || ''} ${c.name}`.trim(), value: String(c.id) }))
+  } catch { /* ignore */ }
+}
+
 const statusMap: Record<string, { label: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
   PENDING: { label: '待审核', type: 'warning' },
   APPROVED: { label: '已通过', type: 'success' },
@@ -59,6 +68,7 @@ async function fetchApps() {
     const params: any = { page: page.value, size: size.value }
     if (keyword.value) params.keyword = keyword.value
     if (statusFilter.value) params.status = statusFilter.value
+    if (categoryId.value) params.categoryId = categoryId.value
     if (dateRange.value?.[0]) params.dateStart = dateRange.value[0]
     if (dateRange.value?.[1]) params.dateEnd = dateRange.value[1]
     const res = await listApplications(params)
@@ -122,7 +132,7 @@ function openDetail(row: AppItem) {
 // ---- 格式化 ----
 function formatTime(s: string) { return s ? s.replace('T', ' ').substring(0, 16) : '' }
 
-onMounted(() => { fetchStats(); fetchApps() })
+onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
 </script>
 
 <template>
@@ -155,10 +165,13 @@ onMounted(() => { fetchStats(); fetchApps() })
     <SearchFilterBar
       v-model:keyword="keyword"
       v-model:filter-value="statusFilter"
+      v-model:category-value="categoryId"
       v-model:date-range="dateRange"
       placeholder="搜索店铺名/申请人"
       :filter-options="appStatusOptions"
       filter-placeholder="状态筛选"
+      :category-options="categoryOptions"
+      category-placeholder="品类筛选"
       date-label="申请"
       @search="handleSearch"
       @reset="handleReset"

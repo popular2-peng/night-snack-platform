@@ -46,7 +46,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
 
     @Override
     public PageVO<AdminMerchantVO> listMerchants(int page, int size, String keyword, String status,
-                                                String dateStart, String dateEnd) {
+                                                Long categoryId, String dateStart, String dateEnd) {
         LambdaQueryWrapper<Merchant> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(Merchant::getName, keyword)
@@ -55,6 +55,10 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
         }
         if (status != null && !status.isBlank()) {
             wrapper.eq(Merchant::getStatus, status.toUpperCase());
+        }
+        // 品类筛选
+        if (categoryId != null) {
+            wrapper.eq(Merchant::getCategoryId, categoryId);
         }
         // 入驻时间范围
         if (dateStart != null && !dateStart.isBlank()) {

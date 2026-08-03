@@ -11,9 +11,9 @@ import com.nsp.pojo.vo.PageVO;
  */
 public interface ApplicationReviewService {
 
-    /** 商家入驻申请列表（分页+筛选+日期范围） */
+    /** 商家入驻申请列表（分页+筛选+品类+日期范围） */
     PageVO<AdminApplicationVO> listApplications(int page, int size, String keyword, String status,
-                                               String dateStart, String dateEnd);
+                                               Long categoryId, String dateStart, String dateEnd);
 
     /** 入驻申请详情 */
     AdminApplicationVO getApplicationDetail(Long id);

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import {
-  listMerchants, getMerchantStats,
+  listMerchants, getMerchantStats, listAllEnabledCategories,
   banMerchant, unbanMerchant, pauseMerchant, resumeMerchant, deleteMerchant,
 } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -25,6 +25,8 @@ const page = ref(1)
 const size = ref(10)
 const keyword = ref('')
 const statusFilter = ref('')
+const categoryId = ref('')
+const categoryOptions = ref<{ label: string; value: string }[]>([])
 const dateRange = ref<string[]>(['', ''])
 const loading = ref(false)
 
@@ -67,6 +69,7 @@ async function fetchMerchants() {
     const params: any = { page: page.value, size: size.value }
     if (keyword.value) params.keyword = keyword.value
     if (statusFilter.value) params.status = statusFilter.value
+    if (categoryId.value) params.categoryId = categoryId.value
     if (dateRange.value?.[0]) params.dateStart = dateRange.value[0]
     if (dateRange.value?.[1]) params.dateEnd = dateRange.value[1]
     const res = await listMerchants(params)
@@ -81,6 +84,13 @@ async function fetchStats() {
   try {
     const res = await getMerchantStats()
     stats.value = res.data
+  } catch { /* ignore */ }
+}
+
+async function fetchCategories() {
+  try {
+    const res = await listAllEnabledCategories()
+    categoryOptions.value = (res.data || []).map((c: any) => ({ label: `${c.icon || ''} ${c.name}`.trim(), value: String(c.id) }))
   } catch { /* ignore */ }
 }
 
@@ -170,7 +180,7 @@ function refreshAll() {
 function formatMoney(n: number) { return n != null ? '¥' + Number(n).toFixed(2) : '¥0.00' }
 function formatTime(s: string) { return s ? s.replace('T', ' ').substring(0, 16) : '' }
 
-onMounted(refreshAll)
+onMounted(() => { refreshAll(); fetchCategories() })
 </script>
 
 <template>
@@ -203,10 +213,13 @@ onMounted(refreshAll)
     <SearchFilterBar
       v-model:keyword="keyword"
       v-model:filter-value="statusFilter"
+      v-model:category-value="categoryId"
       v-model:date-range="dateRange"
       placeholder="搜索店铺名/店主/电话"
       :filter-options="statusOptions"
       filter-placeholder="状态筛选"
+      :category-options="categoryOptions"
+      category-placeholder="品类筛选"
       date-label="入驻"
       @search="handleSearch"
       @reset="handleReset"

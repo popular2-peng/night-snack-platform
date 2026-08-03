@@ -14,9 +14,9 @@ import java.util.Map;
  */
 public interface MerchantAdminService {
 
-    /** 商家列表（分页+筛选+搜索+日期范围） */
+    /** 商家列表（分页+筛选+搜索+品类+日期范围） */
     PageVO<AdminMerchantVO> listMerchants(int page, int size, String keyword, String status,
-                                         String dateStart, String dateEnd);
+                                         Long categoryId, String dateStart, String dateEnd);
 
     /** 封禁商家（简易版，仅设 SUSPENDED 状态） */
     void suspendMerchant(Long id);
