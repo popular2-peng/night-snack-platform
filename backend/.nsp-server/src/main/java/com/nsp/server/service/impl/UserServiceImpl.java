@@ -75,6 +75,65 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public LoginVO login(LoginDTO dto) {
+        // 手机号登录（用户/商家，注册时填写了手机号）
+        if (dto.getPhone() != null && !dto.getPhone().isBlank()) {
+            return loginByPhone(dto);
+        }
+        // 用户名登录（管理员；兼容旧逻辑）
+        return loginByUsername(dto);
+    }
+
+    /** 手机号 + 密码登录：先查商家表，再查用户表 */
+    private LoginVO loginByPhone(LoginDTO dto) {
+        // 1) 商家表
+        Merchant merchant = merchantMapper.selectOne(
+                new LambdaQueryWrapper<Merchant>().eq(Merchant::getPhone, dto.getPhone()));
+        if (merchant != null) {
+            if (!passwordEncoder.matches(dto.getPassword(), merchant.getPassword())) {
+                throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
+            }
+            if ("SUSPENDED".equals(merchant.getStatus())) {
+                throw new BizException(ErrorCode.FORBIDDEN, "商家已被封禁");
+            }
+            log.info("商家登录(手机号): merchantId={}, phone={}", merchant.getId(), dto.getPhone());
+            String accessToken = jwtTokenProvider.createAccessToken(merchant.getId(), "MERCHANT");
+            String refreshToken = jwtTokenProvider.createRefreshToken(merchant.getId(), "MERCHANT");
+            return LoginVO.builder()
+                    .userId(merchant.getId())
+                    .username(merchant.getUsername())
+                    .role("MERCHANT")
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .build();
+        }
+
+        // 2) 用户表（顾客）
+        User user = userMapper.selectOne(
+                new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone()));
+        if (user != null) {
+            if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+                throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
+            }
+            if ("DISABLED".equals(user.getStatus())) {
+                throw new BizException(ErrorCode.FORBIDDEN, "账号已被封禁");
+            }
+            log.info("用户登录(手机号): userId={}, phone={}", user.getId(), dto.getPhone());
+            String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
+            String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), "USER");
+            return LoginVO.builder()
+                    .userId(user.getId())
+                    .username(user.getUsername())
+                    .role("USER")
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .build();
+        }
+
+        throw new BizException(ErrorCode.USER_NOT_FOUND, "手机号未注册");
+    }
+
+    /** 用户名 + 密码登录：admin → merchant → user（管理员为主，兼容旧逻辑） */
+    private LoginVO loginByUsername(LoginDTO dto) {
         // 1) 尝试 admin 表
         Admin admin = adminMapper.selectOne(
                 new LambdaQueryWrapper<Admin>().eq(Admin::getUsername, dto.getUsername()));
@@ -97,7 +156,7 @@ public class UserServiceImpl implements UserService {
                     .build();
         }
 
-        // 2) 尝试 merchant 表
+        // 2) 尝试 merchant 表（旧逻辑兼容）
         Merchant merchant = merchantMapper.selectOne(
                 new LambdaQueryWrapper<Merchant>().eq(Merchant::getUsername, dto.getUsername()));
         if (merchant != null) {
@@ -107,7 +166,7 @@ public class UserServiceImpl implements UserService {
             if ("SUSPENDED".equals(merchant.getStatus())) {
                 throw new BizException(ErrorCode.FORBIDDEN, "商家已被封禁");
             }
-            log.info("商家登录: merchantId={}, username={}", merchant.getId(), merchant.getUsername());
+            log.info("商家登录(用户名): merchantId={}, username={}", merchant.getId(), merchant.getUsername());
             String accessToken = jwtTokenProvider.createAccessToken(merchant.getId(), "MERCHANT");
             String refreshToken = jwtTokenProvider.createRefreshToken(merchant.getId(), "MERCHANT");
             return LoginVO.builder()
@@ -119,7 +178,7 @@ public class UserServiceImpl implements UserService {
                     .build();
         }
 
-        // 3) 尝试 user 表（顾客）
+        // 3) 尝试 user 表（旧逻辑兼容）
         User user = userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getUsername, dto.getUsername()));
         if (user != null) {
@@ -129,7 +188,7 @@ public class UserServiceImpl implements UserService {
             if ("DISABLED".equals(user.getStatus())) {
                 throw new BizException(ErrorCode.FORBIDDEN, "账号已被封禁");
             }
-            log.info("用户登录: userId={}, username={}", user.getId(), user.getUsername());
+            log.info("用户登录(用户名): userId={}, username={}", user.getId(), user.getUsername());
             String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
             String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), "USER");
             return LoginVO.builder()

@@ -1,8 +1,8 @@
 import request from './request'
 
-/** 商家登录（跨表登录，role 校验为 MERCHANT） */
-export function loginApi(data: { username: string; password: string }) {
-  return request.post('/user/login', data)
+/** 商家登录（商家端统一接口 /api/merchant/login，手机号 + 密码） */
+export function loginApi(data: { phone: string; password: string }) {
+  return request.post('/merchant/login', data)
 }
 
 /** 商家注册（提交入驻申请） */

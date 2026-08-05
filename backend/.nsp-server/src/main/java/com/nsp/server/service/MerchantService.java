@@ -1,6 +1,8 @@
 package com.nsp.server.service;
 
+import com.nsp.pojo.dto.LoginDTO;
 import com.nsp.pojo.dto.MerchantRegisterDTO;
+import com.nsp.pojo.vo.LoginVO;
 import com.nsp.pojo.vo.MerchantVO;
 
 import java.util.List;
@@ -36,5 +38,12 @@ public interface MerchantService {
      * 申请中的账号密码即为审核通过后商家登录凭据。
      */
     void register(MerchantRegisterDTO dto);
+
+    /**
+     * 商家登录（仅查 merchant 表，手机号 + 密码）
+     *
+     * @return MERCHANT 角色 LoginVO
+     */
+    LoginVO login(LoginDTO dto);
 
 }

@@ -7,15 +7,15 @@ import { showToast } from 'vant'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const form = reactive({ username: '', password: '' })
+const form = reactive({ phone: '', password: '' })
 const loading = ref(false)
 
-const ACCOUNT_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{3,19}$/
+const PHONE_REGEX = /^1[3-9]\d{9}$/
 const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+]{6,20}$/
 
 function validate() {
-  if (!form.username) { showToast('请输入账号'); return false }
-  if (!ACCOUNT_REGEX.test(form.username)) { showToast('账号4-20位，字母开头'); return false }
+  if (!form.phone) { showToast('请输入手机号'); return false }
+  if (!PHONE_REGEX.test(form.phone)) { showToast('请输入正确的11位手机号'); return false }
   if (!form.password) { showToast('请输入密码'); return false }
   if (!PASSWORD_REGEX.test(form.password)) { showToast('密码6-20位，需含字母和数字'); return false }
   return true
@@ -54,11 +54,13 @@ async function handleLogin() {
       <van-form @submit="handleLogin">
         <van-cell-group inset>
           <van-field
-            v-model="form.username"
-            name="username"
-            label="账号"
-            placeholder="请输入账号"
-            :rules="[{ required: true, message: '请输入账号' }]"
+            v-model="form.phone"
+            type="tel"
+            name="phone"
+            label="手机号"
+            placeholder="请输入手机号"
+            maxlength="11"
+            :rules="[{ required: true, message: '请输入手机号' }]"
             clearable
           />
           <van-field

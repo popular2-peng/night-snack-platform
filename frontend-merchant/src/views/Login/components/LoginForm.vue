@@ -10,19 +10,19 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const formRef = ref<FormInstance>()
-const form = reactive({ username: '', password: '' })
+const form = reactive({ phone: '', password: '' })
 const loading = ref(false)
 
-/** 账号：4-20位，字母开头，字母/数字/下划线 */
-const ACCOUNT_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{3,19}$/
+/** 手机号：11位数字 */
+const PHONE_REGEX = /^1[3-9]\d{9}$/
 
 /** 密码：6-20位，必须包含字母和数字 */
 const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+]{6,20}$/
 
 const rules: FormRules = {
-  username: [
-    { required: true, message: '请输入账号', trigger: 'blur' },
-    { pattern: ACCOUNT_REGEX, message: '4-20位，字母开头，支持字母/数字/下划线', trigger: 'blur' },
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: PHONE_REGEX, message: '请输入正确的11位手机号', trigger: 'blur' },
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -53,11 +53,12 @@ async function handleLogin() {
 
 <template>
   <el-form ref="formRef" :model="form" :rules="rules" @submit.prevent="handleLogin" label-position="top">
-    <el-form-item label="账号" prop="username">
+    <el-form-item label="手机号" prop="phone">
       <el-input
-        v-model="form.username"
-        placeholder="请输入商家账号"
+        v-model="form.phone"
+        placeholder="请输入商家手机号"
         size="large"
+        maxlength="11"
       >
         <template #prefix>
           <el-icon><User /></el-icon>
