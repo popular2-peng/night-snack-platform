@@ -1,0 +1,115 @@
+/* ============================================
+   夜宵外卖平台 - 商家端全局样式
+   暖橙夜宵主题：深夜食堂的烟火气
+   ============================================ */
+
+/* === CSS 变量 === */
+:root {
+  --primary: #F59A23;          /* 夜市暖橙 */
+  --primary-light: #FFB44A;
+  --primary-dark: #E07F0E;
+  --primary-bg: #FFF4E3;
+  --success: #52C41A;
+  --success-bg: #F0FAF0;
+  --warning: #FAAD14;
+  --warning-bg: #FFFBE6;
+  --danger: #FF4D4F;
+  --danger-bg: #FFF1F0;
+  --info: #8C8C8C;
+  --bg: #F6F7F9;
+  --bg-white: #ffffff;
+  --text-primary: #1D2129;
+  --text-regular: #4E5969;
+  --text-secondary: #86909C;
+  --text-placeholder: #C9CDD4;
+  --border-color: #E5E6EB;
+  --border-light: #F2F3F5;
+  --sidebar-bg: #221B12;       /* 深夜底色 */
+  --sidebar-hover: #2E261A;
+  --sidebar-text: #B8AD9C;
+  --sidebar-active: #F59A23;
+  --header-height: 60px;
+  --sidebar-width: 220px;
+  --border-radius-sm: 6px;
+  --border-radius: 10px;
+  --border-radius-lg: 14px;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --transition-fast: 0.15s ease;
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* === 基础重置 === */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  background: var(--bg);
+}
+
+/* === 滚动条 === */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D4D7DE; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #B8BCC5; }
+
+/* === 通用动画 === */
+.fade-in { animation: fadeIn 0.35s ease; }
+.fade-in-scale { animation: fadeInScale 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.96) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* === 页面卡片 === */
+.page-card {
+  background: var(--bg-white);
+  border-radius: var(--border-radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.page-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+/* === 占位符 === */
+.placeholder-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - var(--header-height) - 48px);
+  color: var(--text-secondary);
+  background: var(--bg-white);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 40px;
+}
+.placeholder-icon { font-size: 64px; margin-bottom: 16px; }
+.placeholder-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
+.placeholder-desc { font-size: 14px; }

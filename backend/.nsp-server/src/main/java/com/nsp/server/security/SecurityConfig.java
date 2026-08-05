@@ -53,8 +53,12 @@ public class SecurityConfig {
                                 "/api/user/register"
                         ).permitAll()
 
-                        // 商家端登录
-                        .requestMatchers("/api/merchant/login").permitAll()
+                        // 商家端：登录 + 入驻申请（注册）+ 注册页品类下拉
+                        .requestMatchers(
+                                "/api/merchant/login",
+                                "/api/merchant/register",
+                                "/api/merchant/category/all"
+                        ).permitAll()
 
                         // 管理端登录
                         .requestMatchers("/api/admin/login").permitAll()
