@@ -5,6 +5,7 @@ import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.common.util.PhoneMaskUtil;
 import com.nsp.pojo.dto.BanUserDTO;
@@ -126,10 +127,10 @@ public class UserManagementServiceImpl implements UserManagementService {
         User user = findById(id);
 
         if ("DISABLED".equals(user.getStatus())) {
-            throw new BizException(ErrorCode.USER_ALREADY_BANNED, "用户已被封禁，无需重复操作");
+            throw new BizException(ErrorCode.USER_ALREADY_BANNED, MessageConst.USER_ALREADY_BANNED_MSG);
         }
         if (dto.getDurationDays() != null && dto.getDurationDays() < 0) {
-            throw new BizException(ErrorCode.USER_BAN_DURATION_INVALID, "封禁时长不能为负数");
+            throw new BizException(ErrorCode.USER_BAN_DURATION_INVALID, MessageConst.USER_BAN_DURATION_INVALID_MSG);
         }
 
         user.setStatus("DISABLED");
@@ -156,7 +157,7 @@ public class UserManagementServiceImpl implements UserManagementService {
         User user = findById(id);
 
         if (!"DISABLED".equals(user.getStatus())) {
-            throw new BizException(ErrorCode.USER_NOT_BANNED, "用户未被封禁，无法解封");
+            throw new BizException(ErrorCode.USER_NOT_BANNED, MessageConst.USER_NOT_BANNED_MSG);
         }
 
         user.setStatus("ACTIVE");
@@ -178,7 +179,7 @@ public class UserManagementServiceImpl implements UserManagementService {
         User user = findById(id);
 
         if ("DISABLED".equals(user.getStatus())) {
-            throw new BizException(ErrorCode.USER_RESET_PASSWORD_FAIL, "用户已被封禁，无法重置密码");
+            throw new BizException(ErrorCode.USER_RESET_PASSWORD_FAIL, MessageConst.USER_RESET_PASSWORD_BANNED_MSG);
         }
 
         // 生成 8 位随机密码（字母+数字）
@@ -242,7 +243,7 @@ public class UserManagementServiceImpl implements UserManagementService {
 
     private User findById(Long id) {
         User user = userMapper.selectById(id);
-        if (user == null) throw new BizException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+        if (user == null) throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.USER_NOT_FOUND_MSG);
         return user;
     }
 

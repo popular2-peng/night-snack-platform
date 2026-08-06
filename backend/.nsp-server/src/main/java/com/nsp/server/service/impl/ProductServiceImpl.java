@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.ProductDTO;
 import com.nsp.pojo.dto.ProductSpecDTO;
@@ -58,7 +59,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductVO getById(Long id) {
         Product product = productMapper.selectById(id);
         if (product == null) {
-            throw new BizException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
+            throw new BizException(ErrorCode.PRODUCT_NOT_FOUND, MessageConst.PRODUCT_NOT_FOUND_MSG);
         }
         return toVO(product);
     }
@@ -69,7 +70,7 @@ public class ProductServiceImpl implements ProductService {
         // 校验品类属于该商家
         Category category = categoryMapper.selectById(dto.getCategoryId());
         if (category == null || !category.getMerchantId().equals(merchantId)) {
-            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND, "品类不存在");
+            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND, MessageConst.CATEGORY_NOT_FOUND_MSG);
         }
 
         Product product = new Product();
@@ -117,7 +118,7 @@ public class ProductServiceImpl implements ProductService {
     public void removeSpec(Long specId, Long merchantId) {
         ProductSpec spec = productSpecMapper.selectById(specId);
         if (spec == null) {
-            throw new BizException(ErrorCode.SPEC_NOT_FOUND, "规格不存在");
+            throw new BizException(ErrorCode.SPEC_NOT_FOUND, MessageConst.SPEC_NOT_FOUND_MSG);
         }
         // 校验规格所属商品归该商家所有
         findOwnProduct(spec.getProductId(), merchantId);
@@ -132,10 +133,10 @@ public class ProductServiceImpl implements ProductService {
     private Product findOwnProduct(Long id, Long merchantId) {
         Product product = productMapper.selectById(id);
         if (product == null) {
-            throw new BizException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在");
+            throw new BizException(ErrorCode.PRODUCT_NOT_FOUND, MessageConst.PRODUCT_NOT_FOUND_MSG);
         }
         if (!product.getMerchantId().equals(merchantId)) {
-            throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, "无权操作该商品");
+            throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, MessageConst.PRODUCT_NOT_OWNER_MSG);
         }
         return product;
     }

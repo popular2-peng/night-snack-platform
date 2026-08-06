@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.AddressDTO;
 import com.nsp.pojo.entity.UserAddress;
@@ -53,7 +54,7 @@ public class AddressServiceImpl implements AddressService {
                 new LambdaQueryWrapper<UserAddress>().eq(UserAddress::getUserId, userId));
         if (count >= MAX_ADDRESS_COUNT) {
             throw new BizException(ErrorCode.ADDRESS_LIMIT_EXCEEDED,
-                    "地址数量已达上限（" + MAX_ADDRESS_COUNT + "）");
+                    String.format(MessageConst.ADDRESS_LIMIT_EXCEEDED_MSG, MAX_ADDRESS_COUNT));
         }
 
         UserAddress addr = new UserAddress();
@@ -108,10 +109,10 @@ public class AddressServiceImpl implements AddressService {
     private UserAddress findOwnAddress(Long id, Long userId) {
         UserAddress addr = addressMapper.selectById(id);
         if (addr == null) {
-            throw new BizException(ErrorCode.ADDRESS_NOT_FOUND, "地址不存在");
+            throw new BizException(ErrorCode.ADDRESS_NOT_FOUND, MessageConst.ADDRESS_NOT_FOUND_MSG);
         }
         if (!addr.getUserId().equals(userId)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权操作他人地址");
+            throw new BizException(ErrorCode.FORBIDDEN, MessageConst.ADDRESS_FORBIDDEN_MSG);
         }
         return addr;
     }

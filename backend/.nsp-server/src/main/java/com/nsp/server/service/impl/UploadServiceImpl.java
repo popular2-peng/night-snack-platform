@@ -5,6 +5,7 @@ import com.aliyun.oss.common.utils.BinaryUtil;
 import com.aliyun.oss.model.MatchMode;
 import com.aliyun.oss.model.PolicyConditions;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.enums.UploadBizType;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.UploadBindDTO;
@@ -67,7 +68,7 @@ public class UploadServiceImpl implements UploadService {
         int count = countStr == null ? 0 : Integer.parseInt(countStr);
         if (count >= SIGN_LIMIT_PER_MINUTE) {
             throw new BizException(ErrorCode.UPLOAD_SIGN_LIMIT,
-                    "签名请求过于频繁，每分钟限 " + SIGN_LIMIT_PER_MINUTE + " 次");
+                    String.format(MessageConst.UPLOAD_SIGN_LIMIT_MSG, SIGN_LIMIT_PER_MINUTE));
         }
         redisTemplate.opsForValue().increment(limitKey);
         redisTemplate.expire(limitKey, 1, TimeUnit.MINUTES);
@@ -76,13 +77,13 @@ public class UploadServiceImpl implements UploadService {
         String ext = getFileExtension(fileName);
         if (!ALLOWED_TYPES.contains(ext)) {
             throw new BizException(ErrorCode.UPLOAD_TYPE_INVALID,
-                    "不支持的文件类型: " + ext + "，允许: " + ALLOWED_TYPES);
+                    String.format(MessageConst.UPLOAD_TYPE_INVALID_MSG, ext, ALLOWED_TYPES));
         }
 
         // 校验业务类型
         UploadBizType type = UploadBizType.fromCode(bizType);
         if (type == null) {
-            throw new BizException(ErrorCode.UPLOAD_TYPE_INVALID, "不支持的业务类型: " + bizType);
+            throw new BizException(ErrorCode.UPLOAD_TYPE_INVALID, String.format(MessageConst.PARAM_UPLOAD_BIZ_TYPE_INVALID_MSG, bizType));
         }
 
         // 生成上传目录: {项目根}/{yyyy-MM}/{dd}/{uuid}.{ext}
@@ -120,7 +121,7 @@ public class UploadServiceImpl implements UploadService {
             return vo;
         } catch (Exception e) {
             log.error("生成 OSS 签名失败", e);
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "上传签名生成失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, MessageConst.SYSTEM_UPLOAD_SIGN_FAIL_MSG);
         }
     }
 
@@ -144,7 +145,7 @@ public class UploadServiceImpl implements UploadService {
             return url.toString();
         } catch (Exception e) {
             log.error("生成 OSS 访问 URL 失败: ossKey={}", ossKey, e);
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "获取文件访问链接失败");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, MessageConst.SYSTEM_UPLOAD_URL_FAIL_MSG);
         }
     }
 

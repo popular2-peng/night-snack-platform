@@ -1,6 +1,7 @@
 package com.nsp.server.service.impl;
 
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.CartItemDTO;
 import com.nsp.pojo.entity.Product;
@@ -55,17 +56,17 @@ public class CartServiceImpl implements CartService {
 
         ProductSpec spec = productSpecMapper.selectById(dto.getSpecId());
         if (spec == null) {
-            throw new BizException(ErrorCode.SPEC_NOT_FOUND, "规格不存在");
+            throw new BizException(ErrorCode.SPEC_NOT_FOUND, MessageConst.SPEC_NOT_FOUND_MSG);
         }
         Product product = productMapper.selectById(spec.getProductId());
         if (product == null || !product.getMerchantId().equals(merchantId)) {
-            throw new BizException(ErrorCode.PRODUCT_NOT_FOUND, "商品不属于该商家");
+            throw new BizException(ErrorCode.PRODUCT_NOT_FOUND, MessageConst.CART_PRODUCT_NOT_BELONG_MSG);
         }
 
         String currentQty = ops.get(cartKey, String.valueOf(dto.getSpecId()));
         int newQty = (currentQty == null ? 0 : Integer.parseInt(currentQty)) + dto.getQuantity();
         if (newQty > MAX_QUANTITY) {
-            throw new BizException(ErrorCode.CART_ITEM_LIMIT, "单个商品数量不能超过 " + MAX_QUANTITY);
+            throw new BizException(ErrorCode.CART_ITEM_LIMIT, String.format(MessageConst.CART_ITEM_LIMIT_MSG, MAX_QUANTITY));
         }
 
         ops.put(cartKey, String.valueOf(dto.getSpecId()), String.valueOf(newQty));
@@ -88,7 +89,7 @@ public class CartServiceImpl implements CartService {
             return;
         }
         if (quantity > MAX_QUANTITY) {
-            throw new BizException(ErrorCode.CART_ITEM_LIMIT, "单个商品数量不能超过 " + MAX_QUANTITY);
+            throw new BizException(ErrorCode.CART_ITEM_LIMIT, String.format(MessageConst.CART_ITEM_LIMIT_MSG, MAX_QUANTITY));
         }
         String cartKey = cartKey(userId);
         redisTemplate.opsForHash().put(cartKey, String.valueOf(specId), String.valueOf(quantity));

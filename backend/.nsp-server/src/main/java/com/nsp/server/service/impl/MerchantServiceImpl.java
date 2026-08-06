@@ -3,6 +3,7 @@ package com.nsp.server.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.LoginDTO;
 import com.nsp.pojo.dto.MerchantRegisterDTO;
@@ -70,7 +71,7 @@ public class MerchantServiceImpl implements MerchantService {
     public MerchantVO getById(Long id) {
         Merchant merchant = merchantMapper.selectById(id);
         if (merchant == null) {
-            throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+            throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, MessageConst.MERCHANT_NOT_FOUND_MSG);
         }
         return toVO(merchant);
     }
@@ -79,11 +80,11 @@ public class MerchantServiceImpl implements MerchantService {
     public void updateStatus(Long merchantId, Long userId, String status) {
         Merchant merchant = merchantMapper.selectById(merchantId);
         if (merchant == null) {
-            throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+            throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, MessageConst.MERCHANT_NOT_FOUND_MSG);
         }
         // 商家登录后 JWT 中的 userId 即为 merchant.id，校验一致性
         if (!merchant.getId().equals(userId)) {
-            throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, "非本店商家，无权操作");
+            throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, MessageConst.NOT_MERCHANT_OWNER_MSG);
         }
 
         Merchant update = new Merchant();
@@ -106,16 +107,16 @@ public class MerchantServiceImpl implements MerchantService {
         }
 
         if (merchant == null) {
-            throw new BizException(ErrorCode.USER_NOT_FOUND, "该手机号未注册商家");
+            throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.USER_PHONE_NOT_MERCHANT_MSG);
         }
         if (!passwordEncoder.matches(dto.getPassword(), merchant.getPassword())) {
-            throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
+            throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
         }
         if ("SUSPENDED".equals(merchant.getStatus())) {
-            throw new BizException(ErrorCode.FORBIDDEN, "商家已被封禁");
+            throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_MERCHANT_BANNED_MSG);
         }
         if ("PENDING".equals(merchant.getStatus())) {
-            throw new BizException(ErrorCode.MERCHANT_NOT_APPROVED, "商家尚未通过审核");
+            throw new BizException(ErrorCode.MERCHANT_NOT_APPROVED, MessageConst.MERCHANT_NOT_APPROVED_MSG);
         }
 
         log.info("商家登录: merchantId={}, phone={}", merchant.getId(), dto.getPhone());
@@ -141,23 +142,23 @@ public class MerchantServiceImpl implements MerchantService {
         Long merCount = merchantMapper.selectCount(
                 new LambdaQueryWrapper<Merchant>().eq(Merchant::getUsername, dto.getUsername()));
         if (userCount + appCount + merCount > 0) {
-            throw new BizException(ErrorCode.USERNAME_EXISTS, "账号已被占用，请更换");
+            throw new BizException(ErrorCode.USERNAME_EXISTS, MessageConst.USERNAME_TAKEN_MSG);
         }
 
         // 2. 校验手机号唯一（user 表）
         Long phoneCount = userMapper.selectCount(
                 new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone()));
         if (phoneCount > 0) {
-            throw new BizException(ErrorCode.PHONE_EXISTS, "手机号已注册，请直接登录");
+            throw new BizException(ErrorCode.PHONE_EXISTS, MessageConst.PHONE_EXISTS_LOGIN_MSG);
         }
 
         // 3. 校验主营品类存在且启用
         PlatformCategory category = platformCategoryMapper.selectById(dto.getCategoryId());
         if (category == null || category.getDeleted() == 1) {
-            throw new BizException(ErrorCode.CATEGORY_NOT_EXISTS, "主营品类不存在");
+            throw new BizException(ErrorCode.CATEGORY_NOT_EXISTS, MessageConst.CATEGORY_NOT_EXISTS_MSG);
         }
         if (!"ENABLED".equals(category.getStatus())) {
-            throw new BizException(ErrorCode.CATEGORY_NOT_EXISTS, "主营品类已停用");
+            throw new BizException(ErrorCode.CATEGORY_NOT_EXISTS, MessageConst.CATEGORY_DISABLED_MSG);
         }
 
         // 4. 创建申请人 user 账号

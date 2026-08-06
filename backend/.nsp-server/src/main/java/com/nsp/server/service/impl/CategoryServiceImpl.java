@@ -2,6 +2,7 @@ package com.nsp.server.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.entity.Category;
 import com.nsp.server.mapper.CategoryMapper;
@@ -47,7 +48,7 @@ public class CategoryServiceImpl implements CategoryService {
     public Category update(Long id, Long merchantId, String name, Integer sort) {
         Category category = categoryMapper.selectById(id);
         if (category == null || !category.getMerchantId().equals(merchantId)) {
-            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND, "品类不存在");
+            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND, MessageConst.CATEGORY_NOT_FOUND_MSG);
         }
         if (name != null) category.setName(name);
         if (sort != null) category.setSort(sort);
@@ -59,7 +60,7 @@ public class CategoryServiceImpl implements CategoryService {
     public void delete(Long id, Long merchantId) {
         Category category = categoryMapper.selectById(id);
         if (category == null || !category.getMerchantId().equals(merchantId)) {
-            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND, "品类不存在");
+            throw new BizException(ErrorCode.CATEGORY_NOT_FOUND, MessageConst.CATEGORY_NOT_FOUND_MSG);
         }
         categoryMapper.deleteById(id);
         log.info("删除品类: id={}, merchantId={}", id, merchantId);

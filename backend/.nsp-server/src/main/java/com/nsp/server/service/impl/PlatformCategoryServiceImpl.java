@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.CategoryReorderDTO;
 import com.nsp.pojo.dto.CategorySaveDTO;
@@ -114,10 +115,10 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
     public CategoryVO create(CategorySaveDTO dto) {
         // 校验名称
         if (dto.getName() == null || dto.getName().isBlank()) {
-            throw new BizException(ErrorCode.CATEGORY_NAME_LENGTH, "品类名称不能为空");
+            throw new BizException(ErrorCode.CATEGORY_NAME_LENGTH, MessageConst.CATEGORY_NAME_EMPTY_MSG);
         }
         if (dto.getName().length() < 2 || dto.getName().length() > 10) {
-            throw new BizException(ErrorCode.CATEGORY_NAME_LENGTH, "品类名称长度 2-10 字");
+            throw new BizException(ErrorCode.CATEGORY_NAME_LENGTH, MessageConst.CATEGORY_NAME_LENGTH_MSG);
         }
 
         // 校验唯一
@@ -126,7 +127,7 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
                         .eq(PlatformCategory::getName, dto.getName())
                         .eq(PlatformCategory::getDeleted, 0));
         if (count > 0) {
-            throw new BizException(ErrorCode.CATEGORY_NAME_EXISTS, "品类名称已存在");
+            throw new BizException(ErrorCode.CATEGORY_NAME_EXISTS, MessageConst.CATEGORY_NAME_EXISTS_MSG);
         }
 
         PlatformCategory category = new PlatformCategory();
@@ -137,7 +138,7 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
         // sort_order 默认 = 最大值 + 1
         if (dto.getSortOrder() != null) {
             if (dto.getSortOrder() < 0) {
-                throw new BizException(ErrorCode.CATEGORY_SORT_INVALID, "排序权重必须为非负整数");
+                throw new BizException(ErrorCode.CATEGORY_SORT_INVALID, MessageConst.CATEGORY_SORT_INVALID_MSG);
             }
             category.setSortOrder(dto.getSortOrder());
         } else {
@@ -162,7 +163,7 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
 
         if (dto.getName() != null) {
             if (dto.getName().length() < 2 || dto.getName().length() > 10) {
-                throw new BizException(ErrorCode.CATEGORY_NAME_LENGTH, "品类名称长度 2-10 字");
+                throw new BizException(ErrorCode.CATEGORY_NAME_LENGTH, MessageConst.CATEGORY_NAME_LENGTH_MSG);
             }
             // 校验唯一（排除自身）
             Long count = platformCategoryMapper.selectCount(
@@ -171,7 +172,7 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
                             .eq(PlatformCategory::getDeleted, 0)
                             .ne(PlatformCategory::getId, id));
             if (count > 0) {
-                throw new BizException(ErrorCode.CATEGORY_NAME_EXISTS, "品类名称已存在");
+                throw new BizException(ErrorCode.CATEGORY_NAME_EXISTS, MessageConst.CATEGORY_NAME_EXISTS_MSG);
             }
             category.setName(dto.getName());
         }
@@ -183,7 +184,7 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
         }
         if (dto.getSortOrder() != null) {
             if (dto.getSortOrder() < 0) {
-                throw new BizException(ErrorCode.CATEGORY_SORT_INVALID, "排序权重必须为非负整数");
+                throw new BizException(ErrorCode.CATEGORY_SORT_INVALID, MessageConst.CATEGORY_SORT_INVALID_MSG);
             }
             category.setSortOrder(dto.getSortOrder());
         }
@@ -233,7 +234,7 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
 
         // 必须已停用
         if (!"DISABLED".equals(category.getStatus())) {
-            throw new BizException(ErrorCode.CATEGORY_MUST_DISABLE, "请先停用该品类再删除");
+            throw new BizException(ErrorCode.CATEGORY_MUST_DISABLE, MessageConst.CATEGORY_MUST_DISABLE_MSG);
         }
 
         // 检查是否有关联商家
@@ -244,7 +245,7 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
                 new LambdaQueryWrapper<MerchantCategory>()
                         .eq(MerchantCategory::getCategoryId, id));
         if (merchantCount > 0 || junctionCount > 0) {
-            throw new BizException(ErrorCode.CATEGORY_HAS_MERCHANTS, "该品类下仍有商家关联，无法删除");
+            throw new BizException(ErrorCode.CATEGORY_HAS_MERCHANTS, MessageConst.CATEGORY_HAS_MERCHANTS_MSG);
         }
 
         // 软删
@@ -261,11 +262,11 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
         }
         for (CategoryReorderDTO item : items) {
             if (item.getSortOrder() != null && item.getSortOrder() < 0) {
-                throw new BizException(ErrorCode.CATEGORY_SORT_INVALID, "排序权重必须为非负整数");
+                throw new BizException(ErrorCode.CATEGORY_SORT_INVALID, MessageConst.CATEGORY_SORT_INVALID_MSG);
             }
             PlatformCategory category = platformCategoryMapper.selectById(item.getId());
             if (category == null || category.getDeleted() == 1) {
-                throw new BizException(ErrorCode.CATEGORY_NOT_EXISTS, "品类不存在: id=" + item.getId());
+                throw new BizException(ErrorCode.CATEGORY_NOT_EXISTS, String.format(MessageConst.CATEGORY_NOT_EXISTS_WITH_ID_MSG, item.getId()));
             }
             category.setSortOrder(item.getSortOrder());
             platformCategoryMapper.updateById(category);
@@ -278,7 +279,7 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
     private PlatformCategory findById(Long id) {
         PlatformCategory c = platformCategoryMapper.selectById(id);
         if (c == null || c.getDeleted() == 1) {
-            throw new BizException(ErrorCode.CATEGORY_NOT_EXISTS, "品类不存在或已被删除");
+            throw new BizException(ErrorCode.CATEGORY_NOT_EXISTS, MessageConst.CATEGORY_NOT_EXISTS_OR_DELETED_MSG);
         }
         return c;
     }

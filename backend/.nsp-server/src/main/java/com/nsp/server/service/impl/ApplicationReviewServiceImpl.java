@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.common.util.PhoneMaskUtil;
 import com.nsp.pojo.dto.ApproveApplicationDTO;
@@ -115,15 +116,15 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         // 1. 查询申请人信息
         User applicant = userMapper.selectById(app.getApplicantUserId());
         if (applicant == null) {
-            throw new BizException(ErrorCode.USER_NOT_FOUND, "申请人不存在");
+            throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.APPLICANT_NOT_FOUND_MSG);
         }
 
         // 2. 校验申请凭据
         if (app.getUsername() == null || app.getUsername().isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "申请缺少商家登录用户名");
+            throw new BizException(ErrorCode.PARAM_ERROR, MessageConst.PARAM_APPLICATION_MISSING_USERNAME_MSG);
         }
         if (app.getPassword() == null || app.getPassword().isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "申请缺少商家登录密码");
+            throw new BizException(ErrorCode.PARAM_ERROR, MessageConst.PARAM_APPLICATION_MISSING_PASSWORD_MSG);
         }
 
         // 3. 创建商家记录（凭据来自商家注册时填写，密码已 BCrypt 加密）
@@ -179,15 +180,15 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         // 1. 查询申请人信息
         User applicant = userMapper.selectById(app.getApplicantUserId());
         if (applicant == null) {
-            throw new BizException(ErrorCode.USER_NOT_FOUND, "申请人不存在");
+            throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.APPLICANT_NOT_FOUND_MSG);
         }
 
         // 2. 校验申请凭据
         if (app.getUsername() == null || app.getUsername().isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "申请缺少商家登录用户名");
+            throw new BizException(ErrorCode.PARAM_ERROR, MessageConst.PARAM_APPLICATION_MISSING_USERNAME_MSG);
         }
         if (app.getPassword() == null || app.getPassword().isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, "申请缺少商家登录密码");
+            throw new BizException(ErrorCode.PARAM_ERROR, MessageConst.PARAM_APPLICATION_MISSING_PASSWORD_MSG);
         }
 
         // 3. 创建商家记录（凭据来自商家注册时填写，密码已 BCrypt 加密）
@@ -233,7 +234,7 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
 
     private MerchantApplication findById(Long id) {
         MerchantApplication app = merchantApplicationMapper.selectById(id);
-        if (app == null) throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, "申请不存在");
+        if (app == null) throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, MessageConst.APPLICATION_NOT_FOUND_MSG);
         return app;
     }
 

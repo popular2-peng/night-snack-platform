@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.common.util.IdCardMaskUtil;
 import com.nsp.common.util.PhoneMaskUtil;
@@ -160,7 +161,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
     public void pause(Long id, Long operatorId) {
         Merchant m = findById(id);
         if ("CLOSED".equals(m.getStatus())) {
-            throw new BizException(ErrorCode.ORDER_STATUS_ERROR, "商家已处于打烊状态");
+            throw new BizException(ErrorCode.ORDER_STATUS_ERROR, MessageConst.MERCHANT_CLOSED_STATUS_MSG);
         }
         m.setStatus("CLOSED");
         m.setUpdatedAt(LocalDateTime.now());
@@ -174,7 +175,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
     public void resume(Long id, Long operatorId) {
         Merchant m = findById(id);
         if ("OPEN".equals(m.getStatus())) {
-            throw new BizException(ErrorCode.ORDER_STATUS_ERROR, "商家已在营业中");
+            throw new BizException(ErrorCode.ORDER_STATUS_ERROR, MessageConst.MERCHANT_OPEN_STATUS_MSG);
         }
         m.setStatus("OPEN");
         m.setUpdatedAt(LocalDateTime.now());
@@ -188,7 +189,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
     public void ban(Long id, Long operatorId, BanMerchantDTO dto) {
         Merchant m = findById(id);
         if ("SUSPENDED".equals(m.getStatus())) {
-            throw new BizException(ErrorCode.MERCHANT_ALREADY_BANNED, "商家已被封禁，无需重复操作");
+            throw new BizException(ErrorCode.MERCHANT_ALREADY_BANNED, MessageConst.MERCHANT_ALREADY_BANNED_MSG);
         }
         m.setStatus("SUSPENDED");
         m.setBannedReason(dto.getReason());
@@ -205,7 +206,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
     public void unban(Long id, Long operatorId) {
         Merchant m = findById(id);
         if (!"SUSPENDED".equals(m.getStatus())) {
-            throw new BizException(ErrorCode.MERCHANT_NOT_BANNED, "商家未被封禁，无法解封");
+            throw new BizException(ErrorCode.MERCHANT_NOT_BANNED, MessageConst.MERCHANT_NOT_BANNED_MSG);
         }
         m.setStatus("OPEN");
         m.setBannedReason(null);
@@ -267,7 +268,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
 
     private Merchant findById(Long id) {
         Merchant m = merchantMapper.selectById(id);
-        if (m == null) throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+        if (m == null) throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, MessageConst.MERCHANT_NOT_FOUND_MSG);
         return m;
     }
 

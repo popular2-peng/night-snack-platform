@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.enums.OrderStatus;
 import com.nsp.common.enums.PayChannel;
 import com.nsp.common.exception.BizException;
@@ -68,24 +69,24 @@ public class OrderServiceImpl implements OrderService {
         // 1. 校验商家
         Merchant merchant = merchantMapper.selectById(dto.getMerchantId());
         if (merchant == null) {
-            throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, "商家不存在");
+            throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, MessageConst.MERCHANT_NOT_FOUND_MSG);
         }
         if (!"OPEN".equals(merchant.getStatus())) {
-            throw new BizException(ErrorCode.MERCHANT_CLOSED, "商家已打烊或未审核通过");
+            throw new BizException(ErrorCode.MERCHANT_CLOSED, MessageConst.MERCHANT_CLOSED_MSG);
         }
         validateBusinessHours(merchant);
 
         // 2. 校验配送范围（以地址坐标为准）
         UserAddress address = addressMapper.selectById(dto.getAddressId());
         if (address == null || !address.getUserId().equals(userId)) {
-            throw new BizException(ErrorCode.ADDRESS_NOT_FOUND, "收货地址不存在");
+            throw new BizException(ErrorCode.ADDRESS_NOT_FOUND, MessageConst.ORDER_ADDRESS_NOT_FOUND_MSG);
         }
         long distance = mapService.calculateDistance(
                 merchant.getLat(), merchant.getLng(),
                 address.getLat(), address.getLng());
         if (distance > merchant.getDeliveryRadius()) {
             throw new BizException(ErrorCode.OUT_OF_DELIVERY_RANGE,
-                    "超出配送范围，距离 " + distance + " 米（限 " + merchant.getDeliveryRadius() + " 米）");
+                    String.format(MessageConst.ORDER_OUT_OF_DELIVERY_RANGE_MSG, distance, merchant.getDeliveryRadius()));
         }
 
         // 3. 校验订单明细，所有商品必须属于同一商家
@@ -97,15 +98,15 @@ public class OrderServiceImpl implements OrderService {
         for (OrderCreateDTO.OrderItemDTO item : dto.getItems()) {
             ProductSpec spec = productSpecMapper.selectById(item.getSpecId());
             if (spec == null) {
-                throw new BizException(ErrorCode.SPEC_NOT_FOUND, "规格不存在: " + item.getSpecId());
+                throw new BizException(ErrorCode.SPEC_NOT_FOUND, String.format(MessageConst.SPEC_NOT_FOUND_WITH_ID_MSG, item.getSpecId()));
             }
             Product product = productMapper.selectById(spec.getProductId());
             if (product == null || !product.getMerchantId().equals(dto.getMerchantId())) {
                 throw new BizException(ErrorCode.PRODUCT_NOT_FOUND,
-                        "商品不属于该商家: specId=" + item.getSpecId());
+                        String.format(MessageConst.PRODUCT_NOT_BELONG_MERCHANT_MSG, item.getSpecId()));
             }
             if (!"ON".equals(product.getStatus())) {
-                throw new BizException(ErrorCode.PRODUCT_OFF_SHELF, "商品已下架: " + product.getName());
+                throw new BizException(ErrorCode.PRODUCT_OFF_SHELF, String.format(MessageConst.PRODUCT_OFF_SHELF_MSG, product.getName()));
             }
 
             specs.add(spec);
@@ -181,7 +182,7 @@ public class OrderServiceImpl implements OrderService {
         // 校验 userId 是该商家店主
         Merchant merchant = merchantMapper.selectById(merchantId);
         if (merchant == null || !merchant.getId().equals(userId)) {
-            throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, "无权查看该店铺订单");
+            throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, MessageConst.NOT_MERCHANT_ORDER_VIEW_MSG);
         }
 
         Page<Order> result = orderMapper.selectPage(
@@ -197,17 +198,17 @@ public class OrderServiceImpl implements OrderService {
     public OrderVO getOrderDetail(Long orderId, Long userId, String role) {
         Order order = orderMapper.selectById(orderId);
         if (order == null) {
-            throw new BizException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+            throw new BizException(ErrorCode.ORDER_NOT_FOUND, MessageConst.ORDER_NOT_FOUND_MSG);
         }
 
         // 越权检查
         if ("USER".equals(role) && !order.getUserId().equals(userId)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权查看该订单");
+            throw new BizException(ErrorCode.FORBIDDEN, MessageConst.ORDER_VIEW_FORBIDDEN_MSG);
         }
         if ("MERCHANT".equals(role)) {
             Merchant merchant = merchantMapper.selectById(order.getMerchantId());
             if (merchant == null || !merchant.getId().equals(userId)) {
-                throw new BizException(ErrorCode.FORBIDDEN, "无权查看该订单");
+                throw new BizException(ErrorCode.FORBIDDEN, MessageConst.ORDER_VIEW_FORBIDDEN_MSG);
             }
         }
 
@@ -222,7 +223,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void cancelOrder(Long orderId, Long userId) {
         Order order = findOwnOrder(orderId, userId);
-        assertStatus(order, OrderStatus.PENDING_PAY, "只有待支付订单可以取消");
+        assertStatus(order, OrderStatus.PENDING_PAY, MessageConst.ORDER_STATUS_CANCEL_MSG);
 
         order.setStatus(OrderStatus.CANCELLED);
         orderMapper.updateById(order);
@@ -239,7 +240,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void acceptOrder(Long orderId, Long merchantId, Long userId) {
         Order order = findMerchantOrder(orderId, merchantId, userId);
-        assertStatus(order, OrderStatus.PAID, "只有已支付订单可以接单");
+        assertStatus(order, OrderStatus.PAID, MessageConst.ORDER_STATUS_ACCEPT_MSG);
 
         order.setStatus(OrderStatus.ACCEPTED);
         orderMapper.updateById(order);
@@ -253,7 +254,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void startCooking(Long orderId, Long merchantId, Long userId) {
         Order order = findMerchantOrder(orderId, merchantId, userId);
-        assertStatus(order, OrderStatus.ACCEPTED, "只有已接单订单可以开始制作");
+        assertStatus(order, OrderStatus.ACCEPTED, MessageConst.ORDER_STATUS_COOKING_MSG);
 
         order.setStatus(OrderStatus.COOKING);
         orderMapper.updateById(order);
@@ -267,7 +268,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void completeOrder(Long orderId, Long merchantId, Long userId) {
         Order order = findMerchantOrder(orderId, merchantId, userId);
-        assertStatus(order, OrderStatus.COOKING, "只有制作中订单可以标记完成");
+        assertStatus(order, OrderStatus.COOKING, MessageConst.ORDER_STATUS_COMPLETE_MSG);
 
         order.setStatus(OrderStatus.COMPLETED);
         orderMapper.updateById(order);
@@ -282,7 +283,7 @@ public class OrderServiceImpl implements OrderService {
     public void rejectOrder(Long orderId, Long merchantId, Long userId, String reason) {
         Order order = findMerchantOrder(orderId, merchantId, userId);
         if (order.getStatus() != OrderStatus.PAID) {
-            throw new BizException(ErrorCode.ORDER_STATUS_ERROR, "只有已支付但未接单的订单可以拒单");
+            throw new BizException(ErrorCode.ORDER_STATUS_ERROR, MessageConst.ORDER_STATUS_REJECT_MSG);
         }
 
         order.setStatus(OrderStatus.CANCELLED);
@@ -308,7 +309,7 @@ public class OrderServiceImpl implements OrderService {
         String existingStock = redisTemplate.opsForValue().get(key);
         if (existingStock == null) {
             ProductSpec spec = productSpecMapper.selectById(specId);
-            if (spec == null) throw new BizException(ErrorCode.SPEC_NOT_FOUND, "规格不存在");
+            if (spec == null) throw new BizException(ErrorCode.SPEC_NOT_FOUND, MessageConst.SPEC_NOT_FOUND_MSG);
             redisTemplate.opsForValue().set(key, String.valueOf(spec.getStock()));
         }
 
@@ -318,13 +319,13 @@ public class OrderServiceImpl implements OrderService {
 
         Long result = redisTemplate.execute(script, List.of(key), String.valueOf(qty));
         if (result == null) {
-            throw new BizException(ErrorCode.SYSTEM_ERROR, "库存扣减脚本执行异常");
+            throw new BizException(ErrorCode.SYSTEM_ERROR, MessageConst.SYSTEM_STOCK_SCRIPT_ERROR_MSG);
         }
         if (result == -1L) {
-            throw new BizException(ErrorCode.STOCK_INSUFFICIENT, "库存不足: specId=" + specId);
+            throw new BizException(ErrorCode.STOCK_INSUFFICIENT, String.format(MessageConst.STOCK_INSUFFICIENT_MSG, specId));
         }
         if (result == -2L) {
-            throw new BizException(ErrorCode.SPEC_NOT_FOUND, "库存未初始化: specId=" + specId);
+            throw new BizException(ErrorCode.SPEC_NOT_FOUND, String.format(MessageConst.STOCK_NOT_INITIALIZED_MSG, specId));
         }
 
         log.info("库存扣减成功: specId={}, qty={}", specId, qty);
@@ -365,7 +366,7 @@ public class OrderServiceImpl implements OrderService {
 
         if (!withinHours) {
             throw new BizException(ErrorCode.NOT_IN_BUSINESS_HOURS,
-                    "商家非营业时间（" + start + " ~ " + end + "）");
+                    String.format(MessageConst.ORDER_NOT_IN_BUSINESS_HOURS_MSG, start, end));
         }
     }
 
@@ -378,10 +379,10 @@ public class OrderServiceImpl implements OrderService {
     private Order findOwnOrder(Long orderId, Long userId) {
         Order order = orderMapper.selectById(orderId);
         if (order == null) {
-            throw new BizException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+            throw new BizException(ErrorCode.ORDER_NOT_FOUND, MessageConst.ORDER_NOT_FOUND_MSG);
         }
         if (!order.getUserId().equals(userId)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权操作该订单");
+            throw new BizException(ErrorCode.FORBIDDEN, MessageConst.ORDER_FORBIDDEN_MSG);
         }
         return order;
     }
@@ -389,11 +390,11 @@ public class OrderServiceImpl implements OrderService {
     private Order findMerchantOrder(Long orderId, Long merchantId, Long userId) {
         Merchant merchant = merchantMapper.selectById(merchantId);
         if (merchant == null || !merchant.getId().equals(userId)) {
-            throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, "非本店商家");
+            throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, MessageConst.NOT_MERCHANT_OWNER_SHORT_MSG);
         }
         Order order = orderMapper.selectById(orderId);
         if (order == null || !order.getMerchantId().equals(merchantId)) {
-            throw new BizException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+            throw new BizException(ErrorCode.ORDER_NOT_FOUND, MessageConst.ORDER_NOT_FOUND_MSG);
         }
         return order;
     }

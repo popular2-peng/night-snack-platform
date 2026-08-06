@@ -2,6 +2,7 @@ package com.nsp.server.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.enums.OrderStatus;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.PayRequestDTO;
@@ -55,14 +56,14 @@ public class PaymentServiceImpl implements PaymentService {
         Order order = orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, dto.getOrderNo()));
         if (order == null) {
-            throw new BizException(ErrorCode.ORDER_NOT_FOUND, "订单不存在");
+            throw new BizException(ErrorCode.ORDER_NOT_FOUND, MessageConst.ORDER_NOT_FOUND_MSG);
         }
         if (!order.getUserId().equals(userId)) {
-            throw new BizException(ErrorCode.FORBIDDEN, "无权操作该订单");
+            throw new BizException(ErrorCode.FORBIDDEN, MessageConst.ORDER_FORBIDDEN_MSG);
         }
         if (order.getStatus() != OrderStatus.PENDING_PAY) {
             throw new BizException(ErrorCode.ORDER_STATUS_ERROR,
-                    "当前状态不允许支付: " + order.getStatus().getDesc());
+                    String.format(MessageConst.ORDER_STATUS_PAY_MSG, order.getStatus().getDesc()));
         }
 
         // 按渠道分发
@@ -78,7 +79,7 @@ public class PaymentServiceImpl implements PaymentService {
             // Mock 直接标记为已支付
             markOrderPaid(order, dto.getChannel(), "MOCK_" + dto.getOrderNo());
         } else {
-            throw new BizException(ErrorCode.PARAM_ERROR, "不支持的支付渠道: " + dto.getChannel());
+            throw new BizException(ErrorCode.PARAM_ERROR, String.format(MessageConst.PARAM_PAY_CHANNEL_UNSUPPORTED_MSG, dto.getChannel()));
         }
 
         // 记录支付请求（支付宝渠道：状态 PENDING 等待回调）
@@ -108,7 +109,7 @@ public class PaymentServiceImpl implements PaymentService {
         // 1. 验签
         if (!alipayService.verifySign(params)) {
             log.error("支付宝回调验签失败: params={}", params);
-            throw new BizException(ErrorCode.PAY_SIGN_ERROR, "支付宝回调验签失败");
+            throw new BizException(ErrorCode.PAY_SIGN_ERROR, MessageConst.PAY_ALIPAY_SIGN_ERROR_MSG);
         }
 
         String orderNo = params.get("out_trade_no");
@@ -165,7 +166,7 @@ public class PaymentServiceImpl implements PaymentService {
                         .orderByDesc(PaymentRecord::getCreatedAt)
                         .last("LIMIT 1"));
         if (record == null) {
-            throw new BizException(ErrorCode.PAY_ORDER_NOT_FOUND, "未找到支付记录");
+            throw new BizException(ErrorCode.PAY_ORDER_NOT_FOUND, MessageConst.PAY_RECORD_NOT_FOUND_MSG);
         }
         return PayVO.builder()
                 .orderNo(orderNo)

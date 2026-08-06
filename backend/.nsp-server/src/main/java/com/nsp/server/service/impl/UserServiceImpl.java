@@ -3,6 +3,7 @@ package com.nsp.server.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.LoginDTO;
 import com.nsp.pojo.dto.RegisterDTO;
@@ -43,13 +44,13 @@ public class UserServiceImpl implements UserService {
         Long usernameCount = userMapper.selectCount(
                 new LambdaQueryWrapper<User>().eq(User::getUsername, dto.getUsername()));
         if (usernameCount > 0) {
-            throw new BizException(ErrorCode.USERNAME_EXISTS, "用户名已存在");
+            throw new BizException(ErrorCode.USERNAME_EXISTS, MessageConst.USERNAME_EXISTS_MSG);
         }
 
         Long phoneCount = userMapper.selectCount(
                 new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone()));
         if (phoneCount > 0) {
-            throw new BizException(ErrorCode.PHONE_EXISTS, "手机号已注册");
+            throw new BizException(ErrorCode.PHONE_EXISTS, MessageConst.PHONE_EXISTS_MSG);
         }
 
         User user = new User();
@@ -90,10 +91,10 @@ public class UserServiceImpl implements UserService {
                 new LambdaQueryWrapper<Merchant>().eq(Merchant::getPhone, dto.getPhone()));
         if (merchant != null) {
             if (!passwordEncoder.matches(dto.getPassword(), merchant.getPassword())) {
-                throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
+                throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
             }
             if ("SUSPENDED".equals(merchant.getStatus())) {
-                throw new BizException(ErrorCode.FORBIDDEN, "商家已被封禁");
+                throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_MERCHANT_BANNED_MSG);
             }
             log.info("商家登录(手机号): merchantId={}, phone={}", merchant.getId(), dto.getPhone());
             String accessToken = jwtTokenProvider.createAccessToken(merchant.getId(), "MERCHANT");
@@ -112,10 +113,10 @@ public class UserServiceImpl implements UserService {
                 new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone()));
         if (user != null) {
             if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-                throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
+                throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
             }
             if ("DISABLED".equals(user.getStatus())) {
-                throw new BizException(ErrorCode.FORBIDDEN, "账号已被封禁");
+                throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
             }
             log.info("用户登录(手机号): userId={}, phone={}", user.getId(), dto.getPhone());
             String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
@@ -129,7 +130,7 @@ public class UserServiceImpl implements UserService {
                     .build();
         }
 
-        throw new BizException(ErrorCode.USER_NOT_FOUND, "手机号未注册");
+        throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.USER_PHONE_NOT_REGISTERED_MSG);
     }
 
     /** 用户名 + 密码登录：admin → merchant → user（管理员为主，兼容旧逻辑） */
@@ -139,10 +140,10 @@ public class UserServiceImpl implements UserService {
                 new LambdaQueryWrapper<Admin>().eq(Admin::getUsername, dto.getUsername()));
         if (admin != null) {
             if (!passwordEncoder.matches(dto.getPassword(), admin.getPassword())) {
-                throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
+                throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
             }
             if ("DISABLED".equals(admin.getStatus())) {
-                throw new BizException(ErrorCode.FORBIDDEN, "账号已被封禁");
+                throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
             }
             log.info("管理员登录: adminId={}, username={}", admin.getId(), admin.getUsername());
             String accessToken = jwtTokenProvider.createAccessToken(admin.getId(), "ADMIN");
@@ -161,10 +162,10 @@ public class UserServiceImpl implements UserService {
                 new LambdaQueryWrapper<Merchant>().eq(Merchant::getUsername, dto.getUsername()));
         if (merchant != null) {
             if (!passwordEncoder.matches(dto.getPassword(), merchant.getPassword())) {
-                throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
+                throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
             }
             if ("SUSPENDED".equals(merchant.getStatus())) {
-                throw new BizException(ErrorCode.FORBIDDEN, "商家已被封禁");
+                throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_MERCHANT_BANNED_MSG);
             }
             log.info("商家登录(用户名): merchantId={}, username={}", merchant.getId(), merchant.getUsername());
             String accessToken = jwtTokenProvider.createAccessToken(merchant.getId(), "MERCHANT");
@@ -183,10 +184,10 @@ public class UserServiceImpl implements UserService {
                 new LambdaQueryWrapper<User>().eq(User::getUsername, dto.getUsername()));
         if (user != null) {
             if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-                throw new BizException(ErrorCode.PASSWORD_ERROR, "密码错误");
+                throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
             }
             if ("DISABLED".equals(user.getStatus())) {
-                throw new BizException(ErrorCode.FORBIDDEN, "账号已被封禁");
+                throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
             }
             log.info("用户登录(用户名): userId={}, username={}", user.getId(), user.getUsername());
             String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
@@ -200,14 +201,14 @@ public class UserServiceImpl implements UserService {
                     .build();
         }
 
-        throw new BizException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+        throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.USER_NOT_FOUND_MSG);
     }
 
     @Override
     public UserVO getUserById(Long userId) {
         User user = userMapper.selectById(userId);
         if (user == null) {
-            throw new BizException(ErrorCode.USER_NOT_FOUND, "用户不存在");
+            throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.USER_NOT_FOUND_MSG);
         }
         UserVO vo = new UserVO();
         BeanUtil.copyProperties(user, vo);
