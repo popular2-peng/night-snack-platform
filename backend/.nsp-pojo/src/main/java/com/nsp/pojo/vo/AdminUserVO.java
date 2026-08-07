@@ -14,7 +14,6 @@ public class AdminUserVO {
 
     private Long id;
     private String username;
-    private String nickname;
     /** 手机号（脱敏：138****0002） */
     private String phone;
     /** 头像 OSS URL */
@@ -28,10 +27,16 @@ public class AdminUserVO {
     /** 历史总消费金额 */
     private BigDecimal totalSpent;
 
+    /** 最后登录时间（登录成功后实时更新） */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime lastLoginAt;
 
+    /** 注册时间 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime createdAt;
+
+    /** 更新时间 */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
+    private LocalDateTime updatedAt;
 
 }

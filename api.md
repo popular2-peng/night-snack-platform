@@ -168,11 +168,12 @@ POST /api/user/register
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `username` | string | 是 | 用户名 |
+| `phone` | string | 是 | 手机号（登录凭据） |
 | `password` | string | 是 | 密码 |
-| `phone` | string | 是 | 手机号（后续登录凭据） |
 
-> 注册成功即自动登录，直接返回 Token（注册即登录），角色固定为 `USER`。
+> - 无需填写用户名：注册时系统自动生成「普通用户 + 8 位随机串」作为用户名（如 `普通用户06104202`）
+> - 注册成功即自动登录，直接返回 Token（注册即登录），角色固定为 `USER`
+> - 注册时间（`created_at`）由数据库随机生成（过去 2 年内），方便按时间筛选测试
 
 **响应 data：**
 
@@ -194,7 +195,7 @@ POST /api/user/register
 | `accessToken` | string | 访问令牌（有效期 2 小时） |
 | `refreshToken` | string | 刷新令牌（有效期 7 天） |
 
-**可能错误码：** `2001`, `2002`
+**可能错误码：** `2002`
 
 ---
 
@@ -217,6 +218,8 @@ POST /api/user/login
 **匹配顺序：**
 - 传 `phone`：先查**商家表**（命中 → `MERCHANT` Token），再查**用户表**（命中 → `USER` Token），都未命中 → `2003`「手机号未注册」
 - 传 `username`：先查**管理员表**（命中 → `ADMIN` Token），再查商家表、用户表（兼容旧逻辑）
+
+> 用户登录成功后，后端实时更新该用户 `last_login_at`（最后登录时间），管理端用户列表据此展示。
 
 **响应 data：**
 
@@ -1055,12 +1058,12 @@ GET /api/admin/users?page=1&size=20&keyword=&status=&dateStart=&dateEnd=
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `keyword` | string | 否 | 搜索用户名/手机号/昵称 |
+| `keyword` | string | 否 | 搜索用户名/手机号 |
 | `status` | string | 否 | 状态筛选：`ACTIVE` / `DISABLED` |
 | `dateStart` | string | 否 | 注册起始日期（`yyyy-MM-dd`） |
 | `dateEnd` | string | 否 | 注册截止日期（`yyyy-MM-dd`） |
 
-**响应 data：** `PageVO<AdminUserVO>`（含订单数、消费金额，实时统计自 `order` 表）
+**响应 data：** `PageVO<AdminUserVO>`（含订单数、消费金额，实时统计自 `order` 表；不含昵称）
 
 ```json
 {
@@ -1070,13 +1073,16 @@ GET /api/admin/users?page=1&size=20&keyword=&status=&dateStart=&dateEnd=
       "id": 1,
       "username": "admin",
       "phone": "138****0001",
-      "role": "ADMIN",
       "status": "ACTIVE",
-      "createdAt": "2025-07-01T00:00:00"
+      "lastLoginAt": "2026-08-08 10:00",
+      "createdAt": "2026-01-05 00:00",
+      "updatedAt": "2026-08-08 10:05"
     }
   ]
 }
 ```
+
+> 时间字段说明：`createdAt` 注册时间（数据库随机生成）、`lastLoginAt` 最后登录时间（登录成功后实时更新）、`updatedAt` 更新时间。
 
 ---
 

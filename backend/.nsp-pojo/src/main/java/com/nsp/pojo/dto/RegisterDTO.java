@@ -6,13 +6,12 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * 注册请求参数
+ * 注册请求参数 — 无需填写用户名，注册时由系统生成「普通用户 + 随机串」
  */
 @Data
 public class RegisterDTO {
 
-    @NotBlank(message = "用户名不能为空")
-    @Size(min = 3, max = 20, message = "用户名长度为 3-20 个字符")
+    /** 用户名（可选）— 注册时系统自动生成，前端无需传入 */
     private String username;
 
     @NotBlank(message = "密码不能为空")

@@ -28,9 +28,6 @@ public class User {
     /** 手机号 */
     private String phone;
 
-    /** 用户昵称 */
-    private String nickname;
-
     /** 头像 OSS URL */
     private String avatarUrl;
 

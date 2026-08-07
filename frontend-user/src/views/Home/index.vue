@@ -1,15 +1,30 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
+const router = useRouter()
 const authStore = useAuthStore()
 </script>
 
 <template>
   <div class="home-page">
-    <!-- 顶部问候 -->
+    <!-- 顶部问候（游客无需登录即可浏览首页） -->
     <div class="home-header">
-      <p class="greeting">晚上好，{{ authStore.username }}</p>
-      <p class="greeting-sub">今晚想吃点什么？</p>
+      <div class="greet-wrap">
+        <p class="greeting">晚上好，{{ authStore.username || '欢迎光临' }}</p>
+        <p class="greeting-sub">今晚想吃点什么？</p>
+      </div>
+      <van-button
+        v-if="!authStore.isLoggedIn"
+        size="small"
+        round
+        plain
+        color="#fff"
+        class="login-entry"
+        @click="router.push('/login')"
+      >
+        登录
+      </van-button>
     </div>
 
     <div class="placeholder-page">
@@ -26,6 +41,9 @@ const authStore = useAuthStore()
   background: linear-gradient(135deg, #F59A23 0%, #E07F0E 100%);
   border-radius: 0 0 24px 24px;
   color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .greeting {
   font-size: 20px;
@@ -36,5 +54,8 @@ const authStore = useAuthStore()
   font-size: 13px;
   margin: 0;
   opacity: 0.85;
+}
+.login-entry {
+  flex-shrink: 0;
 }
 </style>

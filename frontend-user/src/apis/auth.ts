@@ -5,7 +5,7 @@ export const loginApi = (data: { phone: string; password: string }) => {
   return request.post('/user/login', data)
 }
 
-/** 用户注册 */
-export const registerApi = (data: { username: string; password: string; phone: string }) => {
+/** 用户注册（手机号 + 密码，用户名由后端自动生成，注册即登录） */
+export const registerApi = (data: { phone: string; password: string }) => {
   return request.post('/user/register', data)
 }

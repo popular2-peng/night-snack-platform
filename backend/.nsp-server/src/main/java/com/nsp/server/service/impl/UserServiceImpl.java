@@ -18,6 +18,9 @@ import com.nsp.server.mapper.UserMapper;
 import com.nsp.server.security.JwtTokenProvider;
 import com.nsp.server.service.UserService;
 import lombok.RequiredArgsConstructor;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -40,12 +43,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public LoginVO register(RegisterDTO dto) {
-        // 检查用户名是否在 user 表中已存在
-        Long usernameCount = userMapper.selectCount(
-                new LambdaQueryWrapper<User>().eq(User::getUsername, dto.getUsername()));
-        if (usernameCount > 0) {
-            throw new BizException(ErrorCode.USERNAME_EXISTS, MessageConst.USERNAME_EXISTS_MSG);
-        }
+        // 用户名由系统自动生成：「普通用户」+ UUID 前 8 位（保证全局唯一），前端无需填写账号
+        String username = "普通用户" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
 
         Long phoneCount = userMapper.selectCount(
                 new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone()));
@@ -54,7 +53,7 @@ public class UserServiceImpl implements UserService {
         }
 
         User user = new User();
-        user.setUsername(dto.getUsername());
+        user.setUsername(username);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setPhone(dto.getPhone());
         user.setStatus("ACTIVE");
@@ -119,6 +118,7 @@ public class UserServiceImpl implements UserService {
                 throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
             }
             log.info("用户登录(手机号): userId={}, phone={}", user.getId(), dto.getPhone());
+            updateLastLogin(user.getId());
             String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
             String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), "USER");
             return LoginVO.builder()
@@ -190,6 +190,7 @@ public class UserServiceImpl implements UserService {
                 throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
             }
             log.info("用户登录(用户名): userId={}, username={}", user.getId(), user.getUsername());
+            updateLastLogin(user.getId());
             String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
             String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), "USER");
             return LoginVO.builder()
@@ -202,6 +203,14 @@ public class UserServiceImpl implements UserService {
         }
 
         throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.USER_NOT_FOUND_MSG);
+    }
+
+    /** 用户登录成功后更新最后登录时间（last_login_at） */
+    private void updateLastLogin(Long userId) {
+        User update = new User();
+        update.setId(userId);
+        update.setLastLoginAt(LocalDateTime.now());
+        userMapper.updateById(update);
     }
 
     @Override

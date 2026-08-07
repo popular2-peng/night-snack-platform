@@ -45,13 +45,12 @@ const router = createRouter({
   routes,
 })
 
-// 路由守卫：未登录跳转登录页
+// 路由守卫：首页等页面无需登录即可浏览，不做强制跳转；
+// 仅当调用需要鉴权的接口返回 401/403 时，由 request 拦截器清空登录态并跳转登录页。
 router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('token')
   const role = localStorage.getItem('role')
-  if (to.path !== '/login' && to.path !== '/register' && !token) {
-    next('/login')
-  } else if ((to.path === '/login' || to.path === '/register') && token && role === 'USER') {
+  if ((to.path === '/login' || to.path === '/register') && token && role === 'USER') {
     next('/home')
   } else {
     next()

@@ -166,7 +166,6 @@ public class MerchantServiceImpl implements MerchantService {
         applicant.setUsername(dto.getUsername());
         applicant.setPassword(passwordEncoder.encode(dto.getPassword()));
         applicant.setPhone(dto.getPhone());
-        applicant.setNickname(dto.getShopName());
         applicant.setStatus("ACTIVE");
         userMapper.insert(applicant);
 

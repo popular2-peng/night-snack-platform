@@ -48,11 +48,10 @@ public class UserManagementServiceImpl implements UserManagementService {
                                           String status, String dateStart, String dateEnd) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
 
-        // 关键字搜索：用户名 / 手机号 / 昵称
+        // 关键字搜索：用户名 / 手机号
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(User::getUsername, keyword)
-                            .or().like(User::getPhone, keyword)
-                            .or().like(User::getNickname, keyword));
+                            .or().like(User::getPhone, keyword));
         }
         // 状态筛选
         if (status != null && !status.isBlank()) {

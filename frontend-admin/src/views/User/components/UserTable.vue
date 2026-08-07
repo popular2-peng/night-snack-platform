@@ -9,12 +9,13 @@ import SearchFilterBar from '@/components/SearchFilterBar.vue'
 
 // ---- 类型 ----
 interface UserItem {
-  id: number; username: string; nickname: string; phone: string
+  id: number; username: string; phone: string
   avatarUrl: string; gender: number; status: string
-  totalOrders: number; totalSpent: number; lastLoginAt: string; createdAt: string
+  totalOrders: number; totalSpent: number
+  lastLoginAt: string; createdAt: string; updatedAt: string
 }
 interface UserDetail {
-  id: number; username: string; nickname: string; phone: string
+  id: number; username: string; phone: string
   avatarUrl: string; gender: number; birthday: string; status: string
   totalOrders: number; totalSpent: number
   lastLoginAt: string
@@ -214,7 +215,7 @@ onMounted(() => { fetchUsers(); fetchStats() })
       v-model:keyword="keyword"
       v-model:filter-value="statusFilter"
       v-model:date-range="dateRange"
-      placeholder="搜索用户名/手机号/昵称"
+      placeholder="搜索用户名/手机号"
       :filter-options="statusOptions"
       filter-placeholder="状态筛选"
       date-label="注册"
@@ -232,20 +233,13 @@ onMounted(() => { fetchUsers(); fetchStats() })
         <template #default="{ row }">
           <el-avatar v-if="row.avatarUrl" :src="row.avatarUrl" :size="32" shape="circle" />
           <el-avatar v-else :size="32" shape="circle" :style="{ background: '#EEF3FD', color: '#5B8DEF' }">
-            {{ row.nickname?.charAt(0) || row.username?.charAt(0) || 'U' }}
+            {{ row.username?.charAt(0) || 'U' }}
           </el-avatar>
         </template>
       </el-table-column>
 
       <!-- 用户名 -->
-      <el-table-column prop="username" label="用户名" min-width="110" align="left" show-overflow-tooltip />
-
-      <!-- 昵称 -->
-      <el-table-column prop="nickname" label="昵称" min-width="100" align="left" show-overflow-tooltip>
-        <template #default="{ row }">
-          <span style="color:var(--text-secondary)">{{ row.nickname || '-' }}</span>
-        </template>
-      </el-table-column>
+      <el-table-column prop="username" label="用户名" min-width="130" align="left" show-overflow-tooltip />
 
       <!-- 手机号 -->
       <el-table-column prop="phone" label="手机号" width="140" align="center" />
@@ -277,13 +271,18 @@ onMounted(() => { fetchUsers(); fetchStats() })
       </el-table-column>
 
       <!-- 注册时间 -->
-      <el-table-column label="注册时间" width="150" align="center">
+      <el-table-column label="注册时间" min-width="165" align="center" show-overflow-tooltip>
         <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
       </el-table-column>
 
       <!-- 最后登录 -->
-      <el-table-column label="最后登录" width="150" align="center">
+      <el-table-column label="最后登录" min-width="165" align="center" show-overflow-tooltip>
         <template #default="{ row }">{{ formatTime(row.lastLoginAt) || '-' }}</template>
+      </el-table-column>
+
+      <!-- 更新时间 -->
+      <el-table-column label="更新时间" min-width="165" align="center" show-overflow-tooltip>
+        <template #default="{ row }">{{ formatTime(row.updatedAt) || '-' }}</template>
       </el-table-column>
 
       <!-- 操作：下拉菜单 -->
@@ -324,10 +323,9 @@ onMounted(() => { fetchUsers(); fetchStats() })
       <template v-if="detailUser" v-loading="detailLoading">
         <div class="drawer-section">
           <el-avatar :src="detailUser.avatarUrl" :size="64" shape="circle" style="margin-bottom:12px">
-            {{ detailUser.nickname?.charAt(0) || detailUser.username?.charAt(0) || 'U' }}
+            {{ detailUser.username?.charAt(0) || 'U' }}
           </el-avatar>
           <p><strong>用户名：</strong>{{ detailUser.username }}</p>
-          <p><strong>昵称：</strong>{{ detailUser.nickname || '-' }}</p>
           <p><strong>手机号：</strong>{{ detailUser.phone }}</p>
           <p><strong>性别：</strong>{{ genderMap[detailUser.gender] || '未知' }}</p>
           <p><strong>生日：</strong>{{ detailUser.birthday || '-' }}</p>
@@ -338,6 +336,7 @@ onMounted(() => { fetchUsers(); fetchStats() })
           </p>
           <p><strong>注册时间：</strong>{{ formatTime(detailUser.createdAt) }}</p>
           <p><strong>最后登录：</strong>{{ formatTime(detailUser.lastLoginAt) || '-' }}</p>
+          <p><strong>更新时间：</strong>{{ formatTime(detailUser.updatedAt) || '-' }}</p>
           <p><strong>总订单数：</strong>{{ detailUser.totalOrders || 0 }}</p>
           <p><strong>累计消费：</strong>{{ formatMoney(detailUser.totalSpent) }}</p>
           <p v-if="detailUser.bannedReason"><strong>封禁原因：</strong>{{ detailUser.bannedReason }}</p>

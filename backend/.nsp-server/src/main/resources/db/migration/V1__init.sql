@@ -13,7 +13,7 @@ CREATE TABLE `admin` (
     `phone`      VARCHAR(20)  DEFAULT NULL            COMMENT '手机号',
     `avatar_url` VARCHAR(500) DEFAULT NULL            COMMENT '头像 OSS URL',
     `status`     VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE' COMMENT '状态：ACTIVE/DISABLED',
-    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `created_at` DATETIME     NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '创建时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_admin_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='平台管理员';
@@ -26,7 +26,6 @@ CREATE TABLE `user` (
     `username`      VARCHAR(50)   NOT NULL                COMMENT '用户名',
     `password`      VARCHAR(200)  NOT NULL                COMMENT '密码（BCrypt）',
     `phone`         VARCHAR(20)   DEFAULT NULL            COMMENT '手机号',
-    `nickname`      VARCHAR(50)   DEFAULT NULL            COMMENT '用户昵称',
     `avatar_url`    VARCHAR(500)  DEFAULT NULL            COMMENT '用户头像 OSS URL',
     `gender`        TINYINT       DEFAULT 0              COMMENT '性别：0-未知 1-男 2-女',
     `birthday`      DATE          DEFAULT NULL            COMMENT '生日',
@@ -41,7 +40,7 @@ CREATE TABLE `user` (
     `unbanned_by`   BIGINT        DEFAULT NULL            COMMENT '解封操作人（关联 admin.id）',
     `remark`        VARCHAR(500)  DEFAULT NULL            COMMENT '管理员备注',
     `deleted`       TINYINT       DEFAULT 0              COMMENT '软删：0-否 1-是',
-    `created_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '注册时间',
+    `created_at`    DATETIME      NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '注册时间',
     `updated_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_user_username` (`username`),
@@ -60,7 +59,7 @@ CREATE TABLE `user_address` (
     `lat`        DECIMAL(10,7) NOT NULL                COMMENT '纬度',
     `lng`        DECIMAL(10,7) NOT NULL                COMMENT '经度',
     `is_default` TINYINT(1)    NOT NULL DEFAULT 0      COMMENT '是否默认地址：0-否 1-是',
-    `created_at` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `created_at` DATETIME      NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '创建时间',
     `updated_at` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_user_id` (`user_id`),
@@ -95,7 +94,7 @@ CREATE TABLE `merchant` (
     `business_hours_start` TIME          DEFAULT NULL            COMMENT '营业开始时间',
     `business_hours_end`   TIME          DEFAULT NULL            COMMENT '营业结束时间',
     `delivery_radius`      INT           DEFAULT 5000            COMMENT '配送半径（米）',
-    `created_at`           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入驻时间',
+    `created_at`           DATETIME      NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '入驻时间',
     `updated_at`           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_merchant_username` (`username`),
@@ -110,7 +109,7 @@ CREATE TABLE `product_category` (
     `merchant_id` BIGINT      NOT NULL                COMMENT '商家 ID',
     `name`        VARCHAR(50) NOT NULL                COMMENT '品类名称',
     `sort`        INT         DEFAULT 0               COMMENT '排序序号',
-    `created_at`  DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `created_at`  DATETIME    NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '创建时间',
     PRIMARY KEY (`id`),
     KEY `idx_prod_cat_merchant` (`merchant_id`),
     CONSTRAINT `fk_prod_cat_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `merchant` (`id`)
@@ -128,7 +127,7 @@ CREATE TABLE `product` (
     `image_url`   VARCHAR(500)  DEFAULT NULL            COMMENT '商品图片 OSS URL',
     `status`      VARCHAR(20)   NOT NULL DEFAULT 'ON'   COMMENT '状态：ON-上架 / OFF-下架',
     `description` TEXT          DEFAULT NULL            COMMENT '商品描述',
-    `created_at`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `created_at`  DATETIME      NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '创建时间',
     `updated_at`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_product_merchant` (`merchant_id`),
@@ -164,7 +163,7 @@ CREATE TABLE `order` (
     `address_snapshot` TEXT          DEFAULT NULL            COMMENT '收货地址快照 JSON',
     `pay_channel`      VARCHAR(20)   DEFAULT NULL            COMMENT '支付渠道：ALIPAY/WECHAT_MOCK',
     `pay_time`         DATETIME      DEFAULT NULL            COMMENT '支付时间',
-    `created_at`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
+    `created_at`       DATETIME      NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '下单时间',
     `updated_at`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_order_no` (`order_no`),
@@ -201,7 +200,7 @@ CREATE TABLE `order_status_log` (
     `to_status`   VARCHAR(20)  NOT NULL                COMMENT '变更后状态',
     `operator`    VARCHAR(50)  DEFAULT NULL            COMMENT '操作人（用户名或 system）',
     `reason`      VARCHAR(500) DEFAULT NULL            COMMENT '变更原因',
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+    `created_at`  DATETIME     NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '操作时间',
     PRIMARY KEY (`id`),
     KEY `idx_log_order` (`order_id`),
     CONSTRAINT `fk_log_order` FOREIGN KEY (`order_id`) REFERENCES `order` (`id`)
@@ -219,7 +218,7 @@ CREATE TABLE `payment_record` (
     `status`          VARCHAR(20)   NOT NULL DEFAULT 'PENDING' COMMENT '支付状态：PENDING/SUCCESS/FAILED/REFUNDED',
     `notify_count`    INT           DEFAULT 0              COMMENT '回调通知次数',
     `last_notify_at`  DATETIME      DEFAULT NULL            COMMENT '最后回调时间',
-    `created_at`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `created_at`      DATETIME      NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '创建时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_pay_order_channel` (`order_no`, `channel`),
     KEY `idx_pay_trade_no` (`trade_no`)
@@ -235,7 +234,7 @@ CREATE TABLE `uploaded_file` (
     `oss_key`     VARCHAR(500) NOT NULL                COMMENT 'OSS 存储 Key',
     `url`         VARCHAR(500) NOT NULL                COMMENT 'OSS 访问 URL',
     `uploader_id` BIGINT       NOT NULL                COMMENT '上传者 ID',
-    `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '上传时间',
+    `created_at`  DATETIME     NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '上传时间',
     PRIMARY KEY (`id`),
     KEY `idx_file_biz_type_target` (`biz_type`, `target_id`),
     KEY `idx_file_uploader` (`uploader_id`)
@@ -260,7 +259,7 @@ CREATE TABLE `merchant_application` (
     `id_card_no`        VARCHAR(50)  DEFAULT NULL            COMMENT '店主身份证号',
     `review_note`       TEXT         DEFAULT NULL            COMMENT '审核备注',
     `reject_reason`     VARCHAR(500) DEFAULT NULL            COMMENT '拒绝原因',
-    `created_at`        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '申请时间',
+    `created_at`        DATETIME     NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '申请时间',
     PRIMARY KEY (`id`),
     KEY `idx_app_applicant` (`applicant_user_id`),
     KEY `idx_app_status` (`status`),
@@ -279,7 +278,7 @@ CREATE TABLE `category` (
     `sort_order` INT          NOT NULL DEFAULT 0      COMMENT '排序权重(值越小越靠前)',
     `status`     VARCHAR(20)  NOT NULL DEFAULT 'ENABLED' COMMENT '状态:ENABLED/DISABLED',
     `remark`     VARCHAR(200) DEFAULT NULL            COMMENT '备注',
-    `created_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `created_at` DATETIME     NOT NULL DEFAULT (TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())) COMMENT '创建时间',
     `updated_at` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `deleted`    TINYINT      DEFAULT 0              COMMENT '软删:0-否 1-是',
     PRIMARY KEY (`id`),
@@ -321,20 +320,20 @@ INSERT INTO `admin` (`id`, `username`, `password`, `phone`, `status`) VALUES
 
 -- ───── 2. 普通用户（顾客）─ 13 人 ─────
 -- 密码均为 test123，订单数/消费金额由后端实时查询 order 表计算
-INSERT INTO `user` (`id`, `username`, `password`, `phone`, `nickname`, `gender`, `birthday`, `status`, `last_login_at`, `banned_reason`, `banned_at`, `banned_by`, `created_at`) VALUES
-(1,  'tester',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800000003', '测试员',    1, '1998-03-15', 'ACTIVE', '2026-07-27 21:30:00', NULL, NULL, NULL, '2026-05-01 10:30:00'),
-(2,  'zhangsan',  '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111111', '小张',      1, '1995-08-22', 'ACTIVE', '2026-07-27 20:15:00', NULL, NULL, NULL, '2026-06-15 14:20:00'),
-(3,  'lisi',      '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822222222', '小李',      1, '1997-01-10', 'ACTIVE', '2026-07-27 19:00:00', NULL, NULL, NULL, '2026-06-20 09:00:00'),
-(4,  'wangwu',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13833333333', '老王',      1, '1993-11-05', 'ACTIVE', '2026-07-27 18:45:00', NULL, NULL, NULL, '2026-04-10 16:30:00'),
-(5,  'zhaoliu',   '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13844444444', '老赵',      1, '1990-06-18', 'DISABLED', '2026-07-20 11:00:00', '多次恶意差评投诉', '2026-07-21 10:00:00', 1, '2026-03-01 08:00:00'),
-(6,  'sunqi',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13855551111', '孙小七',    2, '2000-12-01', 'ACTIVE', '2026-07-27 17:30:00', NULL, NULL, NULL, '2026-07-01 12:00:00'),
-(7,  'zhouba',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13866661112', '阿八',      1, '1996-09-09', 'ACTIVE', '2026-07-27 16:20:00', NULL, NULL, NULL, '2026-07-05 10:00:00'),
-(8,  'wujiu',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13877771113', '小九',      2, '1999-04-25', 'ACTIVE', '2026-07-27 15:10:00', NULL, NULL, NULL, '2026-07-10 15:30:00'),
-(9,  'zhengshi',  '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13888881114', '郑十',      1, '1992-07-30', 'ACTIVE', '2026-07-27 14:00:00', NULL, NULL, NULL, '2026-06-01 18:00:00'),
-(10, 'qianyi',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13899991115', '钱小一',    2, '2001-02-14', 'ACTIVE', '2026-07-27 13:30:00', NULL, NULL, NULL, '2026-07-20 08:00:00'),
-(11, 'liuer',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800001116', '刘二',      1, '1994-10-20', 'ACTIVE', '2026-07-27 12:00:00', NULL, NULL, NULL, '2026-07-25 20:00:00'),
-(12, 'caosan',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111117', '曹三',      1, '1991-05-08', 'ACTIVE', '2026-07-26 22:00:00', NULL, NULL, NULL, '2026-07-15 11:00:00'),
-(13, 'weisi',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822221118', '魏四',      1, '1989-12-25', 'DISABLED', '2026-07-18 09:00:00', '发布违规内容', '2026-07-19 15:00:00', 1, '2026-02-01 07:00:00');
+INSERT INTO `user` (`id`, `username`, `password`, `phone`, `gender`, `birthday`, `status`, `last_login_at`, `banned_reason`, `banned_at`, `banned_by`, `created_at`) VALUES
+(1,  'tester',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800000003', 1, '1998-03-15', 'ACTIVE', '2026-07-27 21:30:00', NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(2,  'zhangsan',  '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111111', 1, '1995-08-22', 'ACTIVE', '2026-07-27 20:15:00', NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(3,  'lisi',      '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822222222', 1, '1997-01-10', 'ACTIVE', '2026-07-27 19:00:00', NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(4,  'wangwu',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13833333333', 1, '1993-11-05', 'ACTIVE', '2026-07-27 18:45:00', NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(5,  'zhaoliu',   '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13844444444', 1, '1990-06-18', 'DISABLED', '2026-07-20 11:00:00', '多次恶意差评投诉', '2026-07-21 10:00:00', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(6,  'sunqi',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13855551111', 2, '2000-12-01', 'ACTIVE', '2026-07-27 17:30:00', NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(7,  'zhouba',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13866661112', 1, '1996-09-09', 'ACTIVE', '2026-07-27 16:20:00', NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(8,  'wujiu',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13877771113', 2, '1999-04-25', 'ACTIVE', '2026-07-27 15:10:00', NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(9,  'zhengshi',  '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13888881114', 1, '1992-07-30', 'ACTIVE', '2026-07-27 14:00:00', NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(10, 'qianyi',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13899991115', 2, '2001-02-14', 'ACTIVE', '2026-07-27 13:30:00', NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(11, 'liuer',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800001116', 1, '1994-10-20', 'ACTIVE', '2026-07-27 12:00:00', NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(12, 'caosan',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111117', 1, '1991-05-08', 'ACTIVE', '2026-07-26 22:00:00', NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(13, 'weisi',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822221118', 1, '1989-12-25', 'DISABLED', '2026-07-18 09:00:00', '发布违规内容', '2026-07-19 15:00:00', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()));
 
 -- ───── 3. 用户收货地址 ─────
 INSERT INTO `user_address` (`id`, `user_id`, `receiver`, `phone`, `detail`, `lat`, `lng`, `is_default`) VALUES
@@ -632,6 +631,9 @@ INSERT INTO `merchant_application` (`id`, `applicant_user_id`, `shop_name`, `use
 (14, 1,  '杨国福麻辣烫（望京店）','malatang', '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
   '东北正宗麻辣烫，骨汤熬制食材新鲜，品牌加盟店', 'APPROVED', 2, '2025-07-15 13:00:00',
   'https://picsum.photos/seed/malatang/400/400', '东北正宗麻辣烫，骨汤熬制，食材新鲜，价格实惠', 6);
+-- 已通过申请随机填充审核时间（申请后 1 ~ 24 小时）
+UPDATE `merchant_application` SET `reviewed_at` = TIMESTAMPADD(SECOND, 3600 + FLOOR(RAND() * 82800), `created_at`)
+WHERE `status` = 'APPROVED';
 
 -- ╔══════════════════════════════════════════════════════════╗
 -- ║            9. 订单 — 28 条（今天+近期）                ║
@@ -641,43 +643,47 @@ INSERT INTO `merchant_application` (`id`, `applicant_user_id`, `shop_name`, `use
 INSERT INTO `order` (`id`, `order_no`, `user_id`, `merchant_id`, `status`, `total_amount`, `address_snapshot`, `pay_channel`, `pay_time`, `created_at`) VALUES
 -- ===== 今天 (2026-07-27) 的订单 — 18 笔 =====
 -- 深夜食堂 (merchant 1): 4 笔
-(1,  'NSP20260727001', 1,  1, 'COMPLETED',   52.00,  '{"receiver":"测试员","phone":"13800000003","detail":"朝阳区望京SOHO T1-1201"}', 'WECHAT_MOCK', '2026-07-27 21:05:00', '2026-07-27 21:00:00'),
-(2,  'NSP20260727002', 2,  1, 'PAID',        28.00,  '{"receiver":"张三","phone":"13811111111","detail":"朝阳区三里屯SOHO 5号楼"}', 'ALIPAY',      '2026-07-27 20:30:00', '2026-07-27 20:25:00'),
-(3,  'NSP20260727003', 6,  1, 'COOKING',     36.00,  '{"receiver":"孙七","phone":"13855551111","detail":"海淀区五道口华清嘉园7-1202"}', 'WECHAT_MOCK', '2026-07-27 19:10:00', '2026-07-27 19:05:00'),
-(4,  'NSP20260727004', 3,  1, 'PENDING_PAY', 18.00,  '{"receiver":"李四","phone":"13822222222","detail":"东城区王府井大街138号"}', NULL, NULL, '2026-07-27 22:30:00'),
+(1,  'NSP20260727001', 1,  1, 'COMPLETED',   52.00,  '{"receiver":"测试员","phone":"13800000003","detail":"朝阳区望京SOHO T1-1201"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(2,  'NSP20260727002', 2,  1, 'PAID',        28.00,  '{"receiver":"张三","phone":"13811111111","detail":"朝阳区三里屯SOHO 5号楼"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(3,  'NSP20260727003', 6,  1, 'COOKING',     36.00,  '{"receiver":"孙七","phone":"13855551111","detail":"海淀区五道口华清嘉园7-1202"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(4,  'NSP20260727004', 3,  1, 'PENDING_PAY', 18.00,  '{"receiver":"李四","phone":"13822222222","detail":"东城区王府井大街138号"}', NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
 -- 辣翻天小龙虾 (merchant 2): 3 笔
-(5,  'NSP20260727005', 1,  2, 'COMPLETED',  156.00,  '{"receiver":"测试员","phone":"13800000003","detail":"朝阳区望京SOHO T1-1201"}', 'ALIPAY',      '2026-07-27 19:30:00', '2026-07-27 19:20:00'),
-(6,  'NSP20260727006', 7,  2, 'ACCEPTED',    88.00,  '{"receiver":"周八","phone":"13866661112","detail":"朝阳区国贸建外SOHO 9-301"}', 'WECHAT_MOCK', '2026-07-27 20:00:00', '2026-07-27 19:55:00'),
-(7,  'NSP20260727007', 4,  2, 'PAID',        68.00,  '{"receiver":"王五","phone":"13833333333","detail":"西城区金融街7号"}', 'ALIPAY',      '2026-07-27 21:40:00', '2026-07-27 21:35:00'),
+(5,  'NSP20260727005', 1,  2, 'COMPLETED',  156.00,  '{"receiver":"测试员","phone":"13800000003","detail":"朝阳区望京SOHO T1-1201"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(6,  'NSP20260727006', 7,  2, 'ACCEPTED',    88.00,  '{"receiver":"周八","phone":"13866661112","detail":"朝阳区国贸建外SOHO 9-301"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(7,  'NSP20260727007', 4,  2, 'PAID',        68.00,  '{"receiver":"王五","phone":"13833333333","detail":"西城区金融街7号"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
 -- 老王糖水铺 (merchant 3): 5 笔
-(8,  'NSP20260727008', 2,  3, 'COMPLETED',   26.00,  '{"receiver":"张三","phone":"13811111111","detail":"朝阳区三里屯SOHO 5号楼"}', 'WECHAT_MOCK', '2026-07-27 15:10:00', '2026-07-27 15:00:00'),
-(9,  'NSP20260727009', 6,  3, 'COMPLETED',   18.00,  '{"receiver":"孙七","phone":"13855551111","detail":"海淀区五道口华清嘉园7-1202"}', 'WECHAT_MOCK', '2026-07-27 16:30:00', '2026-07-27 16:25:00'),
-(10, 'NSP20260727010', 1,  3, 'PAID',        40.00,  '{"receiver":"测试员","phone":"13800000003","detail":"朝阳区望京SOHO T1-1201"}', 'ALIPAY',      '2026-07-27 17:00:00', '2026-07-27 16:55:00'),
-(11, 'NSP20260727011', 8,  3, 'COOKING',     32.00,  '{"receiver":"吴九","phone":"13877771113","detail":"丰台区方庄芳城园一区12-401"}', 'WECHAT_MOCK', '2026-07-27 18:20:00', '2026-07-27 18:15:00'),
-(12, 'NSP20260727012', 12, 3, 'ACCEPTED',    22.00,  '{"receiver":"曹三","phone":"13811111117","detail":"东城区鼓楼东大街12号"}', 'ALIPAY',      '2026-07-27 21:00:00', '2026-07-27 20:55:00'),
+(8,  'NSP20260727008', 2,  3, 'COMPLETED',   26.00,  '{"receiver":"张三","phone":"13811111111","detail":"朝阳区三里屯SOHO 5号楼"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(9,  'NSP20260727009', 6,  3, 'COMPLETED',   18.00,  '{"receiver":"孙七","phone":"13855551111","detail":"海淀区五道口华清嘉园7-1202"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(10, 'NSP20260727010', 1,  3, 'PAID',        40.00,  '{"receiver":"测试员","phone":"13800000003","detail":"朝阳区望京SOHO T1-1201"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(11, 'NSP20260727011', 8,  3, 'COOKING',     32.00,  '{"receiver":"吴九","phone":"13877771113","detail":"丰台区方庄芳城园一区12-401"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(12, 'NSP20260727012', 12, 3, 'ACCEPTED',    22.00,  '{"receiver":"曹三","phone":"13811111117","detail":"东城区鼓楼东大街12号"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
 -- 脆皮炸鸡 (merchant 4): 2 笔
-(13, 'NSP20260727013', 9,  4, 'COMPLETED',   48.00,  '{"receiver":"郑十","phone":"13888881114","detail":"通州区万达广场B座2105"}', 'WECHAT_MOCK', '2026-07-27 12:30:00', '2026-07-27 12:20:00'),
-(14, 'NSP20260727014', 10, 4, 'PAID',        32.00,  '{"receiver":"钱一","phone":"13899991115","detail":"大兴区亦庄荣华中路8号院3-102"}', 'ALIPAY',      '2026-07-27 13:40:00', '2026-07-27 13:35:00'),
+(13, 'NSP20260727013', 9,  4, 'COMPLETED',   48.00,  '{"receiver":"郑十","phone":"13888881114","detail":"通州区万达广场B座2105"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(14, 'NSP20260727014', 10, 4, 'PAID',        32.00,  '{"receiver":"钱一","phone":"13899991115","detail":"大兴区亦庄荣华中路8号院3-102"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
 -- 川味牛肉面馆 (merchant 5): 1 笔
-(15, 'NSP20260727015', 11, 5, 'PAID',        22.00,  '{"receiver":"刘二","phone":"13800001116","detail":"海淀区知春路56号"}', 'WECHAT_MOCK', '2026-07-27 11:00:00', '2026-07-27 10:55:00'),
+(15, 'NSP20260727015', 11, 5, 'PAID',        22.00,  '{"receiver":"刘二","phone":"13800001116","detail":"海淀区知春路56号"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
 -- 元气奶茶实验室 (merchant 6): 3 笔
-(16, 'NSP20260727016', 2,  6, 'COMPLETED',   36.00,  '{"receiver":"张三","phone":"13811111111","detail":"朝阳区三里屯SOHO 5号楼"}', 'ALIPAY',      '2026-07-27 14:30:00', '2026-07-27 14:20:00'),
-(17, 'NSP20260727017', 6,  6, 'PAID',        18.00,  '{"receiver":"孙七","phone":"13855551111","detail":"海淀区五道口华清嘉园7-1202"}', 'WECHAT_MOCK', '2026-07-27 15:50:00', '2026-07-27 15:45:00'),
-(18, 'NSP20260727018', 7,  6, 'ACCEPTED',    52.00,  '{"receiver":"周八","phone":"13866661112","detail":"朝阳区国贸建外SOHO 9-301"}', 'ALIPAY',      '2026-07-27 16:10:00', '2026-07-27 16:00:00'),
+(16, 'NSP20260727016', 2,  6, 'COMPLETED',   36.00,  '{"receiver":"张三","phone":"13811111111","detail":"朝阳区三里屯SOHO 5号楼"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(17, 'NSP20260727017', 6,  6, 'PAID',        18.00,  '{"receiver":"孙七","phone":"13855551111","detail":"海淀区五道口华清嘉园7-1202"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(18, 'NSP20260727018', 7,  6, 'ACCEPTED',    52.00,  '{"receiver":"周八","phone":"13866661112","detail":"朝阳区国贸建外SOHO 9-301"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
 
 -- ===== 历史订单 (2026-07-20 ~ 07-26) — 10 笔 =====
-(19, 'NSP20260726001', 1,  1, 'COMPLETED',   46.00,  '{"receiver":"测试员","phone":"13800000003","detail":"朝阳区望京SOHO T1-1201"}', 'ALIPAY',      '2026-07-26 21:00:00', '2026-07-26 20:50:00'),
-(20, 'NSP20260725001', 3,  2, 'COMPLETED',  128.00,  '{"receiver":"李四","phone":"13822222222","detail":"东城区王府井大街138号"}', 'WECHAT_MOCK', '2026-07-25 19:00:00', '2026-07-25 18:50:00'),
-(21, 'NSP20260724001', 4,  3, 'CANCELLED',   16.00,  '{"receiver":"王五","phone":"13833333333","detail":"西城区金融街7号"}', NULL, NULL, '2026-07-24 10:00:00'),
-(22, 'NSP20260723001', 5,  1, 'COMPLETED',   35.00,  '{"receiver":"赵六","phone":"13844444444","detail":"东城区东直门银座B1"}', 'WECHAT_MOCK', '2026-07-23 22:00:00', '2026-07-23 21:50:00'),
-(23, 'NSP20260722001', 8,  4, 'COMPLETED',   28.00,  '{"receiver":"吴九","phone":"13877771113","detail":"丰台区方庄芳城园一区12-401"}', 'ALIPAY',      '2026-07-22 12:00:00', '2026-07-22 11:50:00'),
-(24, 'NSP20260721001', 9,  5, 'REFUNDING',   20.00,  '{"receiver":"郑十","phone":"13888881114","detail":"通州区万达广场B座2105"}', 'ALIPAY',      '2026-07-21 13:00:00', '2026-07-21 12:50:00'),
-(25, 'NSP20260720001', 10, 6, 'COMPLETED',   22.00,  '{"receiver":"钱一","phone":"13899991115","detail":"大兴区亦庄荣华中路8号院3-102"}', 'WECHAT_MOCK', '2026-07-20 15:00:00', '2026-07-20 14:50:00'),
-(26, 'NSP20260720002', 6,  6, 'REFUNDED',    40.00,  '{"receiver":"孙七","phone":"13855551111","detail":"海淀区五道口华清嘉园7-1202"}', 'ALIPAY',      '2026-07-20 18:00:00', '2026-07-20 17:50:00'),
-(27, 'NSP20260726002', 12, 7, 'COMPLETED',   68.00,  '{"receiver":"曹三","phone":"13811111117","detail":"东城区鼓楼东大街12号"}', 'ALIPAY',      '2026-07-26 13:00:00', '2026-07-26 12:50:00'),
-(28, 'NSP20260725002', 13, 8, 'COMPLETED',   26.00,  '{"receiver":"魏四","phone":"13822221118","detail":"海淀区知春路56号"}', 'WECHAT_MOCK', '2026-07-25 12:00:00', '2026-07-25 11:50:00');
+(19, 'NSP20260726001', 1,  1, 'COMPLETED',   46.00,  '{"receiver":"测试员","phone":"13800000003","detail":"朝阳区望京SOHO T1-1201"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(20, 'NSP20260725001', 3,  2, 'COMPLETED',  128.00,  '{"receiver":"李四","phone":"13822222222","detail":"东城区王府井大街138号"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(21, 'NSP20260724001', 4,  3, 'CANCELLED',   16.00,  '{"receiver":"王五","phone":"13833333333","detail":"西城区金融街7号"}', NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(22, 'NSP20260723001', 5,  1, 'COMPLETED',   35.00,  '{"receiver":"赵六","phone":"13844444444","detail":"东城区东直门银座B1"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(23, 'NSP20260722001', 8,  4, 'COMPLETED',   28.00,  '{"receiver":"吴九","phone":"13877771113","detail":"丰台区方庄芳城园一区12-401"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(24, 'NSP20260721001', 9,  5, 'REFUNDING',   20.00,  '{"receiver":"郑十","phone":"13888881114","detail":"通州区万达广场B座2105"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(25, 'NSP20260720001', 10, 6, 'COMPLETED',   22.00,  '{"receiver":"钱一","phone":"13899991115","detail":"大兴区亦庄荣华中路8号院3-102"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(26, 'NSP20260720002', 6,  6, 'REFUNDED',    40.00,  '{"receiver":"孙七","phone":"13855551111","detail":"海淀区五道口华清嘉园7-1202"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(27, 'NSP20260726002', 12, 7, 'COMPLETED',   68.00,  '{"receiver":"曹三","phone":"13811111117","detail":"东城区鼓楼东大街12号"}', 'ALIPAY',      NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
+(28, 'NSP20260725002', 13, 8, 'COMPLETED',   26.00,  '{"receiver":"魏四","phone":"13822221118","detail":"海淀区知春路56号"}', 'WECHAT_MOCK', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW()));
 
 -- ───── 10. 订单明细 ─────
+
+-- 已支付/进行中订单随机填充支付时间（下单后 5 分钟 ~ 1 小时）
+UPDATE `order` SET `pay_time` = TIMESTAMPADD(SECOND, 300 + FLOOR(RAND() * 3600), `created_at`)
+WHERE `status` IN ('PAID', 'ACCEPTED', 'COOKING', 'COMPLETED', 'REFUNDING', 'REFUNDED');
 INSERT INTO `order_item` (`id`, `order_id`, `product_id`, `spec_id`, `name_snapshot`, `price_snapshot`, `quantity`) VALUES
 -- 订单1: 深夜食堂 COMPLETED 52.00
 (1,  1, 2,  4,  '牛肉串-大份(10串)',     9.50,  4),

@@ -15,7 +15,6 @@ public class UserDetailVO {
 
     private Long id;
     private String username;
-    private String nickname;
     /** 手机号（脱敏） */
     private String phone;
     /** 头像 OSS URL */

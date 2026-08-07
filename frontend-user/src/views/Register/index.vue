@@ -1,23 +1,22 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { registerApi } from '@/apis/auth'
+import { useAuthStore } from '@/stores/auth'
 import { showToast } from 'vant'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
-const form = reactive({ username: '', password: '', confirmPassword: '', phone: '' })
+const form = reactive({ phone: '', password: '', confirmPassword: '' })
 const loading = ref(false)
 
-const ACCOUNT_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{3,19}$/
-const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+]{6,20}$/
 const PHONE_REGEX = /^1[3-9]\d{9}$/
+const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+]{6,20}$/
 
 const validate = () => {
-  if (!ACCOUNT_REGEX.test(form.username)) { showToast('账号4-20位，字母开头，支持字母/数字/下划线'); return false }
+  if (!PHONE_REGEX.test(form.phone)) { showToast('请输入正确的11位手机号'); return false }
   if (!PASSWORD_REGEX.test(form.password)) { showToast('密码6-20位，需包含字母和数字'); return false }
   if (form.password !== form.confirmPassword) { showToast('两次输入的密码不一致'); return false }
-  if (!PHONE_REGEX.test(form.phone)) { showToast('请输入正确的11位手机号'); return false }
   return true
 }
 
@@ -25,13 +24,9 @@ const handleRegister = async () => {
   if (!validate()) return
   loading.value = true
   try {
-    await registerApi({
-      username: form.username,
-      password: form.password,
-      phone: form.phone,
-    })
-    showToast('注册成功，请登录')
-    router.push('/login')
+    await authStore.register({ phone: form.phone, password: form.password })
+    showToast('注册成功')
+    router.push('/home')
   } catch {
     // 错误已由拦截器统一提示
   } finally {
@@ -54,9 +49,11 @@ const handleRegister = async () => {
       <van-form @submit="handleRegister">
         <van-cell-group inset>
           <van-field
-            v-model="form.username"
-            label="账号"
-            placeholder="字母开头，4-20位"
+            v-model="form.phone"
+            type="tel"
+            label="手机号"
+            placeholder="输入手机号"
+            maxlength="11"
             clearable
           />
           <van-field
@@ -71,14 +68,6 @@ const handleRegister = async () => {
             type="password"
             label="确认密码"
             placeholder="再次输入密码"
-            clearable
-          />
-          <van-field
-            v-model="form.phone"
-            type="tel"
-            label="手机号"
-            placeholder="用于登录和接收订单通知"
-            maxlength="11"
             clearable
           />
         </van-cell-group>
