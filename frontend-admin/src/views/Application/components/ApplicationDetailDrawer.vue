@@ -33,7 +33,7 @@ watch(() => props.visible, async (v) => {
   }
 })
 
-function formatTime(s: string) { return s ? s.replace('T', ' ').substring(0, 16) : '' }
+const formatTime = (s: string) => { return s ? s.replace('T', ' ').substring(0, 16) : '' }
 </script>
 
 <template>

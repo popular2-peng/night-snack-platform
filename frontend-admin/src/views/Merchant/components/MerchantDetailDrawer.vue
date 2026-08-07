@@ -41,8 +41,8 @@ watch(() => props.visible, async (v) => {
   }
 })
 
-function formatMoney(n: number) { return n != null ? '¥' + Number(n).toFixed(2) : '¥0.00' }
-function formatTime(s: string) { return s ? s.replace('T', ' ').substring(0, 16) : '' }
+const formatMoney = (n: number) => { return n != null ? '¥' + Number(n).toFixed(2) : '¥0.00' }
+const formatTime = (s: string) => { return s ? s.replace('T', ' ').substring(0, 16) : '' }
 </script>
 
 <template>

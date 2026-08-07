@@ -9,7 +9,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isLoggedIn = computed(() => !!token.value)
 
-  async function login(form: { username: string; password: string }) {
+  const login = async (form: { username: string; password: string }) => {
     const res = await loginApi(form)
     token.value = res.data.accessToken
     username.value = res.data.username
@@ -20,7 +20,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('role', res.data.role)
   }
 
-  function logout() {
+  const logout = () => {
     token.value = ''
     username.value = ''
     role.value = ''

@@ -13,7 +13,7 @@ const ACCOUNT_REGEX = /^[a-zA-Z][a-zA-Z0-9_]{3,19}$/
 const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+]{6,20}$/
 const PHONE_REGEX = /^1[3-9]\d{9}$/
 
-function validate() {
+const validate = () => {
   if (!ACCOUNT_REGEX.test(form.username)) { showToast('账号4-20位，字母开头，支持字母/数字/下划线'); return false }
   if (!PASSWORD_REGEX.test(form.password)) { showToast('密码6-20位，需包含字母和数字'); return false }
   if (form.password !== form.confirmPassword) { showToast('两次输入的密码不一致'); return false }
@@ -21,7 +21,7 @@ function validate() {
   return true
 }
 
-async function handleRegister() {
+const handleRegister = async () => {
   if (!validate()) return
   loading.value = true
   try {

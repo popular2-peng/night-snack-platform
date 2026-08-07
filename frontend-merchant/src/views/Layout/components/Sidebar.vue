@@ -17,7 +17,7 @@ const menuItems = [
   { path: '/shop',      title: '店铺设置', icon: Shop },
 ]
 
-function handleSelect(path: string) {
+const handleSelect = (path: string) => {
   router.push(path)
 }
 </script>

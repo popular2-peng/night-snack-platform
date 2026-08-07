@@ -66,7 +66,7 @@ const STATUS_TAG: Record<string, TagType> = {
 }
 
 /** 格式化时间，去掉秒和 T */
-function formatTime(iso: string) {
+const formatTime = (iso: string) => {
   if (!iso) return ''
   return iso.replace('T', ' ').substring(0, 16)
 }
@@ -141,7 +141,7 @@ onMounted(async () => {
 })
 
 /** 格式化金额 */
-function formatMoney(n: number) {
+const formatMoney = (n: number) => {
   return '¥' + Number(n).toFixed(2)
 }
 </script>

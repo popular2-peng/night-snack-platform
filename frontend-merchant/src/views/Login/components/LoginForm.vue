@@ -30,7 +30,7 @@ const rules: FormRules = {
   ],
 }
 
-async function handleLogin() {
+const handleLogin = async () => {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 

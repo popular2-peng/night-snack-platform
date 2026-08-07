@@ -16,7 +16,7 @@ const tabs = [
   { path: '/profile', title: '我的', icon: 'user-o' },
 ]
 
-function onTabChange(path: string) {
+const onTabChange = (path: string) => {
   router.push(path)
 }
 </script>

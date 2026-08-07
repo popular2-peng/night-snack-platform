@@ -1,12 +1,12 @@
 import request from './request'
 
 /** 商家登录（商家端统一接口 /api/merchant/login，手机号 + 密码） */
-export function loginApi(data: { phone: string; password: string }) {
+export const loginApi = (data: { phone: string; password: string }) => {
   return request.post('/merchant/login', data)
 }
 
 /** 商家注册（提交入驻申请） */
-export function registerApi(data: {
+export const registerApi = (data: {
   username: string
   password: string
   phone: string
@@ -14,11 +14,11 @@ export function registerApi(data: {
   categoryId: number
   reason?: string
   description?: string
-}) {
+}) => {
   return request.post('/merchant/register', data)
 }
 
 /** 平台启用品类（注册页下拉，公开接口） */
-export function getCategoryList() {
+export const getCategoryList = () => {
   return request.get('/merchant/category/all')
 }

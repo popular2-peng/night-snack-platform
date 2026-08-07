@@ -43,10 +43,10 @@ const endDate = computed({
   set: (val: string) => { dateRange.value = [dateRange.value?.[0] || '', val] },
 })
 
-function onDateStart() { emit('search') }
-function onDateEnd()   { emit('search') }
+const onDateStart = () => { emit('search') }
+const onDateEnd = () => { emit('search') }
 
-function handleReset() {
+const handleReset = () => {
   keyword.value = ''
   filterValue.value = ''
   categoryValue.value = ''

@@ -63,7 +63,7 @@ const statusOptions = [
 ]
 
 // ---- 数据获取 ----
-async function fetchMerchants() {
+const fetchMerchants = async () => {
   loading.value = true
   try {
     const params: any = { page: page.value, size: size.value }
@@ -80,70 +80,70 @@ async function fetchMerchants() {
   }
 }
 
-async function fetchStats() {
+const fetchStats = async () => {
   try {
     const res = await getMerchantStats()
     stats.value = res.data
   } catch { /* ignore */ }
 }
 
-async function fetchCategories() {
+const fetchCategories = async () => {
   try {
     const res = await listAllEnabledCategories()
     categoryOptions.value = (res.data || []).map((c: any) => ({ label: `${c.icon || ''} ${c.name}`.trim(), value: String(c.id) }))
   } catch { /* ignore */ }
 }
 
-function handleSearch() { page.value = 1; fetchMerchants() }
-function handleReset() { page.value = 1; fetchMerchants() }
-function handleSizeChange(val: number) { size.value = val; fetchMerchants() }
-function handlePageChange(val: number) { page.value = val; fetchMerchants() }
+const handleSearch = () => { page.value = 1; fetchMerchants() }
+const handleReset = () => { page.value = 1; fetchMerchants() }
+const handleSizeChange = (val: number) => { size.value = val; fetchMerchants() }
+const handlePageChange = (val: number) => { page.value = val; fetchMerchants() }
 
 // ---- 选择 ----
-function handleSelectionChange(rows: MerchantItem[]) {
+const handleSelectionChange = (rows: MerchantItem[]) => {
   selectedIds.value = rows.map(r => r.id)
 }
 
 // ---- 详情抽屉 ----
-function openDetail(row: MerchantItem) {
+const openDetail = (row: MerchantItem) => {
   detailMerchantId.value = row.id
   drawerVisible.value = true
 }
 
 // ---- 暂停/恢复 ----
-async function handlePause(row: MerchantItem) {
+const handlePause = async (row: MerchantItem) => {
   await ElMessageBox.confirm(`确定暂停「${row.name}」营业？`, '提示', { type: 'warning' })
   await pauseMerchant(row.id)
   ElMessage.success('已暂停营业')
   refreshAll()
 }
-async function handleResume(row: MerchantItem) {
+const handleResume = async (row: MerchantItem) => {
   await resumeMerchant(row.id)
   ElMessage.success('已恢复营业')
   refreshAll()
 }
 
 // ---- 封禁/解封 ----
-function openBan(row: MerchantItem) {
+const openBan = (row: MerchantItem) => {
   banTarget.value = row
   banReason.value = ''
   banVisible.value = true
 }
-async function confirmBan() {
+const confirmBan = async () => {
   if (!banReason.value.trim()) { ElMessage.warning('请输入封禁原因'); return }
   await banMerchant(banTarget.value!.id, banReason.value)
   ElMessage.success('封禁成功')
   banVisible.value = false
   refreshAll()
 }
-async function handleUnban(row: MerchantItem) {
+const handleUnban = async (row: MerchantItem) => {
   await unbanMerchant(row.id)
   ElMessage.success('解封成功')
   refreshAll()
 }
 
 // ---- 删除 ----
-async function handleDelete(row: MerchantItem) {
+const handleDelete = async (row: MerchantItem) => {
   await ElMessageBox.confirm(`确定删除「${row.name}」？此操作不可恢复。`, '危险操作', { type: 'error', confirmButtonText: '确认删除' })
   await deleteMerchant(row.id)
   ElMessage.success('已删除')
@@ -151,7 +151,7 @@ async function handleDelete(row: MerchantItem) {
 }
 
 // ---- 批量操作 ----
-async function batchBan() {
+const batchBan = async () => {
   if (!selectedIds.value.length) { ElMessage.warning('请先勾选商家'); return }
   const { value: reason } = await ElMessageBox.prompt('请输入封禁原因', '批量封禁', { confirmButtonText: '确定', inputType: 'textarea' })
   if (!reason) return
@@ -161,7 +161,7 @@ async function batchBan() {
   ElMessage.success('批量封禁完成')
   refreshAll()
 }
-async function batchDelete() {
+const batchDelete = async () => {
   if (!selectedIds.value.length) { ElMessage.warning('请先勾选商家'); return }
   await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个商家？`, '危险操作', { type: 'error' })
   for (const id of selectedIds.value) {
@@ -171,14 +171,14 @@ async function batchDelete() {
   refreshAll()
 }
 
-function refreshAll() {
+const refreshAll = () => {
   fetchMerchants()
   fetchStats()
 }
 
 // ---- 格式化 ----
-function formatMoney(n: number) { return n != null ? '¥' + Number(n).toFixed(2) : '¥0.00' }
-function formatTime(s: string) { return s ? s.replace('T', ' ').substring(0, 16) : '' }
+const formatMoney = (n: number) => { return n != null ? '¥' + Number(n).toFixed(2) : '¥0.00' }
+const formatTime = (s: string) => { return s ? s.replace('T', ' ').substring(0, 16) : '' }
 
 onMounted(() => { refreshAll(); fetchCategories() })
 </script>

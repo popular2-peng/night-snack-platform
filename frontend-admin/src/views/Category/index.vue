@@ -67,7 +67,7 @@ const statusOptions = [
 ]
 
 // ---- fetch ----
-async function fetchCategories() {
+const fetchCategories = async () => {
   loading.value = true
   try {
     const params: any = { page: page.value, size: size.value }
@@ -81,19 +81,19 @@ async function fetchCategories() {
   } finally { loading.value = false }
 }
 
-async function fetchStats() {
+const fetchStats = async () => {
   try {
     const res = await getCategoryStats()
     stats.value = res.data
   } catch { /* ignore */ }
 }
 
-function handleSearch() { page.value = 1; fetchCategories() }
-function handleReset() { page.value = 1; fetchCategories() }
-function handleRefresh() { fetchCategories(); fetchStats() }
+const handleSearch = () => { page.value = 1; fetchCategories() }
+const handleReset = () => { page.value = 1; fetchCategories() }
+const handleRefresh = () => { fetchCategories(); fetchStats() }
 
 // ---- form ----
-function openCreate() {
+const openCreate = () => {
   formMode.value = 'create'
   editId.value = null
   formName.value = ''
@@ -105,7 +105,7 @@ function openCreate() {
   formVisible.value = true
 }
 
-function openEdit(row: CategoryItem) {
+const openEdit = (row: CategoryItem) => {
   formMode.value = 'edit'
   editId.value = row.id
   formName.value = row.name
@@ -117,7 +117,7 @@ function openEdit(row: CategoryItem) {
   formVisible.value = true
 }
 
-async function handleSubmit() {
+const handleSubmit = async () => {
   if (!formName.value.trim()) { ElMessage.warning('请输入品类名称'); return }
   if (formName.value.trim().length < 2 || formName.value.trim().length > 10) { ElMessage.warning('品类名称长度 2-10 字'); return }
   if (formSortOrder.value == null || formSortOrder.value < 0) { ElMessage.warning('排序权重必须为非负整数'); return }
@@ -146,14 +146,14 @@ async function handleSubmit() {
 }
 
 // ---- enable / disable ----
-async function handleEnable(row: CategoryItem) {
+const handleEnable = async (row: CategoryItem) => {
   await enableCategory(row.id)
   ElMessage.success('已启用')
   fetchCategories()
   fetchStats()
 }
 
-async function handleDisable(row: CategoryItem) {
+const handleDisable = async (row: CategoryItem) => {
   await ElMessageBox.confirm(
     `停用「${row.name}」后，用户端将不再展示该品类，已关联商家不受影响，可随时重新启用。`,
     '确认停用',
@@ -166,7 +166,7 @@ async function handleDisable(row: CategoryItem) {
 }
 
 // ---- delete ----
-async function handleDelete(row: CategoryItem) {
+const handleDelete = async (row: CategoryItem) => {
   await ElMessageBox.confirm(
     `⚠️ 此操作不可恢复！确认删除「${row.name}」？该品类下不能有已关联的商家。`,
     '确认删除',
@@ -181,14 +181,14 @@ async function handleDelete(row: CategoryItem) {
 }
 
 // ---- emoji picker ----
-function selectEmoji(emoji: string) {
+const selectEmoji = (emoji: string) => {
   formIcon.value = emoji
   formIconType.value = 'EMOJI'
   emojiVisible.value = false
 }
 
 // ---- format ----
-function formatTime(s: string) { return s ? s.replace('T', ' ').substring(0, 16) : '-' }
+const formatTime = (s: string) => { return s ? s.replace('T', ' ').substring(0, 16) : '-' }
 
 onMounted(() => { fetchCategories(); fetchStats() })
 </script>

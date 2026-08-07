@@ -62,7 +62,7 @@ const rules: FormRules = {
   ],
 }
 
-async function fetchCategories() {
+const fetchCategories = async () => {
   try {
     const res = await getCategoryList()
     categoryOptions.value = (res.data || []).map((c: any) => ({
@@ -71,7 +71,7 @@ async function fetchCategories() {
   } catch { /* ignore */ }
 }
 
-async function handleRegister() {
+const handleRegister = async () => {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 

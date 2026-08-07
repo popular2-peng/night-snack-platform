@@ -68,7 +68,7 @@ const statusOptions = [
 const genderMap = ['', '男', '女']
 
 // ---- 数据获取 ----
-async function fetchUsers() {
+const fetchUsers = async () => {
   loading.value = true
   try {
     const params: any = { page: page.value, size: size.value }
@@ -82,7 +82,7 @@ async function fetchUsers() {
   } finally { loading.value = false }
 }
 
-async function fetchStats() {
+const fetchStats = async () => {
   try {
     // 拉全量数据计算统计
     const [allRes, disabledRes] = await Promise.all([
@@ -96,18 +96,18 @@ async function fetchStats() {
   } catch { /* ignore */ }
 }
 
-function handleSearch() { page.value = 1; fetchUsers() }
-function handleReset() { page.value = 1; fetchUsers() }
-function handleRefresh() { fetchUsers(); fetchStats() }
-function handleSizeChange(val: number) { size.value = val; fetchUsers() }
-function handlePageChange(val: number) { page.value = val; fetchUsers() }
+const handleSearch = () => { page.value = 1; fetchUsers() }
+const handleReset = () => { page.value = 1; fetchUsers() }
+const handleRefresh = () => { fetchUsers(); fetchStats() }
+const handleSizeChange = (val: number) => { size.value = val; fetchUsers() }
+const handlePageChange = (val: number) => { page.value = val; fetchUsers() }
 
 // ---- 格式化 ----
-function formatMoney(n: number) { return n != null ? '¥' + Number(n).toFixed(2) : '¥0.00' }
-function formatTime(s: string) { return s ? s.replace('T', ' ').substring(0, 16) : '-' }
+const formatMoney = (n: number) => { return n != null ? '¥' + Number(n).toFixed(2) : '¥0.00' }
+const formatTime = (s: string) => { return s ? s.replace('T', ' ').substring(0, 16) : '-' }
 
 // ---- 详情 Drawer ----
-async function openDetail(row: UserItem) {
+const openDetail = async (row: UserItem) => {
   detailVisible.value = true
   detailLoading.value = true
   try {
@@ -121,14 +121,14 @@ async function openDetail(row: UserItem) {
 }
 
 // ---- 封禁 ----
-function openBan(row: UserItem) {
+const openBan = (row: UserItem) => {
   banTarget.value = row
   banReason.value = ''
   banDuration.value = null
   banDurationType.value = 'forever'
   banVisible.value = true
 }
-async function confirmBan() {
+const confirmBan = async () => {
   if (!banReason.value.trim()) { ElMessage.warning('请输入封禁原因'); return }
   if (banDurationType.value === 'days' && !banDuration.value) { ElMessage.warning('请选择封禁天数'); return }
   if (banDurationType.value === 'custom' && (!banDuration.value || banDuration.value <= 0)) { ElMessage.warning('请输入有效的封禁天数'); return }
@@ -145,7 +145,7 @@ async function confirmBan() {
 }
 
 // ---- 解封 ----
-async function handleUnban(row: UserItem) {
+const handleUnban = async (row: UserItem) => {
   await ElMessageBox.confirm(`确定解封用户「${row.username}」？`, '提示', { type: 'warning' })
   await unbanUser(row.id)
   ElMessage.success('解封成功')
@@ -154,23 +154,23 @@ async function handleUnban(row: UserItem) {
 }
 
 // ---- 重置密码 ----
-function openResetPwd(row: UserItem) {
+const openResetPwd = (row: UserItem) => {
   resetPwdTarget.value = row
   newPassword.value = ''
   resetPwdVisible.value = true
 }
-async function confirmResetPwd() {
+const confirmResetPwd = async () => {
   const res = await resetPassword(resetPwdTarget.value!.id)
   newPassword.value = res.data
   ElMessage.success('密码已重置')
 }
-function copyPassword() {
+const copyPassword = () => {
   navigator.clipboard.writeText(newPassword.value)
   ElMessage.success('已复制到剪贴板')
 }
 
 // ---- 编辑（骨架） ----
-function openEdit(row: UserItem) {
+const openEdit = (row: UserItem) => {
   editTarget.value = row
   editVisible.value = true
 }

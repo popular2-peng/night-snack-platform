@@ -11,7 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isLoggedIn = computed(() => !!token.value)
   const isUser = computed(() => role.value === 'USER')
 
-  async function login(form: { phone: string; password: string }) {
+  const login = async (form: { phone: string; password: string }) => {
     const res = await loginApi(form)
     if (res.data.role !== 'USER') {
       throw new Error('该账号不是用户账号')
@@ -27,7 +27,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('userId', String(res.data.userId))
   }
 
-  function logout() {
+  const logout = () => {
     token.value = ''
     username.value = ''
     role.value = ''

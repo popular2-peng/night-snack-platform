@@ -16,7 +16,7 @@ const menuItems = [
   { path: '/categories',   title: '品类管理', icon: CollectionTag },
 ]
 
-function handleSelect(path: string) {
+const handleSelect = (path: string) => {
   router.push(path)
 }
 </script>

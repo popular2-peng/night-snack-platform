@@ -33,7 +33,7 @@ const breadcrumbItems = computed<Crumb[]>(() => {
   return items
 })
 
-function handleLogout() {
+const handleLogout = () => {
   authStore.logout()
   router.push('/login')
 }

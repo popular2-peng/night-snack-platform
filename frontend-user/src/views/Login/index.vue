@@ -13,7 +13,7 @@ const loading = ref(false)
 const PHONE_REGEX = /^1[3-9]\d{9}$/
 const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+]{6,20}$/
 
-function validate() {
+const validate = () => {
   if (!form.phone) { showToast('请输入手机号'); return false }
   if (!PHONE_REGEX.test(form.phone)) { showToast('请输入正确的11位手机号'); return false }
   if (!form.password) { showToast('请输入密码'); return false }
@@ -21,7 +21,7 @@ function validate() {
   return true
 }
 
-async function handleLogin() {
+const handleLogin = async () => {
   if (!validate()) return
   loading.value = true
   try {

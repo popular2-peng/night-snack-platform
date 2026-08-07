@@ -35,7 +35,7 @@ const appStatusOptions = [
 // 统计（独立请求全量数据，不受筛选影响）
 const stats = ref({ total: 0, pending: 0, approved: 0, rejected: 0 })
 
-async function fetchStats() {
+const fetchStats = async () => {
   try {
     const res = await listApplications({ page: 1, size: 999 })
     const list = res.data.list || []
@@ -48,7 +48,7 @@ async function fetchStats() {
   } catch { /* ignore */ }
 }
 
-async function fetchCategories() {
+const fetchCategories = async () => {
   try {
     const res = await listAllEnabledCategories()
     categoryOptions.value = (res.data || []).map((c: any) => ({ label: `${c.icon || ''} ${c.name}`.trim(), value: String(c.id) }))
@@ -62,7 +62,7 @@ const statusMap: Record<string, { label: string; type: '' | 'success' | 'warning
 }
 
 // ---- 数据获取（服务端筛选，与 MerchantTable 逻辑一致） ----
-async function fetchApps() {
+const fetchApps = async () => {
   loading.value = true
   try {
     const params: any = { page: page.value, size: size.value }
@@ -77,22 +77,22 @@ async function fetchApps() {
   } finally { loading.value = false }
 }
 
-function handleSearch() { page.value = 1; fetchApps() }
-function handleReset() { page.value = 1; fetchApps() }
-function handleSizeChange(val: number) { size.value = val; fetchApps() }
-function handlePageChange(val: number) { page.value = val; fetchApps() }
+const handleSearch = () => { page.value = 1; fetchApps() }
+const handleReset = () => { page.value = 1; fetchApps() }
+const handleSizeChange = (val: number) => { size.value = val; fetchApps() }
+const handlePageChange = (val: number) => { page.value = val; fetchApps() }
 
 // ---- 通过弹窗 ----
 const approveVisible = ref(false)
 const approveTarget = ref<AppItem | null>(null)
 const approveForm = ref({ initialStatus: 'OPEN', deliveryRadius: 3000, reviewNote: '' })
 
-function openApprove(row: AppItem) {
+const openApprove = (row: AppItem) => {
   approveTarget.value = row
   approveForm.value = { initialStatus: 'OPEN', deliveryRadius: 3000, reviewNote: '' }
   approveVisible.value = true
 }
-async function confirmApprove() {
+const confirmApprove = async () => {
   await approveApplicationV2(approveTarget.value!.id, approveForm.value)
   ElMessage.success('已通过')
   approveVisible.value = false
@@ -107,12 +107,12 @@ const rejectReason = ref('')
 const rejectCharCount = computed(() => rejectReason.value.length)
 const rejectValid = computed(() => rejectCharCount.value >= 10 && rejectCharCount.value <= 200)
 
-function openReject(row: AppItem) {
+const openReject = (row: AppItem) => {
   rejectTarget.value = row
   rejectReason.value = ''
   rejectVisible.value = true
 }
-async function confirmReject() {
+const confirmReject = async () => {
   if (!rejectValid.value) { ElMessage.warning('拒绝原因需 10-200 字'); return }
   await rejectApplicationV2(rejectTarget.value!.id, rejectReason.value)
   ElMessage.success('已拒绝')
@@ -124,13 +124,13 @@ async function confirmReject() {
 const detailVisible = ref(false)
 const detailAppId = ref<number | null>(null)
 
-function openDetail(row: AppItem) {
+const openDetail = (row: AppItem) => {
   detailAppId.value = row.id
   detailVisible.value = true
 }
 
 // ---- 格式化 ----
-function formatTime(s: string) { return s ? s.replace('T', ' ').substring(0, 16) : '' }
+const formatTime = (s: string) => { return s ? s.replace('T', ' ').substring(0, 16) : '' }
 
 onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
 </script>

@@ -10,7 +10,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const collapsed = ref(false)
 
-async function handleLogout() {
+const handleLogout = async () => {
   await ElMessageBox.confirm('确定退出登录吗？', '提示', { type: 'warning' })
   authStore.logout()
   router.push('/login')

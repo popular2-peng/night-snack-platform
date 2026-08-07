@@ -6,7 +6,7 @@ import { showConfirmDialog } from 'vant'
 const router = useRouter()
 const authStore = useAuthStore()
 
-async function handleLogout() {
+const handleLogout = async () => {
   try {
     await showConfirmDialog({ title: '提示', message: '确定退出登录吗？' })
   } catch {
