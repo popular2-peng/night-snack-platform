@@ -175,5 +175,7 @@ public final class MessageConst {
     public static final String CATEGORY_MUST_DISABLE_MSG = "请先停用该品类再删除";
     /** 品类下仍有商家关联，无法删除（CATEGORY_HAS_MERCHANTS） */
     public static final String CATEGORY_HAS_MERCHANTS_MSG = "该品类下仍有商家关联，无法删除";
+    /** 品类下仍有商家关联，无法停用（CATEGORY_HAS_MERCHANTS） */
+    public static final String CATEGORY_HAS_MERCHANTS_DISABLE_MSG = "该品类下仍有商家关联，无法停用";
 
 }

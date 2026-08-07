@@ -5,7 +5,7 @@ import {
   createCategory, updateCategory, enableCategory, disableCategory, deleteCategory,
 } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { MoreFilled, Search } from '@element-plus/icons-vue'
+import { Search } from '@element-plus/icons-vue'
 import SearchFilterBar from '@/components/SearchFilterBar.vue'
 
 // ---- types ----
@@ -240,8 +240,8 @@ onMounted(() => { fetchCategories(); fetchStats() })
           <span style="font-size:24px;line-height:1">{{ row.icon || '📦' }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="name" label="品类名称" min-width="120" align="left" show-overflow-tooltip />
-      <el-table-column label="排序" width="80" align="center">
+      <el-table-column prop="name" label="品类名称" min-width="130" align="left" show-overflow-tooltip />
+      <el-table-column label="排序" width="90" align="center">
         <template #default="{ row }">
           <el-tag size="small" effect="plain" type="info">{{ row.sortOrder }}</el-tag>
         </template>
@@ -256,23 +256,29 @@ onMounted(() => { fetchCategories(); fetchStats() })
       <el-table-column label="创建时间" width="150" align="center">
         <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="90" align="center" fixed="right">
+      <el-table-column label="修改时间" width="150" align="center">
+        <template #default="{ row }">{{ formatTime(row.updatedAt) || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="200" align="center" fixed="right">
         <template #default="{ row }">
-          <el-dropdown trigger="click">
-            <el-button size="small" :icon="MoreFilled" circle />
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item @click="openEdit(row)">编辑</el-dropdown-item>
-                <template v-if="row.status === 'ENABLED'">
-                  <el-dropdown-item @click="handleDisable(row)" style="color:#E6A23C">停用</el-dropdown-item>
-                </template>
-                <template v-else>
-                  <el-dropdown-item @click="handleEnable(row)" style="color:#67C23A">启用</el-dropdown-item>
-                  <el-dropdown-item divided @click="handleDelete(row)" style="color:#F56C6C">删除</el-dropdown-item>
-                </template>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <el-button size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button
+            v-if="row.status === 'ENABLED'"
+            size="small"
+            type="warning"
+            @click="handleDisable(row)"
+          >
+            停用
+          </el-button>
+          <el-button v-else size="small" type="success" @click="handleEnable(row)">启用</el-button>
+          <el-button
+            v-if="row.status === 'DISABLED'"
+            size="small"
+            type="danger"
+            @click="handleDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>

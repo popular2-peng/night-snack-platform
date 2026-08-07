@@ -2,6 +2,7 @@ package com.nsp.server.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
 import com.nsp.common.constant.MessageConst;
@@ -186,6 +187,8 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
             if (dto.getSortOrder() < 0) {
                 throw new BizException(ErrorCode.CATEGORY_SORT_INVALID, MessageConst.CATEGORY_SORT_INVALID_MSG);
             }
+            // 插入式重排：目标位置及其后的品类顺延，避免排序覆盖
+            shiftSortOrder(category.getSortOrder(), dto.getSortOrder());
             category.setSortOrder(dto.getSortOrder());
         }
         if (dto.getStatus() != null) {
@@ -222,6 +225,8 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
         if ("DISABLED".equals(category.getStatus())) {
             return; // 幂等
         }
+        // 有商家绑定该品类时禁止停用
+        assertNoMerchantBound(id, MessageConst.CATEGORY_HAS_MERCHANTS_DISABLE_MSG);
         category.setStatus("DISABLED");
         platformCategoryMapper.updateById(category);
         log.info("停用品类: id={}, name={}", id, category.getName());
@@ -237,16 +242,8 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
             throw new BizException(ErrorCode.CATEGORY_MUST_DISABLE, MessageConst.CATEGORY_MUST_DISABLE_MSG);
         }
 
-        // 检查是否有关联商家
-        Long merchantCount = merchantMapper.selectCount(
-                new LambdaQueryWrapper<Merchant>()
-                        .eq(Merchant::getCategoryId, id));
-        Long junctionCount = merchantCategoryMapper.selectCount(
-                new LambdaQueryWrapper<MerchantCategory>()
-                        .eq(MerchantCategory::getCategoryId, id));
-        if (merchantCount > 0 || junctionCount > 0) {
-            throw new BizException(ErrorCode.CATEGORY_HAS_MERCHANTS, MessageConst.CATEGORY_HAS_MERCHANTS_MSG);
-        }
+        // 有商家绑定该品类时禁止删除
+        assertNoMerchantBound(id, MessageConst.CATEGORY_HAS_MERCHANTS_MSG);
 
         // 软删
         category.setDeleted(1);
@@ -275,6 +272,48 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
     }
 
     // ---- 内部方法 ----
+
+    /**
+     * 品类排序插入式重排（配合 update 修改 sortOrder 使用）
+     *
+     * <p>将当前品类移动到 newSort 位置时，被跨越位置上的品类整体顺延：
+     * <ul>
+     *   <li>后移（newSort &gt; oldSort）：区间 (oldSort, newSort] 内的品类排序 +1</li>
+     *   <li>前移（newSort &lt; oldSort）：区间 [newSort, oldSort) 内的品类排序 +1</li>
+     * </ul>
+     * 例如把排序 3 改为 4，原排序 4 及之后的品类依次变为 5、6、7...
+     */
+    private void shiftSortOrder(int oldSort, int newSort) {
+        if (oldSort == newSort) {
+            return;
+        }
+        if (newSort > oldSort) {
+            platformCategoryMapper.update(null, new LambdaUpdateWrapper<PlatformCategory>()
+                    .eq(PlatformCategory::getDeleted, 0)
+                    .gt(PlatformCategory::getSortOrder, oldSort)
+                    .le(PlatformCategory::getSortOrder, newSort)
+                    .setSql("sort_order = sort_order + 1"));
+        } else {
+            platformCategoryMapper.update(null, new LambdaUpdateWrapper<PlatformCategory>()
+                    .eq(PlatformCategory::getDeleted, 0)
+                    .ge(PlatformCategory::getSortOrder, newSort)
+                    .lt(PlatformCategory::getSortOrder, oldSort)
+                    .setSql("sort_order = sort_order + 1"));
+        }
+    }
+
+    /** 检查品类是否绑定商家（merchant.category_id 或 merchant_category 关联表） */
+    private void assertNoMerchantBound(Long id, String message) {
+        Long merchantCount = merchantMapper.selectCount(
+                new LambdaQueryWrapper<Merchant>()
+                        .eq(Merchant::getCategoryId, id));
+        Long junctionCount = merchantCategoryMapper.selectCount(
+                new LambdaQueryWrapper<MerchantCategory>()
+                        .eq(MerchantCategory::getCategoryId, id));
+        if (merchantCount > 0 || junctionCount > 0) {
+            throw new BizException(ErrorCode.CATEGORY_HAS_MERCHANTS, message);
+        }
+    }
 
     private PlatformCategory findById(Long id) {
         PlatformCategory c = platformCategoryMapper.selectById(id);
