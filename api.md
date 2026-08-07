@@ -170,8 +170,9 @@ POST /api/user/register
 |------|------|------|------|
 | `username` | string | 是 | 用户名 |
 | `password` | string | 是 | 密码 |
-| `phone` | string | 是 | 手机号 |
-| `role` | string | 否 | 角色，默认 `USER` |
+| `phone` | string | 是 | 手机号（后续登录凭据） |
+
+> 注册成功即自动登录，直接返回 Token（注册即登录），角色固定为 `USER`。
 
 **响应 data：**
 
@@ -203,14 +204,19 @@ POST /api/user/register
 POST /api/user/login
 ```
 
-> **跨表登录**：同一个接口依次查询 `admin` → `merchant` → `user` 三张表，匹配到即返回对应角色的 Token。无需区分登录入口。
+> **手机号优先**：`phone` 用于用户/商家登录（注册时填写了手机号）；`username` 用于管理员登录（兼容商家/用户旧逻辑）。两者**至少填一个**（二选一校验）。
 
 **请求体：**
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `username` | string | 是 | 用户名 |
+| `phone` | string | 二选一 | 手机号（用户/商家） |
+| `username` | string | 二选一 | 用户名（管理员） |
 | `password` | string | 是 | 密码 |
+
+**匹配顺序：**
+- 传 `phone`：先查**商家表**（命中 → `MERCHANT` Token），再查**用户表**（命中 → `USER` Token），都未命中 → `2003`「手机号未注册」
+- 传 `username`：先查**管理员表**（命中 → `ADMIN` Token），再查商家表、用户表（兼容旧逻辑）
 
 **响应 data：**
 
@@ -232,11 +238,71 @@ POST /api/user/login
 | `accessToken` | string | 访问令牌（有效期 2 小时） |
 | `refreshToken` | string | 刷新令牌（有效期 7 天） |
 
-**可能错误码：** `2003`, `2004`
+**可能错误码：** `2003`, `2004`, `1002`（账号/商家被封禁）
 
 ---
 
-### 3.3 支付宝支付回调（匿名）
+### 3.3 商家登录
+
+```
+POST /api/merchant/login
+```
+
+> 商家端统一登录入口（仅查商家表，不走用户表）。前端商家端工程固定调用此接口，而非 `/api/user/login`。
+
+**请求体：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `phone` | string | 是 | 商家注册手机号 |
+| `password` | string | 是 | 密码 |
+
+**拦截规则：**
+- `SUSPENDED`（已封禁）→ `1002`「商家已被封禁」
+- `PENDING`（审核中）→ `3003`「商家尚未通过审核」
+
+**响应 data：** 同 3.2，`role` 固定为 `MERCHANT`
+
+**可能错误码：** `2003`（该手机号未注册商家）, `2004`, `1002`, `3003`
+
+---
+
+### 3.4 商家入驻申请（注册）
+
+```
+POST /api/merchant/register
+```
+
+**请求体：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `username` | string | 是 | 登录账号（审核通过后即为商家登录账号） |
+| `password` | string | 是 | 登录密码（BCrypt 加密存储） |
+| `phone` | string | 是 | 手机号（商家登录凭据） |
+| `shopName` | string | 是 | 店铺名称 |
+| `categoryId` | long | 是 | 主营品类 ID（`category` 表，须为 `ENABLED`） |
+| `reason` | string | 否 | 入驻理由 |
+| `description` | string | 否 | 店铺介绍 |
+| `logoUrl` | string | 否 | 店铺头像 OSS URL |
+
+> 提交后创建 `PENDING` 入驻申请 + 申请人账号；管理员审核通过后**直接复用本次填写的账号密码**创建商家，不生成默认密码。
+
+**可能错误码：** `2001`（账号已被占用）, `2002`（手机号已注册）, `8003`（主营品类不存在/已停用）
+
+---
+
+### 3.5 平台启用品类（注册页下拉，公开）
+
+```
+GET /api/merchant/category/all
+```
+
+> 无需 Token。返回 `List<CategoryVO>`（仅 `status=ENABLED` 的品类，供注册/入驻表单下拉使用）。
+
+---
+
+### 3.6 支付宝支付回调（匿名）
 
 ```
 POST /api/pay/alipay/callback
@@ -843,10 +909,10 @@ GET /api/admin/dashboard/recent-orders?limit=10
 
 ### 6.2 商家入驻审核
 
-#### 申请列表（支持关键词 + 状态筛选）
+#### 申请列表（支持关键词 + 状态 + 品类 + 日期筛选）
 
 ```
-GET /api/admin/merchant-application/pending?page=1&size=20&keyword=&status=
+GET /api/admin/merchant-application/pending?page=1&size=20&keyword=&status=&categoryId=&dateStart=&dateEnd=
 ```
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
@@ -855,6 +921,9 @@ GET /api/admin/merchant-application/pending?page=1&size=20&keyword=&status=
 | `size` | int | 否 | 20 | 每页条数 |
 | `keyword` | string | 否 | - | 搜索店铺名/申请人 |
 | `status` | string | 否 | - | 状态筛选：`PENDING` / `APPROVED` / `REJECTED` |
+| `categoryId` | long | 否 | - | 主营品类筛选（`category` 表） |
+| `dateStart` | string | 否 | - | 申请起始日期（`yyyy-MM-dd`） |
+| `dateEnd` | string | 否 | - | 申请截止日期（`yyyy-MM-dd`） |
 
 **响应 data：** `PageVO<AdminApplicationVO>`
 
@@ -946,7 +1015,9 @@ POST /api/admin/application/{id}/approve
 | `deliveryRadius` | int | 是 | 配送半径（米），范围 500–20000 |
 | `reviewNote` | string | 否 | 审核备注（内部留存，≤200 字） |
 
-**可能错误码：** `3003`, `7007`
+> 商家账号直接复用申请时填写的 `username` / `password`（见 3.4），凭据缺失（早期申请数据）时报 `1100`。
+
+**可能错误码：** `3003`, `7007`, `1100`（申请缺少登录账号/密码）
 
 ---
 
@@ -974,17 +1045,22 @@ POST /api/admin/application/{id}/reject
 
 ### 6.3 用户管理
 
-#### 用户列表
+> 操作接口（封禁/解封/重置密码）均记录操作日志，写入 `user_operation_log` 表。
+
+#### 用户列表（支持关键词 + 状态 + 注册日期筛选）
 
 ```
-GET /api/admin/users?page=1&size=20&keyword={keyword}
+GET /api/admin/users?page=1&size=20&keyword=&status=&dateStart=&dateEnd=
 ```
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `keyword` | string | 否 | 搜索用户名/手机号 |
+| `keyword` | string | 否 | 搜索用户名/手机号/昵称 |
+| `status` | string | 否 | 状态筛选：`ACTIVE` / `DISABLED` |
+| `dateStart` | string | 否 | 注册起始日期（`yyyy-MM-dd`） |
+| `dateEnd` | string | 否 | 注册截止日期（`yyyy-MM-dd`） |
 
-**响应 data：** `PageVO<AdminUserVO>`
+**响应 data：** `PageVO<AdminUserVO>`（含订单数、消费金额，实时统计自 `order` 表）
 
 ```json
 {
@@ -1004,25 +1080,92 @@ GET /api/admin/users?page=1&size=20&keyword={keyword}
 
 ---
 
-#### 封禁用户
+#### 用户详情
 
 ```
-PUT /api/admin/users/{id}/disable
+GET /api/admin/users/{id}/detail
 ```
 
-> 状态 → `DISABLED`
+**响应 data：** `UserDetailVO`（用户完整信息 + 订单统计）
 
 **可能错误码：** `2003`
 
 ---
 
-#### 解封用户
+#### 封禁用户（推荐）
+
+```
+PUT /api/admin/users/{id}/ban
+```
+
+**请求体：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `reason` | string | 是 | 封禁原因（@NotBlank） |
+| `durationDays` | int | 否 | 封禁时长（天），传 null 表示永久 |
+
+> 状态 → `DISABLED`；写操作日志。
+
+**可能错误码：** `2003`, `2302`（原因为空）, `2303`（已封禁）, `2307`（时长为负数）
+
+---
+
+#### 解封用户（推荐）
+
+```
+PUT /api/admin/users/{id}/unban
+```
+
+> 状态 → `ACTIVE`；写操作日志。
+
+**可能错误码：** `2003`, `2304`（未封禁）
+
+---
+
+#### 封禁用户（旧版兼容）
+
+```
+PUT /api/admin/users/{id}/disable
+```
+
+> `deprecated` — 委托给 ban（原因固定为「管理员操作」，永久封禁），供旧前端使用。
+
+**可能错误码：** `2003`, `2303`
+
+---
+
+#### 解封用户（旧版兼容）
 
 ```
 PUT /api/admin/users/{id}/enable
 ```
 
-> 状态 → `ACTIVE`
+> `deprecated` — 委托给 unban。
+
+**可能错误码：** `2003`, `2304`
+
+---
+
+#### 重置密码
+
+```
+PUT /api/admin/users/{id}/reset-password
+```
+
+> 随机生成新密码并重置（用户下次登录用新密码）。响应 `data` 为新密码字符串。
+
+**可能错误码：** `2003`, `2305`（用户状态异常）
+
+---
+
+#### 操作日志列表
+
+```
+GET /api/admin/users/{id}/logs
+```
+
+**响应 data：** `List<Map<String, Object>>`（操作类型、操作人、时间、备注等）
 
 **可能错误码：** `2003`
 
@@ -1525,127 +1668,137 @@ PAID ──(退款)──→ REFUNDING ──(退款成功)──→ REFUNDED
 | 序号 | 方法 | URL | 说明 | 鉴权 |
 |------|------|-----|------|------|
 | 1 | POST | `/api/user/register` | 用户注册 | 匿名 |
-| 2 | POST | `/api/user/login` | 用户登录（跨表） | 匿名 |
-| 3 | GET | `/api/user/info` | 获取当前用户信息 | 登录 |
-| 4 | GET | `/api/user/address` | 地址列表 | USER |
-| 5 | GET | `/api/user/address/{id}` | 地址详情 | USER |
-| 6 | POST | `/api/user/address` | 新增地址 | USER |
-| 7 | PUT | `/api/user/address/{id}` | 更新地址 | USER |
-| 8 | DELETE | `/api/user/address/{id}` | 删除地址 | USER |
-| 9 | PUT | `/api/user/address/{id}/default` | 设为默认地址 | USER |
-| 10 | GET | `/api/user/cart` | 查询购物车 | USER |
-| 11 | POST | `/api/user/cart` | 添加购物车商品 | USER |
-| 12 | PUT | `/api/user/cart` | 更新购物车数量 | USER |
-| 13 | DELETE | `/api/user/cart/{specId}` | 移除购物车商品 | USER |
-| 14 | DELETE | `/api/user/cart` | 清空购物车 | USER |
-| 15 | POST | `/api/user/order` | 创建订单 | USER |
-| 16 | GET | `/api/user/order` | 我的订单列表 | USER |
-| 17 | GET | `/api/user/order/{id}` | 订单详情 | USER |
-| 18 | POST | `/api/user/order/{id}/cancel` | 取消订单 | USER |
-| 19 | POST | `/api/user/pay` | 发起支付 | USER |
-| 20 | GET | `/api/user/pay/{orderNo}/status` | 支付状态查询 | USER |
-| 21 | POST | `/api/pay/alipay/callback` | 支付宝回调 | 匿名 |
-| 22 | GET | `/api/merchant/list` | 浏览商家列表 | 登录 |
-| 23 | GET | `/api/merchant/{id}` | 商家详情 | 登录 |
-| 24 | GET | `/api/merchant/shop` | 获取店铺信息 | MERCHANT |
-| 25 | PUT | `/api/merchant/shop/status` | 更新营业状态 | MERCHANT |
-| 26 | GET | `/api/merchant/category` | 品类列表 | MERCHANT |
-| 27 | POST | `/api/merchant/category` | 新增品类 | MERCHANT |
-| 28 | PUT | `/api/merchant/category/{id}` | 更新品类 | MERCHANT |
-| 29 | DELETE | `/api/merchant/category/{id}` | 删除品类 | MERCHANT |
-| 30 | GET | `/api/merchant/product/list` | 商品列表 | 登录 |
-| 31 | GET | `/api/merchant/product/{id}` | 商品详情 | 登录 |
-| 32 | POST | `/api/merchant/product` | 新增商品 | MERCHANT |
-| 33 | PUT | `/api/merchant/product/{id}` | 更新商品 | MERCHANT |
-| 34 | PUT | `/api/merchant/product/{id}/status` | 上架/下架 | MERCHANT |
-| 35 | POST | `/api/merchant/product/{productId}/spec` | 添加规格 | MERCHANT |
-| 36 | DELETE | `/api/merchant/product/spec/{specId}` | 删除规格 | MERCHANT |
-| 37 | GET | `/api/merchant/order` | 店铺订单列表 | MERCHANT |
-| 38 | GET | `/api/merchant/order/{id}` | 订单详情 | MERCHANT |
-| 39 | PUT | `/api/merchant/order/{id}/accept` | 接单 | MERCHANT |
-| 40 | PUT | `/api/merchant/order/{id}/cooking` | 开始制作 | MERCHANT |
-| 41 | PUT | `/api/merchant/order/{id}/complete` | 完成制作 | MERCHANT |
-| 42 | PUT | `/api/merchant/order/{id}/reject` | 拒单 | MERCHANT |
-| 43 | GET | `/api/admin/dashboard/stats` | 核心统计卡片 | ADMIN |
-| 44 | GET | `/api/admin/dashboard/order-stats` | 订单状态分布 | ADMIN |
-| 45 | GET | `/api/admin/dashboard/recent-orders` | 最新订单 | ADMIN |
-| 46 | GET | `/api/admin/merchant-application/pending` | 入驻申请列表 | ADMIN |
-| 47 | GET | `/api/admin/merchant-application/{id}/detail` | 申请详情 | ADMIN |
-| 48 | PUT | `/api/admin/merchant-application/{id}/approve` | 通过申请(V1) | ADMIN |
-| 49 | PUT | `/api/admin/merchant-application/{id}/reject` | 拒绝申请(V1) | ADMIN |
-| 50 | POST | `/api/admin/application/{id}/approve` | 通过申请(V2) | ADMIN |
-| 51 | POST | `/api/admin/application/{id}/reject` | 拒绝申请(V2) | ADMIN |
-| 52 | GET | `/api/admin/users` | 用户列表 | ADMIN |
-| 53 | PUT | `/api/admin/users/{id}/disable` | 封禁用户 | ADMIN |
-| 54 | PUT | `/api/admin/users/{id}/enable` | 解封用户 | ADMIN |
-| 55 | GET | `/api/admin/merchants` | 商家列表(V1) | ADMIN |
-| 56 | PUT | `/api/admin/merchants/{id}/suspend` | 封禁商家(V1) | ADMIN |
-| 57 | PUT | `/api/admin/merchants/{id}/activate` | 解封商家(V1) | ADMIN |
-| 58 | GET | `/api/admin/merchant/stats` | 商家统计概览 | ADMIN |
-| 59 | GET | `/api/admin/merchant/{id}/detail` | 商家详情(V2) | ADMIN |
-| 60 | PUT | `/api/admin/merchant/{id}/pause` | 暂停营业 | ADMIN |
-| 61 | PUT | `/api/admin/merchant/{id}/resume` | 恢复营业 | ADMIN |
-| 62 | PUT | `/api/admin/merchant/{id}/ban` | 封禁商家(V2) | ADMIN |
-| 63 | PUT | `/api/admin/merchant/{id}/unban` | 解封商家(V2) | ADMIN |
-| 64 | DELETE | `/api/admin/merchant/{id}` | 删除商家 | ADMIN |
-| 65 | GET | `/api/admin/merchant/{id}/logs` | 操作日志 | ADMIN |
-| 66 | GET | `/api/admin/category` | 品类列表 | ADMIN |
-| 67 | GET | `/api/admin/category/all` | 全部启用品类 | ADMIN |
-| 68 | GET | `/api/admin/category/stats` | 品类统计 | ADMIN |
-| 69 | GET | `/api/admin/category/{id}` | 品类详情 | ADMIN |
-| 70 | POST | `/api/admin/category` | 新增品类 | ADMIN |
-| 71 | PUT | `/api/admin/category/{id}` | 修改品类 | ADMIN |
-| 72 | PUT | `/api/admin/category/{id}/enable` | 启用品类 | ADMIN |
-| 73 | PUT | `/api/admin/category/{id}/disable` | 停用品类 | ADMIN |
-| 74 | DELETE | `/api/admin/category/{id}` | 删除品类 | ADMIN |
-| 75 | POST | `/api/admin/category/reorder` | 批量排序 | ADMIN |
-| 76 | GET | `/api/upload/sign` | OSS 上传签名 | 登录 |
-| 77 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
-| 78 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
-| 79 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
+| 2 | POST | `/api/user/login` | 用户/管理员登录（手机号/用户名） | 匿名 |
+| 3 | POST | `/api/merchant/login` | 商家登录 | 匿名 |
+| 4 | POST | `/api/merchant/register` | 商家入驻申请 | 匿名 |
+| 5 | GET | `/api/merchant/category/all` | 平台启用品类 | 匿名 |
+| 6 | POST | `/api/pay/alipay/callback` | 支付宝回调 | 匿名 |
+| 7 | GET | `/api/user/info` | 获取当前用户信息 | 登录 |
+| 8 | GET | `/api/user/address` | 地址列表 | USER |
+| 9 | GET | `/api/user/address/{id}` | 地址详情 | USER |
+| 10 | POST | `/api/user/address` | 新增地址 | USER |
+| 11 | PUT | `/api/user/address/{id}` | 更新地址 | USER |
+| 12 | DELETE | `/api/user/address/{id}` | 删除地址 | USER |
+| 13 | PUT | `/api/user/address/{id}/default` | 设为默认地址 | USER |
+| 14 | GET | `/api/user/cart` | 查询购物车 | USER |
+| 15 | POST | `/api/user/cart` | 添加购物车商品 | USER |
+| 16 | PUT | `/api/user/cart` | 更新购物车数量 | USER |
+| 17 | DELETE | `/api/user/cart/{specId}` | 移除购物车商品 | USER |
+| 18 | DELETE | `/api/user/cart` | 清空购物车 | USER |
+| 19 | POST | `/api/user/order` | 创建订单 | USER |
+| 20 | GET | `/api/user/order` | 我的订单列表 | USER |
+| 21 | GET | `/api/user/order/{id}` | 订单详情 | USER |
+| 22 | POST | `/api/user/order/{id}/cancel` | 取消订单 | USER |
+| 23 | POST | `/api/user/pay` | 发起支付 | USER |
+| 24 | GET | `/api/user/pay/{orderNo}/status` | 支付状态查询 | USER |
+| 25 | GET | `/api/merchant/list` | 浏览商家列表 | 登录 |
+| 26 | GET | `/api/merchant/{id}` | 商家详情 | 登录 |
+| 27 | GET | `/api/merchant/shop` | 获取店铺信息 | MERCHANT |
+| 28 | PUT | `/api/merchant/shop/status` | 更新营业状态 | MERCHANT |
+| 29 | GET | `/api/merchant/category` | 品类列表 | MERCHANT |
+| 30 | POST | `/api/merchant/category` | 新增品类 | MERCHANT |
+| 31 | PUT | `/api/merchant/category/{id}` | 更新品类 | MERCHANT |
+| 32 | DELETE | `/api/merchant/category/{id}` | 删除品类 | MERCHANT |
+| 33 | GET | `/api/merchant/product/list` | 商品列表 | 登录 |
+| 34 | GET | `/api/merchant/product/{id}` | 商品详情 | 登录 |
+| 35 | POST | `/api/merchant/product` | 新增商品 | MERCHANT |
+| 36 | PUT | `/api/merchant/product/{id}` | 更新商品 | MERCHANT |
+| 37 | PUT | `/api/merchant/product/{id}/status` | 上架/下架 | MERCHANT |
+| 38 | POST | `/api/merchant/product/{productId}/spec` | 添加规格 | MERCHANT |
+| 39 | DELETE | `/api/merchant/product/spec/{specId}` | 删除规格 | MERCHANT |
+| 40 | GET | `/api/merchant/order` | 店铺订单列表 | MERCHANT |
+| 41 | GET | `/api/merchant/order/{id}` | 订单详情 | MERCHANT |
+| 42 | PUT | `/api/merchant/order/{id}/accept` | 接单 | MERCHANT |
+| 43 | PUT | `/api/merchant/order/{id}/cooking` | 开始制作 | MERCHANT |
+| 44 | PUT | `/api/merchant/order/{id}/complete` | 完成制作 | MERCHANT |
+| 45 | PUT | `/api/merchant/order/{id}/reject` | 拒单 | MERCHANT |
+| 46 | GET | `/api/admin/dashboard/stats` | 核心统计卡片 | ADMIN |
+| 47 | GET | `/api/admin/dashboard/order-stats` | 订单状态分布 | ADMIN |
+| 48 | GET | `/api/admin/dashboard/recent-orders` | 最新订单 | ADMIN |
+| 49 | GET | `/api/admin/merchant-application/pending` | 入驻申请列表 | ADMIN |
+| 50 | GET | `/api/admin/merchant-application/{id}/detail` | 申请详情 | ADMIN |
+| 51 | PUT | `/api/admin/merchant-application/{id}/approve` | 通过申请(V1) | ADMIN |
+| 52 | PUT | `/api/admin/merchant-application/{id}/reject` | 拒绝申请(V1) | ADMIN |
+| 53 | POST | `/api/admin/application/{id}/approve` | 通过申请(V2) | ADMIN |
+| 54 | POST | `/api/admin/application/{id}/reject` | 拒绝申请(V2) | ADMIN |
+| 55 | GET | `/api/admin/users` | 用户列表 | ADMIN |
+| 56 | GET | `/api/admin/users/{id}/detail` | 用户详情 | ADMIN |
+| 57 | PUT | `/api/admin/users/{id}/ban` | 封禁用户（推荐） | ADMIN |
+| 58 | PUT | `/api/admin/users/{id}/unban` | 解封用户（推荐） | ADMIN |
+| 59 | PUT | `/api/admin/users/{id}/disable` | 封禁用户（旧版兼容） | ADMIN |
+| 60 | PUT | `/api/admin/users/{id}/enable` | 解封用户（旧版兼容） | ADMIN |
+| 61 | PUT | `/api/admin/users/{id}/reset-password` | 重置密码 | ADMIN |
+| 62 | GET | `/api/admin/users/{id}/logs` | 用户操作日志 | ADMIN |
+| 63 | GET | `/api/admin/merchants` | 商家列表(V1) | ADMIN |
+| 64 | PUT | `/api/admin/merchants/{id}/suspend` | 封禁商家(V1) | ADMIN |
+| 65 | PUT | `/api/admin/merchants/{id}/activate` | 解封商家(V1) | ADMIN |
+| 66 | GET | `/api/admin/merchant/stats` | 商家统计概览 | ADMIN |
+| 67 | GET | `/api/admin/merchant/{id}/detail` | 商家详情(V2) | ADMIN |
+| 68 | PUT | `/api/admin/merchant/{id}/pause` | 暂停营业 | ADMIN |
+| 69 | PUT | `/api/admin/merchant/{id}/resume` | 恢复营业 | ADMIN |
+| 70 | PUT | `/api/admin/merchant/{id}/ban` | 封禁商家(V2) | ADMIN |
+| 71 | PUT | `/api/admin/merchant/{id}/unban` | 解封商家(V2) | ADMIN |
+| 72 | DELETE | `/api/admin/merchant/{id}` | 删除商家 | ADMIN |
+| 73 | GET | `/api/admin/merchant/{id}/logs` | 商家操作日志 | ADMIN |
+| 74 | GET | `/api/admin/category` | 品类列表 | ADMIN |
+| 75 | GET | `/api/admin/category/all` | 全部启用品类 | ADMIN |
+| 76 | GET | `/api/admin/category/stats` | 品类统计 | ADMIN |
+| 77 | GET | `/api/admin/category/{id}` | 品类详情 | ADMIN |
+| 78 | POST | `/api/admin/category` | 新增品类 | ADMIN |
+| 79 | PUT | `/api/admin/category/{id}` | 修改品类 | ADMIN |
+| 80 | PUT | `/api/admin/category/{id}/enable` | 启用品类 | ADMIN |
+| 81 | PUT | `/api/admin/category/{id}/disable` | 停用品类 | ADMIN |
+| 82 | DELETE | `/api/admin/category/{id}` | 删除品类 | ADMIN |
+| 83 | POST | `/api/admin/category/reorder` | 批量排序 | ADMIN |
+| 84 | GET | `/api/upload/sign` | OSS 上传签名 | 登录 |
+| 85 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
+| 86 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
+| 87 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
 
 ---
 
 ## 十一、测试账号（种子数据）
 
 > Flyway 启动时自动插入，BCrypt 加密存储。
+> 登录方式：**管理员用用户名**登录（`/api/user/login` 传 username）；**用户/商家用手机号**登录（传 phone）。
 
-### 管理员（2 人）
+### 管理员（2 人，用户名登录）
 
 | 用户名 | 密码 | 说明 |
 |--------|------|------|
 | `admin` | `admin123` | 平台管理员 |
 | `superadmin` | `admin123` | 超级管理员 |
 
-### 普通用户/顾客（13 人）
+### 普通用户/顾客（13 人，手机号登录）
 
-| 用户名 | 密码 | 状态 |
-|--------|------|------|
-| `tester` | `test123` | 正常（有地址 + 历史订单） |
-| `zhangsan` | `test123` | 正常 |
-| `lisi` | `test123` | 正常 |
-| `wangwu` | `test123` | 正常 |
-| `zhaoliu` | `test123` | 已封禁 |
-| `sunqi` | `test123` | 正常 |
-| `zhouba` | `test123` | 正常 |
-| `wujiu` | `test123` | 正常 |
-| `zhengshi` | `test123` | 正常 |
-| `qianyi` | `test123` | 正常 |
-| `liuer` | `test123` | 正常 |
-| `caosan` | `test123` | 正常 |
-| `weisi` | `test123` | 已封禁 |
+| 用户名 | 手机号 | 密码 | 状态 |
+|--------|--------|------|------|
+| `tester` | `13800000003` | `test123` | 正常（有地址 + 历史订单） |
+| `zhangsan` | `13811111111` | `test123` | 正常 |
+| `lisi` | `13822222222` | `test123` | 正常 |
+| `wangwu` | `13833333333` | `test123` | 正常 |
+| `zhaoliu` | `13844444444` | `test123` | 已封禁 |
+| `sunqi` | `13855551111` | `test123` | 正常 |
+| `zhouba` | `13866661112` | `test123` | 正常 |
+| `wujiu` | `13877771113` | `test123` | 正常 |
+| `zhengshi` | `13888881114` | `test123` | 正常 |
+| `qianyi` | `13899991115` | `test123` | 正常 |
+| `liuer` | `13800001116` | `test123` | 正常 |
+| `caosan` | `13811111117` | `test123` | 正常 |
+| `weisi` | `13822221118` | `test123` | 已封禁 |
 
-### 商家（8 家）
+### 商家（9 家，手机号登录）
 
-| 用户名 | 密码 | 店铺 | 品类 | 营业时间 | 评分 | 状态 |
-|--------|------|------|------|----------|------|------|
-| `nightbb` | `m123456` | 深夜食堂 | 烧烤类 | 18:00-03:00 | 4.8 | 营业中 |
-| `spicyhot` | `m123456` | 辣翻天小龙虾 | 小龙虾 | 16:00-02:00 | 4.6 | 营业中 |
-| `teahouse` | `m123456` | 老王糖水铺 | 经典糖水 | 14:00-23:00 | 4.9 | 营业中 |
-| `crispychick` | `m123456` | 脆皮炸鸡（海淀总店） | 炸鸡套餐 | 10:00-22:00 | 4.5 | 营业中 |
-| `hotnoodle` | `m123456` | 川味牛肉面馆 | 面食类 | 08:00-21:00 | 4.3 | 营业中 |
-| `teamilk` | `m123456` | 元气奶茶实验室 | 招牌奶茶 | 09:00-22:00 | 4.7 | 营业中 |
-| `pizzaking` | `m123456` | 披萨大王 | 经典披萨 | 10:00-21:00 | 4.1 | 已打烊 |
-| `malatang` | `m123456` | 杨国福麻辣烫（望京店） | 自选麻辣烫 | 08:00-22:00 | 3.9 | 已封禁 |
+| 用户名 | 手机号 | 密码 | 店铺 | 品类 | 营业时间 | 评分 | 状态 |
+|--------|--------|------|------|------|----------|------|------|
+| `nightbb` | `13800000002` | `m123456` | 深夜食堂 | 烧烤类 | 18:00-03:00 | 4.8 | 营业中 |
+| `spicyhot` | `13855555555` | `m123456` | 辣翻天小龙虾 | 小龙虾 | 16:00-02:00 | 4.6 | 营业中 |
+| `teahouse` | `13866666666` | `m123456` | 老王糖水铺 | 经典糖水 | 14:00-23:00 | 4.9 | 营业中 |
+| `crispychick` | `13877778888` | `m123456` | 脆皮炸鸡（海淀总店） | 炸鸡套餐 | 10:00-22:00 | 4.5 | 营业中 |
+| `hotnoodle` | `13888889999` | `m123456` | 川味牛肉面馆 | 面食类 | 08:00-21:00 | 4.3 | 营业中 |
+| `teamilk` | `13866667777` | `m123456` | 元气奶茶实验室 | 招牌奶茶 | 09:00-22:00 | 4.7 | 营业中 |
+| `pizzaking` | `13855556666` | `m123456` | 披萨大王 | 经典披萨 | 10:00-21:00 | 4.1 | 已打烊 |
+| `malatang` | `13812345678` | `m123456` | 杨国福麻辣烫（望京店） | 自选麻辣烫 | 08:00-22:00 | 3.9 | 已封禁 |
+| `zhangsan_bbq` | `13811111111` | `m123456` | 张三烧烤 | 烧烤类 | 16:00-01:00 | 5.0 | 营业中 |
 
 > **注意**：数据库重建后密码生效。若重建前已启动过，需 `DROP TABLE flyway_schema_history` 并删库重建。
