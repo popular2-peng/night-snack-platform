@@ -37,6 +37,10 @@ public final class MessageConst {
     // ==================== 用户域 2000 ~ 2999 ====================
     /** 用户不存在（USER_NOT_FOUND） */
     public static final String USER_NOT_FOUND_MSG = "用户不存在";
+    /** 管理员不存在（USER_NOT_FOUND） */
+    public static final String ADMIN_NOT_FOUND_MSG = "管理员不存在";
+    /** 用户登录请使用手机号（PARAM_ERROR） */
+    public static final String USER_LOGIN_REQUIRE_PHONE_MSG = "用户登录请使用手机号";
     /** 手机号未注册（USER_NOT_FOUND） */
     public static final String USER_PHONE_NOT_REGISTERED_MSG = "手机号未注册";
     /** 该手机号未注册商家（USER_NOT_FOUND） */

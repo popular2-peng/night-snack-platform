@@ -13,7 +13,8 @@ import MerchantDetailDrawer from './MerchantDetailDrawer.vue'
 interface MerchantItem {
   id: number; name: string; ownerName: string; phone: string
   logoUrl: string; categoryName: string; todayOrders: number; todayRevenue: number
-  avgRating: number; status: string; lastLoginAt: string; createdAt: string
+  avgRating: number; status: string
+  lastLoginAt: string; createdAt: string; updatedAt: string
 }
 interface Stats { total: number; openCount: number; suspendedCount: number; closedCount: number }
 
@@ -271,8 +272,8 @@ onMounted(() => { refreshAll(); fetchCategories() })
       <el-table-column label="入驻时间" width="150" sortable="custom" align="center">
         <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="最后登录" width="150" align="center">
-        <template #default="{ row }">{{ formatTime(row.lastLoginAt) || '-' }}</template>
+      <el-table-column label="修改时间" width="150" align="center">
+        <template #default="{ row }">{{ formatTime(row.updatedAt) || '-' }}</template>
       </el-table-column>
 
       <!-- 操作列：下拉菜单 -->

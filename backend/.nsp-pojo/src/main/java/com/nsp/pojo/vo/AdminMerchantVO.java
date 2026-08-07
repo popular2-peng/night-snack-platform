@@ -29,11 +29,16 @@ public class AdminMerchantVO {
     private BigDecimal avgRating;
     /** PENDING / OPEN / CLOSED / SUSPENDED */
     private String status;
-    /** 最后登录时间 */
+    /** 最后登录时间（登录成功后实时更新） */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime lastLoginAt;
 
+    /** 入驻时间 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime createdAt;
+
+    /** 修改时间 */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
+    private LocalDateTime updatedAt;
 
 }

@@ -158,6 +158,10 @@ const formatTime = (s: string) => { return s ? s.replace('T', ' ').substring(0, 
             <span class="info-label">最后登录</span>
             <span class="info-value">{{ formatTime(detail.lastLoginAt) || '-' }}</span>
           </div>
+          <div class="info-row">
+            <span class="info-label">修改时间</span>
+            <span class="info-value">{{ formatTime(detail.updatedAt) || '-' }}</span>
+          </div>
         </div>
       </div>
 

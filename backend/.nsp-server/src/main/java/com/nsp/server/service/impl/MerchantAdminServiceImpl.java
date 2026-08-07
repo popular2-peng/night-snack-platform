@@ -315,6 +315,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
                 .deliveryRadius(m.getDeliveryRadius())
                 .lastLoginAt(m.getLastLoginAt())
                 .createdAt(m.getCreatedAt())
+                .updatedAt(m.getUpdatedAt())
                 .build();
     }
 

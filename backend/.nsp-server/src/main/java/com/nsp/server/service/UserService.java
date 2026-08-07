@@ -20,13 +20,22 @@ public interface UserService {
     LoginVO register(RegisterDTO dto);
 
     /**
-     * 用户登录
+     * 用户登录（用户专用，仅查 user 表）
      *
-     * @param dto 登录参数
+     * @param dto 登录参数（手机号优先，用户名兜底）
      * @return 登录凭证（含 Token）
      * @throws com.nsp.common.exception.BizException 用户不存在或密码错误
      */
     LoginVO login(LoginDTO dto);
+
+    /**
+     * 管理员登录（管理员专用，仅查 admin 表）
+     *
+     * @param dto 登录参数（用户名 + 密码）
+     * @return 登录凭证（含 Token）
+     * @throws com.nsp.common.exception.BizException 管理员不存在或密码错误
+     */
+    LoginVO adminLogin(LoginDTO dto);
 
     /**
      * 查询用户信息

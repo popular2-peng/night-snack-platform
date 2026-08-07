@@ -8,12 +8,10 @@ import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.LoginDTO;
 import com.nsp.pojo.dto.RegisterDTO;
 import com.nsp.pojo.entity.Admin;
-import com.nsp.pojo.entity.Merchant;
 import com.nsp.pojo.entity.User;
 import com.nsp.pojo.vo.LoginVO;
 import com.nsp.pojo.vo.UserVO;
 import com.nsp.server.mapper.AdminMapper;
-import com.nsp.server.mapper.MerchantMapper;
 import com.nsp.server.mapper.UserMapper;
 import com.nsp.server.security.JwtTokenProvider;
 import com.nsp.server.service.UserService;
@@ -37,7 +35,6 @@ public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
     private final AdminMapper adminMapper;
-    private final MerchantMapper merchantMapper;
     private final JwtTokenProvider jwtTokenProvider;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -75,134 +72,59 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public LoginVO login(LoginDTO dto) {
-        // 手机号登录（用户/商家，注册时填写了手机号）
-        if (dto.getPhone() != null && !dto.getPhone().isBlank()) {
-            return loginByPhone(dto);
+        // 用户专用登录：仅支持手机号 + 密码（注册时填写了手机号），不支持用户名。
+        // 商家走 /api/merchant/login，管理员走 /api/admin/login
+        if (dto.getPhone() == null || dto.getPhone().isBlank()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, MessageConst.USER_LOGIN_REQUIRE_PHONE_MSG);
         }
-        // 用户名登录（管理员；兼容旧逻辑）
-        return loginByUsername(dto);
-    }
-
-    /** 手机号 + 密码登录：先查商家表，再查用户表 */
-    private LoginVO loginByPhone(LoginDTO dto) {
-        // 1) 商家表
-        Merchant merchant = merchantMapper.selectOne(
-                new LambdaQueryWrapper<Merchant>().eq(Merchant::getPhone, dto.getPhone()));
-        if (merchant != null) {
-            if (!passwordEncoder.matches(dto.getPassword(), merchant.getPassword())) {
-                throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
-            }
-            if ("SUSPENDED".equals(merchant.getStatus())) {
-                throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_MERCHANT_BANNED_MSG);
-            }
-            log.info("商家登录(手机号): merchantId={}, phone={}", merchant.getId(), dto.getPhone());
-            String accessToken = jwtTokenProvider.createAccessToken(merchant.getId(), "MERCHANT");
-            String refreshToken = jwtTokenProvider.createRefreshToken(merchant.getId(), "MERCHANT");
-            return LoginVO.builder()
-                    .userId(merchant.getId())
-                    .username(merchant.getUsername())
-                    .role("MERCHANT")
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken)
-                    .build();
-        }
-
-        // 2) 用户表（顾客）
         User user = userMapper.selectOne(
                 new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone()));
-        if (user != null) {
-            if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-                throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
-            }
-            if ("DISABLED".equals(user.getStatus())) {
-                throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
-            }
-            log.info("用户登录(手机号): userId={}, phone={}", user.getId(), dto.getPhone());
-            updateLastLogin(user.getId());
-            String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
-            String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), "USER");
-            return LoginVO.builder()
-                    .userId(user.getId())
-                    .username(user.getUsername())
-                    .role("USER")
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken)
-                    .build();
+        if (user == null) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.USER_PHONE_NOT_REGISTERED_MSG);
         }
-
-        throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.USER_PHONE_NOT_REGISTERED_MSG);
+        if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
+            throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
+        }
+        if ("DISABLED".equals(user.getStatus())) {
+            throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
+        }
+        log.info("用户登录: userId={}, phone={}", user.getId(), user.getPhone());
+        updateLastLogin(user.getId());
+        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), "USER");
+        return LoginVO.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .role("USER")
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .build();
     }
 
-    /** 用户名 + 密码登录：admin → merchant → user（管理员为主，兼容旧逻辑） */
-    private LoginVO loginByUsername(LoginDTO dto) {
-        // 1) 尝试 admin 表
+    /** 管理员专用登录：仅查 admin 表 */
+    @Override
+    public LoginVO adminLogin(LoginDTO dto) {
         Admin admin = adminMapper.selectOne(
                 new LambdaQueryWrapper<Admin>().eq(Admin::getUsername, dto.getUsername()));
-        if (admin != null) {
-            if (!passwordEncoder.matches(dto.getPassword(), admin.getPassword())) {
-                throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
-            }
-            if ("DISABLED".equals(admin.getStatus())) {
-                throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
-            }
-            log.info("管理员登录: adminId={}, username={}", admin.getId(), admin.getUsername());
-            String accessToken = jwtTokenProvider.createAccessToken(admin.getId(), "ADMIN");
-            String refreshToken = jwtTokenProvider.createRefreshToken(admin.getId(), "ADMIN");
-            return LoginVO.builder()
-                    .userId(admin.getId())
-                    .username(admin.getUsername())
-                    .role("ADMIN")
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken)
-                    .build();
+        if (admin == null) {
+            throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.ADMIN_NOT_FOUND_MSG);
         }
-
-        // 2) 尝试 merchant 表（旧逻辑兼容）
-        Merchant merchant = merchantMapper.selectOne(
-                new LambdaQueryWrapper<Merchant>().eq(Merchant::getUsername, dto.getUsername()));
-        if (merchant != null) {
-            if (!passwordEncoder.matches(dto.getPassword(), merchant.getPassword())) {
-                throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
-            }
-            if ("SUSPENDED".equals(merchant.getStatus())) {
-                throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_MERCHANT_BANNED_MSG);
-            }
-            log.info("商家登录(用户名): merchantId={}, username={}", merchant.getId(), merchant.getUsername());
-            String accessToken = jwtTokenProvider.createAccessToken(merchant.getId(), "MERCHANT");
-            String refreshToken = jwtTokenProvider.createRefreshToken(merchant.getId(), "MERCHANT");
-            return LoginVO.builder()
-                    .userId(merchant.getId())
-                    .username(merchant.getUsername())
-                    .role("MERCHANT")
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken)
-                    .build();
+        if (!passwordEncoder.matches(dto.getPassword(), admin.getPassword())) {
+            throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
         }
-
-        // 3) 尝试 user 表（旧逻辑兼容）
-        User user = userMapper.selectOne(
-                new LambdaQueryWrapper<User>().eq(User::getUsername, dto.getUsername()));
-        if (user != null) {
-            if (!passwordEncoder.matches(dto.getPassword(), user.getPassword())) {
-                throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
-            }
-            if ("DISABLED".equals(user.getStatus())) {
-                throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
-            }
-            log.info("用户登录(用户名): userId={}, username={}", user.getId(), user.getUsername());
-            updateLastLogin(user.getId());
-            String accessToken = jwtTokenProvider.createAccessToken(user.getId(), "USER");
-            String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), "USER");
-            return LoginVO.builder()
-                    .userId(user.getId())
-                    .username(user.getUsername())
-                    .role("USER")
-                    .accessToken(accessToken)
-                    .refreshToken(refreshToken)
-                    .build();
+        if ("DISABLED".equals(admin.getStatus())) {
+            throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
         }
-
-        throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.USER_NOT_FOUND_MSG);
+        log.info("管理员登录: adminId={}, username={}", admin.getId(), admin.getUsername());
+        String accessToken = jwtTokenProvider.createAccessToken(admin.getId(), "ADMIN");
+        String refreshToken = jwtTokenProvider.createRefreshToken(admin.getId(), "ADMIN");
+        return LoginVO.builder()
+                .userId(admin.getId())
+                .username(admin.getUsername())
+                .role("ADMIN")
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .build();
     }
 
     /** 用户登录成功后更新最后登录时间（last_login_at） */

@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -120,6 +121,7 @@ public class MerchantServiceImpl implements MerchantService {
         }
 
         log.info("商家登录: merchantId={}, phone={}", merchant.getId(), dto.getPhone());
+        updateLastLogin(merchant.getId());
         String accessToken = jwtTokenProvider.createAccessToken(merchant.getId(), "MERCHANT");
         String refreshToken = jwtTokenProvider.createRefreshToken(merchant.getId(), "MERCHANT");
         return LoginVO.builder()
@@ -184,6 +186,14 @@ public class MerchantServiceImpl implements MerchantService {
 
         log.info("商家入驻申请提交: applicantUserId={}, shopName={}, username={}, categoryId={}",
                 applicant.getId(), dto.getShopName(), dto.getUsername(), dto.getCategoryId());
+    }
+
+    /** 商家登录成功后更新最后登录时间（last_login_at） */
+    private void updateLastLogin(Long merchantId) {
+        Merchant update = new Merchant();
+        update.setId(merchantId);
+        update.setLastLoginAt(LocalDateTime.now());
+        merchantMapper.updateById(update);
     }
 
     private MerchantVO toVO(Merchant merchant) {
