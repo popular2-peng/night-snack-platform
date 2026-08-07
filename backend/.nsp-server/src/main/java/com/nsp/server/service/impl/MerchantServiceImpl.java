@@ -2,6 +2,7 @@ package com.nsp.server.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.nsp.common.constant.ErrorCode;
 import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
@@ -188,12 +189,17 @@ public class MerchantServiceImpl implements MerchantService {
                 applicant.getId(), dto.getShopName(), dto.getUsername(), dto.getCategoryId());
     }
 
-    /** 商家登录成功后更新最后登录时间（last_login_at） */
+    /**
+     * 商家登录成功后更新最后登录时间（last_login_at）
+     *
+     * <p>显式 `updated_at = updated_at` 阻止 MySQL ON UPDATE CURRENT_TIMESTAMP 自动刷新，
+     * 避免「最后登录时间」与「修改时间」变成同一时刻（修改时间仅应在修改店铺信息时变化）。
+     */
     private void updateLastLogin(Long merchantId) {
-        Merchant update = new Merchant();
-        update.setId(merchantId);
-        update.setLastLoginAt(LocalDateTime.now());
-        merchantMapper.updateById(update);
+        merchantMapper.update(null, new LambdaUpdateWrapper<Merchant>()
+                .eq(Merchant::getId, merchantId)
+                .set(Merchant::getLastLoginAt, LocalDateTime.now())
+                .setSql("updated_at = updated_at"));
     }
 
     private MerchantVO toVO(Merchant merchant) {

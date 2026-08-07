@@ -2,6 +2,7 @@ package com.nsp.server.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.nsp.common.constant.ErrorCode;
 import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
@@ -127,12 +128,17 @@ public class UserServiceImpl implements UserService {
                 .build();
     }
 
-    /** 用户登录成功后更新最后登录时间（last_login_at） */
+    /**
+     * 用户登录成功后更新最后登录时间（last_login_at）
+     *
+     * <p>显式 `updated_at = updated_at` 阻止 MySQL ON UPDATE CURRENT_TIMESTAMP 自动刷新，
+     * 避免「最后登录时间」与「修改时间」变成同一时刻（修改时间仅应在资料修改时变化）。
+     */
     private void updateLastLogin(Long userId) {
-        User update = new User();
-        update.setId(userId);
-        update.setLastLoginAt(LocalDateTime.now());
-        userMapper.updateById(update);
+        userMapper.update(null, new LambdaUpdateWrapper<User>()
+                .eq(User::getId, userId)
+                .set(User::getLastLoginAt, LocalDateTime.now())
+                .setSql("updated_at = updated_at"));
     }
 
     @Override

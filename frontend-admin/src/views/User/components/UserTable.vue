@@ -4,7 +4,9 @@ import {
   listUsers, getUserDetail, banUser, unbanUser, resetPassword, getUserLogs,
 } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { MoreFilled, Male, Female } from '@element-plus/icons-vue'
+import {
+  MoreFilled, Male, Female, Phone, Calendar, ShoppingBag, Coin, User, WarningFilled,
+} from '@element-plus/icons-vue'
 import SearchFilterBar from '@/components/SearchFilterBar.vue'
 
 // ---- 类型 ----
@@ -318,44 +320,137 @@ onMounted(() => { fetchUsers(); fetchStats() })
       />
     </div>
 
-    <!-- ====== 详情 Drawer ====== -->
-    <el-drawer v-model="detailVisible" title="用户详情" size="460px" direction="rtl">
+    <!-- ====== 详情 Drawer（与商家详情同风格） ====== -->
+    <el-drawer v-model="detailVisible" title="用户详情" size="520px" direction="rtl">
       <template v-if="detailUser" v-loading="detailLoading">
-        <div class="drawer-section">
-          <el-avatar :src="detailUser.avatarUrl" :size="64" shape="circle" style="margin-bottom:12px">
-            {{ detailUser.username?.charAt(0) || 'U' }}
-          </el-avatar>
-          <p><strong>用户名：</strong>{{ detailUser.username }}</p>
-          <p><strong>手机号：</strong>{{ detailUser.phone }}</p>
-          <p><strong>性别：</strong>{{ genderMap[detailUser.gender] || '未知' }}</p>
-          <p><strong>生日：</strong>{{ detailUser.birthday || '-' }}</p>
-          <p><strong>状态：</strong>
-            <el-tag :type="detailUser.status === 'ACTIVE' ? 'success' : 'danger'" size="small" effect="plain">
-              {{ detailUser.status === 'ACTIVE' ? '正常' : '已封禁' }}
-            </el-tag>
-          </p>
-          <p><strong>注册时间：</strong>{{ formatTime(detailUser.createdAt) }}</p>
-          <p><strong>最后登录：</strong>{{ formatTime(detailUser.lastLoginAt) || '-' }}</p>
-          <p><strong>更新时间：</strong>{{ formatTime(detailUser.updatedAt) || '-' }}</p>
-          <p><strong>总订单数：</strong>{{ detailUser.totalOrders || 0 }}</p>
-          <p><strong>累计消费：</strong>{{ formatMoney(detailUser.totalSpent) }}</p>
-          <p v-if="detailUser.bannedReason"><strong>封禁原因：</strong>{{ detailUser.bannedReason }}</p>
-          <p v-if="detailUser.remark"><strong>备注：</strong>{{ detailUser.remark }}</p>
+        <!-- 头部卡片 -->
+        <div class="drawer-hero">
+          <div class="hero-bg"></div>
+          <div class="hero-content">
+            <el-avatar
+              v-if="detailUser.avatarUrl"
+              :src="detailUser.avatarUrl"
+              :size="72"
+              shape="square"
+              class="hero-logo"
+            />
+            <el-avatar v-else :size="72" shape="square" class="hero-logo-placeholder">
+              {{ detailUser.username?.charAt(0) || 'U' }}
+            </el-avatar>
+            <div class="hero-info">
+              <div class="hero-name-row">
+                <h2>{{ detailUser.username }}</h2>
+                <el-tag
+                  :type="detailUser.status === 'ACTIVE' ? 'success' : 'danger'"
+                  size="small"
+                  effect="dark"
+                  round
+                >
+                  {{ detailUser.status === 'ACTIVE' ? '正常' : '已封禁' }}
+                </el-tag>
+              </div>
+              <p class="hero-sub">{{ detailUser.phone || '-' }}</p>
+            </div>
+          </div>
         </div>
 
-        <el-divider>操作日志</el-divider>
-        <div class="drawer-section">
-          <el-timeline v-if="detailLogs.length">
-            <el-timeline-item
-              v-for="(l, i) in detailLogs"
-              :key="i"
-              :timestamp="l.time"
-              placement="top"
-            >
-              <strong>{{ l.action }}</strong>：{{ l.detail }}
-            </el-timeline-item>
-          </el-timeline>
-          <p v-else style="color:var(--text-secondary)">暂无操作日志</p>
+        <!-- 数据卡片 -->
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-icon" style="background:#EEF4FF;color:#5B8DEF"><el-icon><ShoppingBag /></el-icon></div>
+            <div class="stat-body">
+              <span class="stat-num">{{ detailUser.totalOrders || 0 }}</span>
+              <span class="stat-label">总订单数</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:#F0FAF0;color:#67C23A"><el-icon><Coin /></el-icon></div>
+            <div class="stat-body">
+              <span class="stat-num">{{ formatMoney(detailUser.totalSpent) }}</span>
+              <span class="stat-label">累计消费</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:#FFF8ED;color:#E6A23C"><el-icon><User /></el-icon></div>
+            <div class="stat-body">
+              <span class="stat-num">{{ genderMap[detailUser.gender] || '未知' }}</span>
+              <span class="stat-label">性别</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon" style="background:#FDF2F2;color:#F56C6C"><el-icon><Calendar /></el-icon></div>
+            <div class="stat-body">
+              <span class="stat-num stat-num-sm">{{ detailUser.birthday || '-' }}</span>
+              <span class="stat-label">生日</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 基本信息 -->
+        <div class="section">
+          <div class="section-title">基本信息</div>
+          <div class="info-list">
+            <div class="info-row">
+              <span class="info-label"><el-icon><Phone /></el-icon>手机号</span>
+              <span class="info-value">{{ detailUser.phone }}</span>
+            </div>
+            <div class="info-row" v-if="detailUser.remark">
+              <span class="info-label">备注</span>
+              <span class="info-value">{{ detailUser.remark }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 封禁信息 -->
+        <div v-if="detailUser.bannedReason" class="section banned-section">
+          <div class="section-title danger-title">
+            <el-icon><WarningFilled /></el-icon>封禁信息
+          </div>
+          <p class="banned-text">原因：{{ detailUser.bannedReason }}</p>
+          <p v-if="detailUser.bannedAt" class="banned-text">时间：{{ formatTime(detailUser.bannedAt) }}</p>
+          <p v-if="detailUser.unbannedAt" class="banned-text">解封：{{ formatTime(detailUser.unbannedAt) }}</p>
+        </div>
+
+        <!-- 时间信息 -->
+        <div class="section">
+          <div class="section-title">时间信息</div>
+          <div class="info-list">
+            <div class="info-row">
+              <span class="info-label">注册时间</span>
+              <span class="info-value">{{ formatTime(detailUser.createdAt) }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">最后登录</span>
+              <span class="info-value">{{ formatTime(detailUser.lastLoginAt) || '-' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">修改时间</span>
+              <span class="info-value">{{ formatTime(detailUser.updatedAt) || '-' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 操作日志 -->
+        <div class="section">
+          <div class="section-title">操作日志</div>
+          <div v-if="detailLogs.length" class="timeline-wrap">
+            <el-timeline>
+              <el-timeline-item
+                v-for="(l, i) in detailLogs"
+                :key="i"
+                :timestamp="formatTime(l.time)"
+                placement="top"
+                :color="i === 0 ? '#5B8DEF' : '#C0C4CC'"
+                :hollow="i !== 0"
+              >
+                <div class="timeline-card">
+                  <span class="timeline-action">{{ l.action }}</span>
+                  <p v-if="l.detail" class="timeline-detail">{{ l.detail }}</p>
+                </div>
+              </el-timeline-item>
+            </el-timeline>
+          </div>
+          <p v-else style="color:var(--text-secondary);font-size:13px">暂无操作日志</p>
         </div>
       </template>
       <el-skeleton v-else :rows="8" animated />
@@ -447,9 +542,115 @@ onMounted(() => { fetchUsers(); fetchStats() })
 .stat-item-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
 .stat-divider { width: 1px; height: 32px; background: var(--border-color); }
 
-/* ---- Drawer ---- */
-.drawer-section { padding: 0 4px; }
-.drawer-section p { margin: 8px 0; line-height: 1.6; }
+/* ---- Drawer：头部卡片 ---- */
+.drawer-hero {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.hero-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, #5B8DEF 0%, #7FA9F5 40%, #A3C4FA 100%);
+}
+.hero-content {
+  position: relative;
+  display: flex; align-items: center; gap: 16px;
+  padding: 24px 20px;
+}
+.hero-logo {
+  width: 72px; height: 72px; border-radius: 12px;
+  border: 3px solid rgba(255,255,255,.4);
+  flex-shrink: 0;
+}
+.hero-logo-placeholder {
+  font-size: 28px; font-weight: 700;
+  background: rgba(255,255,255,.25); color: #fff;
+  border: 3px solid rgba(255,255,255,.4);
+  border-radius: 12px; flex-shrink: 0;
+}
+.hero-info { flex: 1; min-width: 0; }
+.hero-name-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 6px;
+}
+.hero-name-row h2 {
+  margin: 0; font-size: 20px; font-weight: 700; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hero-sub {
+  margin: 0; font-size: 13px; color: rgba(255,255,255,.8);
+}
+
+/* ---- 数据卡片 ---- */
+.stats-row {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--bg, #f8f9fc);
+  border-radius: 10px; padding: 14px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  text-align: center;
+  transition: transform .15s, box-shadow .15s;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,.06)); }
+.stat-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.stat-body { display: flex; flex-direction: column; align-items: center; }
+.stat-num { font-size: 18px; font-weight: 700; color: var(--text-primary, #303133); line-height: 1.3; font-variant-numeric: tabular-nums; }
+.stat-num-sm { font-size: 14px; }
+.stat-label { font-size: 11px; color: var(--text-secondary, #909399); margin-top: 2px; }
+
+/* ---- 分区 ---- */
+.section { margin-bottom: 20px; }
+.section-title {
+  font-size: 14px; font-weight: 600; color: var(--text-primary, #303133);
+  margin-bottom: 12px; padding-left: 12px;
+  border-left: 3px solid #5B8DEF;
+  display: flex; align-items: center; gap: 6px;
+}
+.danger-title { border-left-color: #F56C6C; color: #F56C6C; }
+
+/* ---- 信息行 ---- */
+.info-list {
+  background: var(--bg, #f8f9fc);
+  border-radius: 10px; padding: 4px 16px;
+}
+.info-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color, #EBEEF5);
+}
+.info-row:last-child { border-bottom: none; }
+.info-label {
+  flex-shrink: 0; width: 80px;
+  font-size: 13px; color: var(--text-secondary, #909399);
+  display: flex; align-items: center; gap: 4px;
+}
+.info-value { flex: 1; font-size: 13px; color: var(--text-primary, #303133); word-break: break-all; }
+
+/* ---- 封禁区域 ---- */
+.banned-section { background: #FEF0F0; border-radius: 10px; padding: 16px; }
+.banned-section .section-title { margin-bottom: 8px; }
+.banned-text { margin: 0 0 4px; font-size: 13px; color: #F56C6C; line-height: 1.6; }
+
+/* ---- 时间线 ---- */
+.timeline-wrap { padding: 0 4px; }
+.timeline-card { margin-top: -4px; }
+.timeline-action {
+  font-size: 14px; font-weight: 600; color: var(--text-primary, #303133);
+}
+.timeline-detail {
+  margin: 4px 0 0 0; font-size: 12px; color: var(--text-secondary, #909399);
+  line-height: 1.5;
+}
+:deep(.el-timeline-item__timestamp) {
+  font-size: 12px; color: var(--text-secondary, #909399);
+}
 
 /* ---- 分页 ---- */
 .pagination-wrap { display: flex; justify-content: flex-end; margin-top: 16px; }
