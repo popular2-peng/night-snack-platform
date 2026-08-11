@@ -67,8 +67,14 @@ const newPassword = ref('')
 const selectedIds = ref<number[]>([])
 const batchLoading = ref(false)
 
-const runBatch = async (fn: (ids: number[]) => Promise<any>, action: string) => {
+const runBatch = async (fn: (ids: number[]) => Promise<any>, action: string, needConfirm = false) => {
   if (!selectedIds.value.length) { ElMessage.warning('请先勾选用户'); return }
+  // 删除为危险操作：二次确认（与单个删除一致）
+  if (needConfirm) {
+    await ElMessageBox.confirm(
+      `确定删除选中的 ${selectedIds.value.length} 个用户？删除后将同时清理其订单、收货地址等关联数据，且不可恢复！`,
+      '危险操作', { type: 'error', confirmButtonText: '确认删除' })
+  }
   batchLoading.value = true
   try {
     const res = await fn([...selectedIds.value])
@@ -242,7 +248,7 @@ onMounted(() => { fetchUsers(); fetchStats() })
           <el-button type="success" plain :loading="batchLoading" @click="runBatch(batchUnbanUsers, '批量启用')">
             批量启用 ({{ selectedIds.length }})
           </el-button>
-          <el-button type="danger" plain :loading="batchLoading" @click="runBatch(batchDeleteUsers, '批量删除')">
+          <el-button type="danger" plain :loading="batchLoading" @click="runBatch(batchDeleteUsers, '批量删除', true)">
             批量删除 ({{ selectedIds.length }})
           </el-button>
         </template>

@@ -1890,6 +1890,7 @@ PAID ──(退款)──→ REFUNDING ──(退款成功)──→ REFUNDED
 | 91 | POST | `/api/admin/users/batch-unban` | 批量启用用户 | ADMIN |
 | 92 | POST | `/api/admin/users/batch-delete` | 批量删除用户（物理删+级联） | ADMIN |
 | 93 | DELETE | `/api/admin/users/{id}` | 删除用户（物理删，级联订单/地址） | ADMIN |
+| 94 | POST | `/api/admin/merchant/batch-delete` | 批量删除商家（级联商品等） | ADMIN |
 | 93 | POST | `/api/admin/category/batch-enable` | 批量启用品类 | ADMIN |
 | 94 | POST | `/api/admin/category/batch-disable` | 批量停用品类 | ADMIN |
 | 95 | POST | `/api/admin/category/batch-delete` | 批量删除品类 | ADMIN |

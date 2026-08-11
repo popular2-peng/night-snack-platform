@@ -124,6 +124,10 @@ export const deleteMerchant = (id: number) => {
   return request.delete(`/admin/merchant/${id}`)
 }
 
+export const batchDeleteMerchants = (ids: number[]) => {
+  return request.post('/admin/merchant/batch-delete', { ids })
+}
+
 export const getMerchantLogs = (id: number) => {
   return request.get(`/admin/merchant/${id}/logs`)
 }

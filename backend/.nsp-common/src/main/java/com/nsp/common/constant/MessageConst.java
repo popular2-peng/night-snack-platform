@@ -68,6 +68,7 @@ public final class MessageConst {
     /** 用户已被封禁，无需重复操作（USER_ALREADY_BANNED） */
     public static final String USER_ALREADY_BANNED_MSG = "用户已被封禁，无需重复操作";
     public static final String USER_ACTIVE_CANNOT_DELETE_MSG = "启用账号不可删除，请先封禁";
+    public static final String MERCHANT_MUST_BANNED_MSG = "商家未封禁不可删除，请先封禁";
     /** 用户未被封禁，无法解封（USER_NOT_BANNED） */
     public static final String USER_NOT_BANNED_MSG = "用户未被封禁，无法解封";
     /** 封禁时长不能为负数（USER_BAN_DURATION_INVALID） */

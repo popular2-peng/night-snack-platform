@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import {
   listMerchants, getMerchantStats, listAllEnabledCategories,
   banMerchant, unbanMerchant, pauseMerchant, resumeMerchant, deleteMerchant,
+  batchDeleteMerchants,
 } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { MoreFilled } from '@element-plus/icons-vue'
@@ -165,11 +166,9 @@ const batchBan = async () => {
 }
 const batchDelete = async () => {
   if (!selectedIds.value.length) { ElMessage.warning('请先勾选商家'); return }
-  await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个商家？`, '危险操作', { type: 'error' })
-  for (const id of selectedIds.value) {
-    try { await deleteMerchant(id) } catch { /* continue */ }
-  }
-  ElMessage.success('批量删除完成')
+  await ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个商家？删除后将级联清理其订单、商品等数据，不可恢复。`, '危险操作', { type: 'error' })
+  const res = await batchDeleteMerchants([...selectedIds.value])
+  ElMessage.success(res.data.message || '批量删除完成')
   refreshAll()
 }
 
@@ -273,13 +272,13 @@ onMounted(() => { refreshAll(); fetchCategories() })
                 <el-dropdown-item @click="editTarget = row; editVisible = true">编辑</el-dropdown-item>
                 <template v-if="row.status === 'SUSPENDED'">
                   <el-dropdown-item @click="handleUnban(row)" style="color:#67C23A">解封</el-dropdown-item>
+                  <el-dropdown-item divided @click="handleDelete(row)" style="color:#F56C6C">删除</el-dropdown-item>
                 </template>
                 <template v-else>
                   <el-dropdown-item v-if="row.status === 'OPEN'" @click="handlePause(row)">暂停营业</el-dropdown-item>
                   <el-dropdown-item v-if="row.status === 'CLOSED'" @click="handleResume(row)">恢复营业</el-dropdown-item>
                   <el-dropdown-item divided @click="openBan(row)" style="color:#F56C6C">封禁</el-dropdown-item>
                 </template>
-                <el-dropdown-item divided @click="handleDelete(row)" style="color:#F56C6C">删除</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>

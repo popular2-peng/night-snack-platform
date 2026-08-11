@@ -2,6 +2,7 @@ package com.nsp.server.service;
 
 import com.nsp.pojo.dto.BanMerchantDTO;
 import com.nsp.pojo.vo.AdminMerchantVO;
+import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.MerchantDetailVO;
 import com.nsp.pojo.vo.MerchantStatsVO;
 import com.nsp.pojo.vo.PageVO;
@@ -44,6 +45,9 @@ public interface MerchantAdminService {
 
     /** 软删（deleted=1） */
     void softDelete(Long id, Long operatorId);
+
+    /** 批量删除商家（级联清理订单/商品等，未封禁/不存在的跳过） */
+    BatchResultVO batchDelete(java.util.List<Long> ids);
 
     /** 操作日志列表（简易版，返回 Map 列表） */
     List<Map<String, Object>> getOperationLogs(Long id);

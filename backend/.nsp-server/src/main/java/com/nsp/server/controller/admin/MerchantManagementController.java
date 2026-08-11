@@ -2,7 +2,9 @@ package com.nsp.server.controller.admin;
 
 import com.nsp.common.result.Result;
 import com.nsp.pojo.dto.BanMerchantDTO;
+import com.nsp.pojo.dto.BatchIdsDTO;
 import com.nsp.pojo.vo.AdminMerchantVO;
+import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.MerchantDetailVO;
 import com.nsp.pojo.vo.MerchantStatsVO;
 import com.nsp.pojo.vo.PageVO;
@@ -108,12 +110,18 @@ public class MerchantManagementController {
         return Result.ok();
     }
 
-    @Operation(summary = "删除商家（软删）")
+    @Operation(summary = "删除商家（仅封禁可删，级联清理订单/商品/分类）")
     @DeleteMapping("/merchant/{id}")
     public Result<Void> delete(@PathVariable Long id,
                                @AuthenticationPrincipal Long operatorId) {
         merchantAdminService.softDelete(id, operatorId);
         return Result.ok();
+    }
+
+    @Operation(summary = "批量删除商家（级联清理订单/商品等，未封禁自动跳过）")
+    @PostMapping("/merchant/batch-delete")
+    public Result<BatchResultVO> batchDelete(@Valid @RequestBody BatchIdsDTO dto) {
+        return Result.ok(merchantAdminService.batchDelete(dto.getIds()));
     }
 
     @Operation(summary = "操作日志列表")
