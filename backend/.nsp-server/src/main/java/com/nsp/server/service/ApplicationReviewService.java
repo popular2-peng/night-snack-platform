@@ -31,7 +31,10 @@ public interface ApplicationReviewService {
     /** 拒绝入驻申请（旧签名，兼容） */
     void rejectApplication(Long id, Long reviewerId, AuditDTO dto);
 
-    /** 批量删除入驻申请（不存在/已删除的跳过） */
-    BatchResultVO batchDelete(java.util.List<Long> ids);
+    /** 批量通过（已审核的自动跳过，默认营业中+配送半径5000） */
+    BatchResultVO batchApprove(java.util.List<Long> ids, Long reviewerId);
+
+    /** 批量拒绝（统一拒绝原因，已审核的自动跳过） */
+    BatchResultVO batchReject(java.util.List<Long> ids, Long reviewerId, String rejectReason);
 
 }

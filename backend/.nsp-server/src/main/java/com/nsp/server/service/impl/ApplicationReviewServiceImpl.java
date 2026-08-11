@@ -242,19 +242,45 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
 
     @Override
     @Transactional
-    public BatchResultVO batchDelete(List<Long> ids) {
+    public BatchResultVO batchApprove(List<Long> ids, Long reviewerId) {
         BatchResultVO result = new BatchResultVO();
-        int missing = 0;
+        int audited = 0, missing = 0;
         for (Long id : ids) {
             MerchantApplication app = merchantApplicationMapper.selectById(id);
             if (app == null) { missing++; continue; }
-            merchantApplicationMapper.deleteById(id);
+            // 已审核（通过/拒绝）的跳过
+            if (!"PENDING".equals(app.getStatus())) { audited++; continue; }
+
+            // 批量通过使用默认配置：营业中 + 配送半径 5000
+            approveApplicationV2(id, reviewerId, new ApproveApplicationDTO());
             result.setSuccessCount(result.getSuccessCount() + 1);
-            log.info("批量删除入驻申请: id={}, shopName={}", id, app.getShopName());
         }
-        result.setSkippedCount(missing);
+        result.setSkippedCount(audited + missing);
+        if (audited > 0) result.addSkipped(audited + " 条申请已审核");
         if (missing > 0) result.addSkipped(missing + " 条申请不存在");
-        log.info("批量删除入驻申请: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
+        log.info("批量通过入驻申请: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public BatchResultVO batchReject(List<Long> ids, Long reviewerId, String rejectReason) {
+        BatchResultVO result = new BatchResultVO();
+        int audited = 0, missing = 0;
+        for (Long id : ids) {
+            MerchantApplication app = merchantApplicationMapper.selectById(id);
+            if (app == null) { missing++; continue; }
+            if (!"PENDING".equals(app.getStatus())) { audited++; continue; }
+
+            RejectApplicationDTO dto = new RejectApplicationDTO();
+            dto.setRejectReason(rejectReason);
+            rejectApplicationV2(id, reviewerId, dto);
+            result.setSuccessCount(result.getSuccessCount() + 1);
+        }
+        result.setSkippedCount(audited + missing);
+        if (audited > 0) result.addSkipped(audited + " 条申请已审核");
+        if (missing > 0) result.addSkipped(missing + " 条申请不存在");
+        log.info("批量拒绝入驻申请: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
         return result;
     }
 

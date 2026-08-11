@@ -4,6 +4,7 @@ import com.nsp.common.result.Result;
 import com.nsp.pojo.dto.ApproveApplicationDTO;
 import com.nsp.pojo.dto.AuditDTO;
 import com.nsp.pojo.dto.BatchIdsDTO;
+import com.nsp.pojo.dto.BatchRejectDTO;
 import com.nsp.pojo.dto.RejectApplicationDTO;
 import com.nsp.pojo.vo.AdminApplicationVO;
 import com.nsp.pojo.vo.BatchResultVO;
@@ -65,10 +66,18 @@ public class ApplicationReviewController {
         return Result.ok(applicationReviewService.getApplicationDetail(id));
     }
 
-    @Operation(summary = "批量删除入驻申请（不存在/已删除的自动跳过）")
-    @PostMapping("/merchant-application/batch-delete")
-    public Result<BatchResultVO> batchDelete(@Valid @RequestBody BatchIdsDTO dto) {
-        return Result.ok(applicationReviewService.batchDelete(dto.getIds()));
+    @Operation(summary = "批量通过入驻申请（已审核的自动跳过，默认营业中+配送半径5000）")
+    @PostMapping("/merchant-application/batch-approve")
+    public Result<BatchResultVO> batchApprove(@Valid @RequestBody BatchIdsDTO dto,
+                                              @AuthenticationPrincipal Long reviewerId) {
+        return Result.ok(applicationReviewService.batchApprove(dto.getIds(), reviewerId));
+    }
+
+    @Operation(summary = "批量拒绝入驻申请（统一拒绝原因，已审核的自动跳过）")
+    @PostMapping("/merchant-application/batch-reject")
+    public Result<BatchResultVO> batchReject(@Valid @RequestBody BatchRejectDTO dto,
+                                             @AuthenticationPrincipal Long reviewerId) {
+        return Result.ok(applicationReviewService.batchReject(dto.getIds(), reviewerId, dto.getRejectReason()));
     }
 
     @Operation(summary = "通过入驻申请（V2，含初始营业状态/配送半径/审核备注）")

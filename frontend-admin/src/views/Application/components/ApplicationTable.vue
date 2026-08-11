@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import {
-  listApplications, listAllEnabledCategories, batchDeleteApplications,
+  listApplications, listAllEnabledCategories,
+  batchApproveApplications, batchRejectApplications,
 } from '@/apis/admin'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import SearchFilterBar from '@/components/SearchFilterBar.vue'
 import StatsStrip from '@/components/StatsStrip.vue'
 import ApplicationDetailDrawer from './ApplicationDetailDrawer.vue'
@@ -98,16 +99,36 @@ const handleAuditDone = () => {
   fetchStats()
 }
 
-// ---- 批量删除 ----
+// ---- 批量通过 / 批量拒绝 ----
 const selectedIds = ref<number[]>([])
 const batchLoading = ref(false)
 
-const handleBatchDelete = async () => {
+const handleBatchApprove = async () => {
   if (!selectedIds.value.length) { ElMessage.warning('请先勾选申请'); return }
+  await ElMessageBox.confirm(
+    `确定通过选中的 ${selectedIds.value.length} 条入驻申请？将通过并创建商家（默认营业中，配送半径 5000 米）。`,
+    '批量通过', { type: 'warning', confirmButtonText: '确认通过' })
   batchLoading.value = true
   try {
-    const res = await batchDeleteApplications([...selectedIds.value])
-    ElMessage.success(res.data.message || '批量删除完成')
+    const res = await batchApproveApplications([...selectedIds.value])
+    ElMessage.success(res.data.message || '批量通过完成')
+    selectedIds.value = []
+    fetchApps()
+    fetchStats()
+  } catch { /* 拦截器已提示 */ }
+  finally { batchLoading.value = false }
+}
+
+const handleBatchReject = async () => {
+  if (!selectedIds.value.length) { ElMessage.warning('请先勾选申请'); return }
+  const { value: reason } = await ElMessageBox.prompt(
+    `将拒绝选中的 ${selectedIds.value.length} 条入驻申请，请输入统一的拒绝原因（10-200 字，将展示给商家）：`,
+    '批量拒绝', { confirmButtonText: '确认拒绝', inputType: 'textarea', inputValidator: (v: string) => (v && v.length >= 10 && v.length <= 200) || '拒绝原因需 10-200 字' })
+  if (!reason) return
+  batchLoading.value = true
+  try {
+    const res = await batchRejectApplications([...selectedIds.value], reason)
+    ElMessage.success(res.data.message || '批量拒绝完成')
     selectedIds.value = []
     fetchApps()
     fetchStats()
@@ -150,8 +171,11 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
       <!-- 批量操作（与商家管理页一致：搜索栏右侧，选中后显示） -->
       <template #extra>
         <template v-if="selectedIds.length">
-          <el-button type="danger" plain :loading="batchLoading" @click="handleBatchDelete">
-            批量删除 ({{ selectedIds.length }})
+          <el-button type="success" plain :loading="batchLoading" @click="handleBatchApprove">
+            批量通过 ({{ selectedIds.length }})
+          </el-button>
+          <el-button type="danger" plain :loading="batchLoading" @click="handleBatchReject">
+            批量拒绝 ({{ selectedIds.length }})
           </el-button>
         </template>
       </template>

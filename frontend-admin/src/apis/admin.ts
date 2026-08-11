@@ -32,8 +32,12 @@ export const getApplicationDetail = (id: number) => {
   return request.get(`/admin/merchant-application/${id}/detail`)
 }
 
-export const batchDeleteApplications = (ids: number[]) => {
-  return request.post('/admin/merchant-application/batch-delete', { ids })
+export const batchApproveApplications = (ids: number[]) => {
+  return request.post('/admin/merchant-application/batch-approve', { ids })
+}
+
+export const batchRejectApplications = (ids: number[], rejectReason: string) => {
+  return request.post('/admin/merchant-application/batch-reject', { ids, rejectReason })
 }
 
 export const approveApplicationV2 = (id: number, data: { initialStatus?: string; deliveryRadius?: number; reviewNote?: string }) => {

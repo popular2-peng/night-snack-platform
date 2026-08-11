@@ -1895,7 +1895,8 @@ PAID ──(退款)──→ REFUNDING ──(退款成功)──→ REFUNDED
 | 94 | POST | `/api/admin/category/batch-disable` | 批量停用品类 | ADMIN |
 | 95 | POST | `/api/admin/category/batch-delete` | 批量删除品类 | ADMIN |
 | 96 | POST | `/api/admin/orders/batch-delete` | 批量删除订单 | ADMIN |
-| 97 | POST | `/api/admin/merchant-application/batch-delete` | 批量删除入驻申请 | ADMIN |
+| 97 | POST | `/api/admin/merchant-application/batch-approve` | 批量通过入驻申请 | ADMIN |
+| 98 | POST | `/api/admin/merchant-application/batch-reject` | 批量拒绝入驻申请 | ADMIN |
 
 ---
 
