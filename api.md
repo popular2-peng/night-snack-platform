@@ -1044,8 +1044,9 @@ POST /api/admin/application/{id}/approve
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `initialStatus` | string | 是 | 初始营业状态：`OPEN`(营业中) / `CLOSED`(打烊) |
-| `deliveryRadius` | int | 是 | 配送半径（米），范围 500–20000 |
 | `reviewNote` | string | 否 | 审核备注（内部留存，≤200 字） |
+
+> 配送半径不在审核时配置：商家审核通过后自行在店铺设置中调整（默认 5000 米）。
 
 > 商家账号直接复用申请时填写的 `username` / `password`（见 3.5），凭据缺失（早期申请数据）时报 `1100`。
 
@@ -1179,18 +1180,6 @@ PUT /api/admin/users/{id}/enable
 > `deprecated` — 委托给 unban。
 
 **可能错误码：** `2003`, `2304`
-
----
-
-#### 重置密码
-
-```
-PUT /api/admin/users/{id}/reset-password
-```
-
-> 随机生成新密码并重置（用户下次登录用新密码）。响应 `data` 为新密码字符串。
-
-**可能错误码：** `2003`, `2305`（用户状态异常）
 
 ---
 
@@ -1858,7 +1847,6 @@ PAID ──(退款)──→ REFUNDING ──(退款成功)──→ REFUNDED
 | 59 | PUT | `/api/admin/users/{id}/unban` | 解封用户（推荐） | ADMIN |
 | 60 | PUT | `/api/admin/users/{id}/disable` | 封禁用户（旧版兼容） | ADMIN |
 | 61 | PUT | `/api/admin/users/{id}/enable` | 解封用户（旧版兼容） | ADMIN |
-| 62 | PUT | `/api/admin/users/{id}/reset-password` | 重置密码 | ADMIN |
 | 63 | GET | `/api/admin/users/{id}/logs` | 用户操作日志 | ADMIN |
 | 64 | GET | `/api/admin/merchants` | 商家列表(V1) | ADMIN |
 | 65 | PUT | `/api/admin/merchants/{id}/suspend` | 封禁商家(V1) | ADMIN |

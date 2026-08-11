@@ -87,15 +87,6 @@ public class UserManagementController {
         return Result.ok();
     }
 
-    @Operation(summary = "重置密码（返回新密码）")
-    @PutMapping("/users/{id}/reset-password")
-    public Result<String> resetPassword(
-            @Parameter(description = "用户 ID") @PathVariable Long id,
-            @AuthenticationPrincipal Long operatorId) {
-        String newPassword = userManagementService.resetPassword(id, operatorId);
-        return Result.ok(newPassword);
-    }
-
     @Operation(summary = "删除用户（物理删除 + 级联清理订单/地址，启用账号不可删除）")
     @DeleteMapping("/users/{id}")
     public Result<Void> deleteUser(

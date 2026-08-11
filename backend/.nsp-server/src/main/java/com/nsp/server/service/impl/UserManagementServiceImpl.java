@@ -1,7 +1,6 @@
 package com.nsp.server.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
@@ -30,7 +29,6 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -54,8 +52,6 @@ public class UserManagementServiceImpl implements UserManagementService {
     private final OrderStatusLogMapper orderStatusLogMapper;
     private final PaymentRecordMapper paymentRecordMapper;
     private final AddressMapper addressMapper;
-
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Override
     public PageVO<AdminUserVO> listUsers(int page, int size, String keyword,
@@ -275,26 +271,6 @@ public class UserManagementServiceImpl implements UserManagementService {
 
         // 3. 用户本身（物理删除，绕过逻辑删除拦截）
         userMapper.physicalDeleteById(userId);
-    }
-
-    @Override
-    @Transactional
-    public String resetPassword(Long id, Long operatorId) {
-        User user = findById(id);
-
-        if ("DISABLED".equals(user.getStatus())) {
-            throw new BizException(ErrorCode.USER_RESET_PASSWORD_FAIL, MessageConst.USER_RESET_PASSWORD_BANNED_MSG);
-        }
-
-        // 生成 8 位随机密码（字母+数字）
-        String newPassword = RandomUtil.randomString(8);
-        user.setPassword(passwordEncoder.encode(newPassword));
-        userMapper.updateById(user);
-
-        writeOperationLogAsync(user.getId(), "RESET_PASSWORD", operatorId, "管理员重置密码");
-
-        log.info("管理员重置密码: userId={}, operatorId={}", id, operatorId);
-        return newPassword;
     }
 
     @Override

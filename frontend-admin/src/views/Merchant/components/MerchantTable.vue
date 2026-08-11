@@ -47,10 +47,6 @@ const banVisible = ref(false)
 const banTarget = ref<MerchantItem | null>(null)
 const banReason = ref('')
 
-// 编辑弹窗（占位）
-const editVisible = ref(false)
-const editTarget = ref<MerchantItem | null>(null)
-
 // ---- 状态映射 ----
 const statusMap: Record<string, { label: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
   OPEN: { label: '营业中', type: 'success' },
@@ -269,7 +265,6 @@ onMounted(() => { refreshAll(); fetchCategories() })
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click="openDetail(row)">查看详情</el-dropdown-item>
-                <el-dropdown-item @click="editTarget = row; editVisible = true">编辑</el-dropdown-item>
                 <template v-if="row.status === 'SUSPENDED'">
                   <el-dropdown-item @click="handleUnban(row)" style="color:#67C23A">解封</el-dropdown-item>
                   <el-dropdown-item divided @click="handleDelete(row)" style="color:#F56C6C">删除</el-dropdown-item>
@@ -310,15 +305,6 @@ onMounted(() => { refreshAll(); fetchCategories() })
       <template #footer>
         <el-button @click="banVisible = false">取消</el-button>
         <el-button type="danger" :disabled="!banReason.trim()" @click="confirmBan">确认封禁</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- ====== 编辑弹窗（骨架） ====== -->
-    <el-dialog v-model="editVisible" title="编辑商家" width="500px">
-      <p style="color:var(--text-secondary)">编辑功能将在后续版本实现。</p>
-      <p>当前商家: <strong>{{ editTarget?.name }}</strong></p>
-      <template #footer>
-        <el-button @click="editVisible = false">关闭</el-button>
       </template>
     </el-dialog>
 

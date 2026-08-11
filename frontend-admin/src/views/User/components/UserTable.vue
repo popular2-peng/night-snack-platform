@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import {
-  listUsers, getUserDetail, banUser, unbanUser, resetPassword, getUserLogs, deleteUser,
+  listUsers, getUserDetail, banUser, unbanUser, getUserLogs, deleteUser,
   batchUnbanUsers, batchDeleteUsers,
 } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -53,15 +53,6 @@ const banTarget = ref<UserItem | null>(null)
 const banReason = ref('')
 const banDuration = ref<number | null>(null)
 const banDurationType = ref<'forever' | 'days' | 'custom'>('forever')
-
-// 编辑弹窗（骨架）
-const editVisible = ref(false)
-const editTarget = ref<UserItem | null>(null)
-
-// 重置密码弹窗
-const resetPwdVisible = ref(false)
-const resetPwdTarget = ref<UserItem | null>(null)
-const newPassword = ref('')
 
 // 批量操作
 const selectedIds = ref<number[]>([])
@@ -192,28 +183,6 @@ const handleDelete = async (row: UserItem) => {
   fetchStats()
 }
 
-// ---- 重置密码 ----
-const openResetPwd = (row: UserItem) => {
-  resetPwdTarget.value = row
-  newPassword.value = ''
-  resetPwdVisible.value = true
-}
-const confirmResetPwd = async () => {
-  const res = await resetPassword(resetPwdTarget.value!.id)
-  newPassword.value = res.data
-  ElMessage.success('密码已重置')
-}
-const copyPassword = () => {
-  navigator.clipboard.writeText(newPassword.value)
-  ElMessage.success('已复制到剪贴板')
-}
-
-// ---- 编辑（骨架） ----
-const openEdit = (row: UserItem) => {
-  editTarget.value = row
-  editVisible.value = true
-}
-
 onMounted(() => { fetchUsers(); fetchStats() })
 </script>
 
@@ -326,8 +295,6 @@ onMounted(() => { fetchUsers(); fetchStats() })
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click="openDetail(row)">查看详情</el-dropdown-item>
-                <el-dropdown-item @click="openEdit(row)">编辑</el-dropdown-item>
-                <el-dropdown-item @click="openResetPwd(row)">重置密码</el-dropdown-item>
                 <template v-if="row.status === 'ACTIVE'">
                   <el-dropdown-item divided @click="openBan(row)" style="color:#F56C6C">封禁</el-dropdown-item>
                 </template>
@@ -525,29 +492,6 @@ onMounted(() => { fetchUsers(); fetchStats() })
       <template #footer>
         <el-button @click="banVisible = false">取消</el-button>
         <el-button type="danger" :disabled="!banReason.trim()" @click="confirmBan">确认封禁</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- ====== 重置密码弹窗 ====== -->
-    <el-dialog v-model="resetPwdVisible" title="重置密码" width="420px">
-      <p>为用户「<strong>{{ resetPwdTarget?.username }}</strong>」重置密码</p>
-      <p v-if="newPassword" style="margin:16px 0">
-        新密码：<el-tag type="success" size="large" style="font-family:monospace;font-size:16px;cursor:pointer" @click="copyPassword">{{ newPassword }}</el-tag>
-        <el-button size="small" type="primary" plain style="margin-left:8px" @click="copyPassword">复制</el-button>
-      </p>
-      <p v-if="!newPassword" style="color:var(--text-secondary);margin:16px 0">确认后将随机生成一个新密码。</p>
-      <template #footer>
-        <el-button @click="resetPwdVisible = false">关闭</el-button>
-        <el-button v-if="!newPassword" type="primary" @click="confirmResetPwd">确认重置</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- ====== 编辑弹窗（骨架） ====== -->
-    <el-dialog v-model="editVisible" title="编辑用户" width="500px">
-      <p style="color:var(--text-secondary)">编辑功能将在后续版本实现。</p>
-      <p>当前用户: <strong>{{ editTarget?.username }}</strong></p>
-      <template #footer>
-        <el-button @click="editVisible = false">关闭</el-button>
       </template>
     </el-dialog>
 

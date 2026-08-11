@@ -45,9 +45,6 @@ public interface UserManagementService {
      */
     void unbanUser(Long id, Long operatorId);
 
-    /** 重置用户密码（返回新密码） */
-    String resetPassword(Long id, Long operatorId);
-
     /** 批量启用（未封禁/已删除的跳过；封禁需选时长，不提供批量封禁） */
     BatchResultVO batchUnban(List<Long> ids, Long operatorId);
 

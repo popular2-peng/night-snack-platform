@@ -138,7 +138,8 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         merchant.setDescription(app.getDescription());
         merchant.setIdCardNo(app.getIdCardNo());
         merchant.setStatus(dto.getInitialStatus() != null ? dto.getInitialStatus() : "OPEN");
-        merchant.setDeliveryRadius(dto.getDeliveryRadius() != null ? dto.getDeliveryRadius() : 5000);
+        // 配送半径由商家审核通过后自行设置，此处给默认值 5000 米
+        merchant.setDeliveryRadius(5000);
         merchant.setAvgRating(BigDecimal.valueOf(5.0));                // 新店默认 5.0 分
         merchant.setTotalOrders(0);
         // 注册时填写的地址 + 百度地理编码坐标（若有）

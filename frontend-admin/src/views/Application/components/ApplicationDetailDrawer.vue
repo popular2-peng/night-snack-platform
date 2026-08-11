@@ -26,8 +26,8 @@ const loading = ref(false)
 const mode = ref<'view' | 'approve' | 'reject'>('view')
 const submitting = ref(false)
 
-// 通过表单
-const approveForm = ref({ initialStatus: 'OPEN', deliveryRadius: 3000, reviewNote: '' })
+// 通过表单（配送半径由商家审核通过后自行设置，此处不配置）
+const approveForm = ref({ initialStatus: 'OPEN', reviewNote: '' })
 // 拒绝表单
 const rejectReason = ref('')
 const rejectCharCount = computed(() => rejectReason.value.length)
@@ -171,10 +171,6 @@ const confirmReject = async () => {
               <el-option label="营业中" value="OPEN" />
               <el-option label="打烊" value="CLOSED" />
             </el-select>
-          </el-form-item>
-          <el-form-item label="配送半径">
-            <el-input-number v-model="approveForm.deliveryRadius" :min="500" :max="20000" :step="500" style="width:100%" />
-            <span style="margin-left:8px;font-size:12px;color:var(--text-secondary)">米</span>
           </el-form-item>
           <el-form-item label="审核备注">
             <el-input v-model="approveForm.reviewNote" type="textarea" :rows="3" placeholder="可选，内部留存"

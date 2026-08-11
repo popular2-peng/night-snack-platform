@@ -106,7 +106,7 @@ const batchLoading = ref(false)
 const handleBatchApprove = async () => {
   if (!selectedIds.value.length) { ElMessage.warning('请先勾选申请'); return }
   await ElMessageBox.confirm(
-    `确定通过选中的 ${selectedIds.value.length} 条入驻申请？将通过并创建商家（默认营业中，配送半径 5000 米）。`,
+    `确定通过选中的 ${selectedIds.value.length} 条入驻申请？将通过并创建商家（默认营业中，配送半径由商家自行设置）。`,
     '批量通过', { type: 'warning', confirmButtonText: '确认通过' })
   batchLoading.value = true
   try {
