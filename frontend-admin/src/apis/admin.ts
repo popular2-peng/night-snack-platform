@@ -119,6 +119,15 @@ export const activateMerchant = (id: number) => {
   return request.put(`/admin/merchants/${id}/activate`)
 }
 
+// ---- 订单管理 ----
+export const listAdminOrders = (params: { page: number; size: number; keyword?: string; status?: string; dateStart?: string; dateEnd?: string }) => {
+  return request.get('/admin/orders', { params })
+}
+
+export const getAdminOrderDetail = (id: number) => {
+  return request.get(`/admin/orders/${id}`)
+}
+
 // ---- 品类管理 ----
 export const listCategories = (params: { page: number; size: number; keyword?: string; status?: string }) => {
   return request.get('/admin/category', { params })

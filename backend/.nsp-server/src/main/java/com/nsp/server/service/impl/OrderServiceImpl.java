@@ -28,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -51,6 +52,7 @@ public class OrderServiceImpl implements OrderService {
     private final ProductMapper productMapper;
     private final ProductSpecMapper productSpecMapper;
     private final MerchantMapper merchantMapper;
+    private final UserMapper userMapper;
     private final AddressMapper addressMapper;
     private final StringRedisTemplate redisTemplate;
     private final MapService mapService;
@@ -192,6 +194,52 @@ public class OrderServiceImpl implements OrderService {
                         .orderByDesc(Order::getCreatedAt));
 
         return toPageVO(result);
+    }
+
+    @Override
+    public PageVO<AdminOrderVO> getAdminOrders(int page, int size, String keyword,
+                                               String status, String dateStart, String dateEnd) {
+        LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
+        wrapper.orderByDesc(Order::getCreatedAt);
+
+        // 关键词：订单号模糊 / 下单用户名模糊 / 商家名模糊（后两者用子查询关联 user、merchant 表）
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w -> w.like(Order::getOrderNo, keyword)
+                    .or().inSql(Order::getUserId,
+                            "SELECT id FROM user WHERE username LIKE '%" + keyword + "%'")
+                    .or().inSql(Order::getMerchantId,
+                            "SELECT id FROM merchant WHERE name LIKE '%" + keyword + "%'"));
+        }
+
+        // 状态筛选（非法状态值忽略，不拼条件）
+        if (status != null && !status.isBlank()) {
+            OrderStatus statusEnum = OrderStatus.fromCode(status);
+            if (statusEnum != null) {
+                wrapper.eq(Order::getStatus, statusEnum);
+            }
+        }
+
+        // 下单时间范围（含边界当天）
+        if (dateStart != null && !dateStart.isBlank()) {
+            wrapper.ge(Order::getCreatedAt, LocalDate.parse(dateStart).atStartOfDay());
+        }
+        if (dateEnd != null && !dateEnd.isBlank()) {
+            wrapper.le(Order::getCreatedAt, LocalDate.parse(dateEnd).atTime(LocalTime.MAX));
+        }
+
+        Page<Order> result = orderMapper.selectPage(new Page<>(page, size), wrapper);
+
+        List<AdminOrderVO> list = result.getRecords().stream().map(o -> {
+            AdminOrderVO vo = new AdminOrderVO();
+            BeanUtil.copyProperties(o, vo);
+            vo.setStatus(o.getStatus().getCode());
+            Merchant m = merchantMapper.selectById(o.getMerchantId());
+            vo.setMerchantName(m != null ? m.getName() : "");
+            User u = userMapper.selectById(o.getUserId());
+            vo.setUsername(u != null ? u.getUsername() : "");
+            return vo;
+        }).toList();
+        return new PageVO<>(result.getTotal(), list);
     }
 
     @Override

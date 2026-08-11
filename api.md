@@ -1558,6 +1558,97 @@ POST /api/admin/category/reorder
 
 ---
 
+### 6.7 订单管理
+
+> 管理员可查看平台全部订单（含用户名/商家名），**不做状态流转操作**（接单/拒单由商家端完成）。
+
+#### 订单列表
+
+```
+GET /api/admin/orders
+```
+
+**查询参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `page` | int | 否 | 页码，默认 1 |
+| `size` | int | 否 | 每页条数，默认 20 |
+| `keyword` | string | 否 | 订单号 / 下单用户名 / 商家名模糊搜索 |
+| `status` | string | 否 | 状态筛选（见下方状态码表） |
+| `dateStart` | string | 否 | 下单起始日期（`yyyy-MM-dd`，含当天） |
+| `dateEnd` | string | 否 | 下单截止日期（`yyyy-MM-dd`，含当天） |
+
+**响应 data：** `PageVO<AdminOrderVO>`
+
+```json
+{
+  "total": 28,
+  "list": [
+    {
+      "id": 15,
+      "orderNo": "NSP20260727015",
+      "username": "liuer",
+      "merchantName": "川味牛肉面馆",
+      "status": "PAID",
+      "totalAmount": 22.00,
+      "payChannel": "WECHAT_MOCK",
+      "createdAt": "2026-08-05T13:04:56"
+    }
+  ]
+}
+```
+
+#### 订单详情
+
+```
+GET /api/admin/orders/{id}
+```
+
+**响应 data：** `OrderVO`（含 `items` 商品明细、`statusLogs` 状态流转、`addressSnapshot` 地址快照 JSON）
+
+```json
+{
+  "id": 15,
+  "orderNo": "NSP20260727015",
+  "merchantName": "川味牛肉面馆",
+  "status": "PAID",
+  "totalAmount": 22.00,
+  "addressSnapshot": "{\"receiver\":\"张二\",\"phone\":\"13800001116\",\"detail\":\"海淀区知春路56号\"}",
+  "payChannel": "WECHAT_MOCK",
+  "payTime": "2026-08-05T13:05:02",
+  "items": [
+    {
+      "productId": 9,
+      "specId": 25,
+      "nameSnapshot": "招牌牛肉面-标准份",
+      "priceSnapshot": 22.00,
+      "quantity": 1,
+      "imageUrl": "https://..."
+    }
+  ],
+  "statusLogs": [
+    { "fromStatus": null, "toStatus": "PENDING_PAY", "operator": "USER", "reason": "用户下单", "createdAt": "2026-01-22T02:36:44" }
+  ],
+  "createdAt": "2026-08-05T13:04:56"
+}
+```
+
+**订单状态码表（`status` 与筛选共用）：**
+
+| 状态码 | 中文 | 说明 |
+|--------|------|------|
+| `PENDING_PAY` | 待支付 | 下单未支付 |
+| `PAID` | 已支付 | 支付成功待接单 |
+| `ACCEPTED` | 已接单 | 商家已接单 |
+| `COOKING` | 制作中 | 商家制作中 |
+| `COMPLETED` | 已完成 | 制作完成送达 |
+| `CANCELLED` | 已取消 | 用户取消 / 商家拒单 |
+| `REFUNDING` | 退款中 | 退款处理中 |
+| `REFUNDED` | 已退款 | 退款完成 |
+
+---
+
 ## 七、文件上传接口（`/api/upload/*`）
 
 > 鉴权：Header `Authorization: Bearer <token>`  
@@ -1769,10 +1860,12 @@ PAID ──(退款)──→ REFUNDING ──(退款成功)──→ REFUNDED
 | 82 | PUT | `/api/admin/category/{id}/disable` | 停用品类 | ADMIN |
 | 83 | DELETE | `/api/admin/category/{id}` | 删除品类 | ADMIN |
 | 84 | POST | `/api/admin/category/reorder` | 批量排序 | ADMIN |
-| 85 | GET | `/api/upload/sign` | OSS 上传签名 | 登录 |
-| 86 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
-| 87 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
-| 88 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
+| 85 | GET | `/api/admin/orders` | 订单列表 | ADMIN |
+| 86 | GET | `/api/admin/orders/{id}` | 订单详情 | ADMIN |
+| 87 | GET | `/api/upload/sign` | OSS 上传签名 | 登录 |
+| 88 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
+| 89 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
+| 90 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
 
 ---
 
