@@ -1,7 +1,9 @@
 package com.nsp.server.controller.admin;
 
 import com.nsp.common.result.Result;
+import com.nsp.pojo.dto.BatchIdsDTO;
 import com.nsp.pojo.vo.AdminOrderVO;
+import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.OrderVO;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.server.annotation.RequireRole;
@@ -9,6 +11,7 @@ import com.nsp.server.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,6 +45,12 @@ public class AdminOrderController {
     @GetMapping("/orders/{id}")
     public Result<OrderVO> detail(@Parameter(description = "订单 ID") @PathVariable Long id) {
         return Result.ok(orderService.getOrderDetail(id, null, "ADMIN"));
+    }
+
+    @Operation(summary = "批量删除订单（级联删明细/日志/支付记录）")
+    @PostMapping("/orders/batch-delete")
+    public Result<BatchResultVO> batchDelete(@Valid @RequestBody BatchIdsDTO dto) {
+        return Result.ok(orderService.batchDelete(dto.getIds()));
     }
 
 }

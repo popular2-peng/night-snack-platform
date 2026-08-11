@@ -41,6 +41,15 @@ public interface PlatformCategoryService {
     /** 软删（仅停用状态且无关联商家时可删） */
     void softDelete(Long id);
 
+    /** 批量启用（已启用/已删除的跳过） */
+    com.nsp.pojo.vo.BatchResultVO batchEnable(java.util.List<Long> ids);
+
+    /** 批量停用（有关联商家店铺的跳过） */
+    com.nsp.pojo.vo.BatchResultVO batchDisable(java.util.List<Long> ids);
+
+    /** 批量删除（仅停用且无商家绑定的可删，其余跳过） */
+    com.nsp.pojo.vo.BatchResultVO batchDelete(java.util.List<Long> ids);
+
     /** 批量更新排序 */
     void reorder(List<CategoryReorderDTO> items);
 

@@ -423,6 +423,34 @@ public class OrderServiceImpl implements OrderService {
     }
 
     // ──────────────────────────────────────
+    // 批量删除（管理端）
+    // ──────────────────────────────────────
+
+    @Override
+    @Transactional
+    public BatchResultVO batchDelete(List<Long> ids) {
+        BatchResultVO result = new BatchResultVO();
+        int missing = 0;
+        for (Long id : ids) {
+            Order order = orderMapper.selectById(id);
+            if (order == null) { missing++; continue; }
+
+            // 级联删除：订单明细 / 状态流转日志 / 支付记录（payment_record 无外键，按 order_no 关联）
+            orderItemMapper.delete(new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, id));
+            orderStatusLogMapper.delete(new LambdaQueryWrapper<OrderStatusLog>().eq(OrderStatusLog::getOrderId, id));
+            paymentRecordMapper.delete(new LambdaQueryWrapper<PaymentRecord>().eq(PaymentRecord::getOrderNo, order.getOrderNo()));
+            orderMapper.deleteById(id);
+
+            result.setSuccessCount(result.getSuccessCount() + 1);
+            log.info("批量删除订单: id={}, orderNo={}", id, order.getOrderNo());
+        }
+        result.setSkippedCount(missing);
+        if (missing > 0) result.addSkipped(missing + " 条订单不存在");
+        log.info("批量删除订单: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
+        return result;
+    }
+
+    // ──────────────────────────────────────
     // 内部方法 — 库存
     // ──────────────────────────────────────
 

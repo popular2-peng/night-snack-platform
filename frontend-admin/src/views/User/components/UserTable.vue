@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import {
   listUsers, getUserDetail, banUser, unbanUser, resetPassword, getUserLogs,
+  batchBanUsers, batchUnbanUsers, batchDeleteUsers,
 } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -61,6 +62,23 @@ const editTarget = ref<UserItem | null>(null)
 const resetPwdVisible = ref(false)
 const resetPwdTarget = ref<UserItem | null>(null)
 const newPassword = ref('')
+
+// 批量操作
+const selectedIds = ref<number[]>([])
+const batchLoading = ref(false)
+
+const runBatch = async (fn: (ids: number[]) => Promise<any>, action: string) => {
+  if (!selectedIds.value.length) { ElMessage.warning('请先勾选用户'); return }
+  batchLoading.value = true
+  try {
+    const res = await fn([...selectedIds.value])
+    ElMessage.success(res.data.message || `${action}完成`)
+    selectedIds.value = []
+    fetchUsers()
+    fetchStats()
+  } catch { /* 拦截器已提示 */ }
+  finally { batchLoading.value = false }
+}
 
 // ---- 状态映射 ----
 const statusOptions = [
@@ -208,8 +226,20 @@ onMounted(() => { fetchUsers(); fetchStats() })
       @refresh="handleRefresh"
     />
 
+    <!-- ====== 批量操作栏 ====== -->
+    <div v-if="selectedIds.length" class="batch-bar">
+      <span class="batch-count">已选 {{ selectedIds.length }} 项</span>
+      <el-button type="warning" :loading="batchLoading" @click="runBatch(batchBanUsers, '批量封禁')">批量封禁</el-button>
+      <el-button type="success" :loading="batchLoading" @click="runBatch(batchUnbanUsers, '批量启用')">批量启用</el-button>
+      <el-button type="danger" :loading="batchLoading" @click="runBatch(batchDeleteUsers, '批量删除')">批量删除</el-button>
+      <span class="batch-tip">启用账号不可删除，仅封禁账号可删</span>
+      <el-button link @click="selectedIds = []">取消选择</el-button>
+    </div>
+
     <!-- ====== 表格 ====== -->
-    <el-table :data="users" stripe v-loading="loading" style="width: 100%">
+    <el-table :data="users" stripe v-loading="loading" style="width: 100%"
+      @selection-change="(rows: UserItem[]) => selectedIds = rows.map(r => r.id)">
+      <el-table-column type="selection" width="48" align="center" />
       <el-table-column type="index" label="编号" width="60" align="center" />
 
       <!-- 头像 -->
@@ -505,6 +535,28 @@ onMounted(() => { fetchUsers(); fetchStats() })
 </template>
 
 <style scoped>
+/* ---- 批量操作栏 ---- */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  background: #EEF4FF;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+.batch-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5B8DEF;
+  margin-right: 4px;
+}
+.batch-tip {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 /* ---- Drawer：头部卡片 ---- */
 .drawer-hero {
   position: relative;

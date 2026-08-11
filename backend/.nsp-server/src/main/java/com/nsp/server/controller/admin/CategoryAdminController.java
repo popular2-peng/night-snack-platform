@@ -1,8 +1,10 @@
 package com.nsp.server.controller.admin;
 
 import com.nsp.common.result.Result;
+import com.nsp.pojo.dto.BatchIdsDTO;
 import com.nsp.pojo.dto.CategoryReorderDTO;
 import com.nsp.pojo.dto.CategorySaveDTO;
+import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.CategoryVO;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.server.annotation.RequireRole;
@@ -90,6 +92,24 @@ public class CategoryAdminController {
     public Result<Void> delete(@Parameter(description = "品类 ID") @PathVariable Long id) {
         platformCategoryService.softDelete(id);
         return Result.ok();
+    }
+
+    @Operation(summary = "批量启用品类（已启用/已删除的自动跳过）")
+    @PostMapping("/category/batch-enable")
+    public Result<BatchResultVO> batchEnable(@RequestBody BatchIdsDTO dto) {
+        return Result.ok(platformCategoryService.batchEnable(dto.getIds()));
+    }
+
+    @Operation(summary = "批量停用品类（有关联商家店铺的自动跳过）")
+    @PostMapping("/category/batch-disable")
+    public Result<BatchResultVO> batchDisable(@RequestBody BatchIdsDTO dto) {
+        return Result.ok(platformCategoryService.batchDisable(dto.getIds()));
+    }
+
+    @Operation(summary = "批量删除品类（仅停用且无关联商家可删，其余跳过）")
+    @PostMapping("/category/batch-delete")
+    public Result<BatchResultVO> batchDelete(@RequestBody BatchIdsDTO dto) {
+        return Result.ok(platformCategoryService.batchDelete(dto.getIds()));
     }
 
     @Operation(summary = "批量更新品类排序")

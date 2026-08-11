@@ -15,6 +15,7 @@ import com.nsp.pojo.entity.MerchantApplication;
 import com.nsp.pojo.entity.PlatformCategory;
 import com.nsp.pojo.entity.User;
 import com.nsp.pojo.vo.AdminApplicationVO;
+import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.server.mapper.MerchantApplicationMapper;
 import com.nsp.server.mapper.PlatformCategoryMapper;
@@ -237,6 +238,24 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         merchantApplicationMapper.updateById(app);
 
         log.info("商家入驻申请被拒绝: appId={}, reason={}", id, dto.getReason());
+    }
+
+    @Override
+    @Transactional
+    public BatchResultVO batchDelete(List<Long> ids) {
+        BatchResultVO result = new BatchResultVO();
+        int missing = 0;
+        for (Long id : ids) {
+            MerchantApplication app = merchantApplicationMapper.selectById(id);
+            if (app == null) { missing++; continue; }
+            merchantApplicationMapper.deleteById(id);
+            result.setSuccessCount(result.getSuccessCount() + 1);
+            log.info("批量删除入驻申请: id={}, shopName={}", id, app.getShopName());
+        }
+        result.setSkippedCount(missing);
+        if (missing > 0) result.addSkipped(missing + " 条申请不存在");
+        log.info("批量删除入驻申请: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
+        return result;
     }
 
     private MerchantApplication findById(Long id) {

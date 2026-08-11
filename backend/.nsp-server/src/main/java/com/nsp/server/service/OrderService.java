@@ -48,4 +48,7 @@ public interface OrderService {
     /** 超时自动完成（COOKING 超过时限视为已送达，自动转 COMPLETED） */
     void timeoutComplete(Long orderId);
 
+    /** 批量删除订单（事务内级联删除订单明细/状态日志/支付记录，不存在/已删除的跳过） */
+    com.nsp.pojo.vo.BatchResultVO batchDelete(java.util.List<Long> ids);
+
 }

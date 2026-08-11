@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import {
-  listApplications, listAllEnabledCategories,
+  listApplications, listAllEnabledCategories, batchDeleteApplications,
 } from '@/apis/admin'
+import { ElMessage } from 'element-plus'
 import SearchFilterBar from '@/components/SearchFilterBar.vue'
 import StatsStrip from '@/components/StatsStrip.vue'
 import ApplicationDetailDrawer from './ApplicationDetailDrawer.vue'
@@ -97,6 +98,23 @@ const handleAuditDone = () => {
   fetchStats()
 }
 
+// ---- 批量删除 ----
+const selectedIds = ref<number[]>([])
+const batchLoading = ref(false)
+
+const handleBatchDelete = async () => {
+  if (!selectedIds.value.length) { ElMessage.warning('请先勾选申请'); return }
+  batchLoading.value = true
+  try {
+    const res = await batchDeleteApplications([...selectedIds.value])
+    ElMessage.success(res.data.message || '批量删除完成')
+    selectedIds.value = []
+    fetchApps()
+    fetchStats()
+  } catch { /* 拦截器已提示 */ }
+  finally { batchLoading.value = false }
+}
+
 // ---- 格式化 ----
 const formatTime = (s: string) => { return s ? s.replace('T', ' ').substring(0, 16) : '' }
 
@@ -130,8 +148,17 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
       @reset="handleReset"
     />
 
+    <!-- ====== 批量操作栏 ====== -->
+    <div v-if="selectedIds.length" class="batch-bar">
+      <span class="batch-count">已选 {{ selectedIds.length }} 项</span>
+      <el-button type="danger" :loading="batchLoading" @click="handleBatchDelete">批量删除</el-button>
+      <el-button link @click="selectedIds = []">取消选择</el-button>
+    </div>
+
     <!-- ====== 表格 ====== -->
-    <el-table :data="apps" stripe v-loading="loading" style="width: 100%">
+    <el-table :data="apps" stripe v-loading="loading" style="width: 100%"
+      @selection-change="(rows: AppItem[]) => selectedIds = rows.map(r => r.id)">
+      <el-table-column type="selection" width="48" align="center" />
       <el-table-column type="index" label="编号" width="56" align="center" />
       <el-table-column label="LOGO" width="72" align="center">
         <template #default="{ row }">
@@ -189,4 +216,21 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
 </template>
 
 <style scoped>
+/* ---- 批量操作栏 ---- */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  background: #EEF4FF;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+.batch-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5B8DEF;
+  margin-right: 4px;
+}
 </style>

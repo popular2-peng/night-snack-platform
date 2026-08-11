@@ -4,6 +4,7 @@ import com.nsp.pojo.dto.ApproveApplicationDTO;
 import com.nsp.pojo.dto.AuditDTO;
 import com.nsp.pojo.dto.RejectApplicationDTO;
 import com.nsp.pojo.vo.AdminApplicationVO;
+import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.PageVO;
 
 /**
@@ -29,5 +30,8 @@ public interface ApplicationReviewService {
 
     /** 拒绝入驻申请（旧签名，兼容） */
     void rejectApplication(Long id, Long reviewerId, AuditDTO dto);
+
+    /** 批量删除入驻申请（不存在/已删除的跳过） */
+    BatchResultVO batchDelete(java.util.List<Long> ids);
 
 }

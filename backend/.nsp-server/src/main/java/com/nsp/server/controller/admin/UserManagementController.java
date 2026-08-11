@@ -2,7 +2,9 @@ package com.nsp.server.controller.admin;
 
 import com.nsp.common.result.Result;
 import com.nsp.pojo.dto.BanUserDTO;
+import com.nsp.pojo.dto.BatchIdsDTO;
 import com.nsp.pojo.vo.AdminUserVO;
+import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.pojo.vo.UserDetailVO;
 import com.nsp.server.annotation.RequireRole;
@@ -92,6 +94,29 @@ public class UserManagementController {
             @AuthenticationPrincipal Long operatorId) {
         String newPassword = userManagementService.resetPassword(id, operatorId);
         return Result.ok(newPassword);
+    }
+
+    // ── 批量操作 ──
+
+    @Operation(summary = "批量封禁（已封禁/已删除的自动跳过）")
+    @PostMapping("/users/batch-ban")
+    public Result<BatchResultVO> batchBan(@Valid @RequestBody BatchIdsDTO dto,
+                                          @AuthenticationPrincipal Long operatorId) {
+        return Result.ok(userManagementService.batchBan(dto.getIds(), operatorId));
+    }
+
+    @Operation(summary = "批量启用（未封禁/已删除的自动跳过）")
+    @PostMapping("/users/batch-unban")
+    public Result<BatchResultVO> batchUnban(@Valid @RequestBody BatchIdsDTO dto,
+                                            @AuthenticationPrincipal Long operatorId) {
+        return Result.ok(userManagementService.batchUnban(dto.getIds(), operatorId));
+    }
+
+    @Operation(summary = "批量删除（软删，启用账号不可删除，仅封禁账号可删）")
+    @PostMapping("/users/batch-delete")
+    public Result<BatchResultVO> batchDelete(@Valid @RequestBody BatchIdsDTO dto,
+                                             @AuthenticationPrincipal Long operatorId) {
+        return Result.ok(userManagementService.batchDelete(dto.getIds(), operatorId));
     }
 
     @Operation(summary = "操作日志列表")

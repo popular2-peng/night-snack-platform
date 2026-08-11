@@ -2,6 +2,7 @@ package com.nsp.server.service;
 
 import com.nsp.pojo.dto.BanUserDTO;
 import com.nsp.pojo.vo.AdminUserVO;
+import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.pojo.vo.UserDetailVO;
 
@@ -46,6 +47,15 @@ public interface UserManagementService {
 
     /** 重置用户密码（返回新密码） */
     String resetPassword(Long id, Long operatorId);
+
+    /** 批量封禁（已封禁/已删除的跳过） */
+    BatchResultVO batchBan(List<Long> ids, Long operatorId);
+
+    /** 批量启用（未封禁/已删除的跳过） */
+    BatchResultVO batchUnban(List<Long> ids, Long operatorId);
+
+    /** 批量删除（软删，启用账号不可删除：ACTIVE 跳过） */
+    BatchResultVO batchDelete(List<Long> ids, Long operatorId);
 
     /** 用户操作日志列表 */
     List<Map<String, Object>> getOperationLogs(Long id);

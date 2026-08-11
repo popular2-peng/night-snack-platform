@@ -11,6 +11,7 @@ import com.nsp.common.util.PhoneMaskUtil;
 import com.nsp.pojo.dto.BanUserDTO;
 import com.nsp.pojo.entity.User;
 import com.nsp.pojo.vo.AdminUserVO;
+import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.pojo.vo.UserDetailVO;
 import com.nsp.server.mapper.OrderMapper;
@@ -170,6 +171,86 @@ public class UserManagementServiceImpl implements UserManagementService {
         writeOperationLogAsync(user.getId(), "UNBAN", operatorId, "管理员解封");
 
         log.info("管理员解封用户: userId={}, operatorId={}", id, operatorId);
+    }
+
+    // ──────────────────────────────────────
+    // 批量操作（选中若干条，不满足条件的跳过并汇总）
+    // ──────────────────────────────────────
+
+    @Override
+    @Transactional
+    public BatchResultVO batchBan(List<Long> ids, Long operatorId) {
+        BatchResultVO result = new BatchResultVO();
+        int banned = 0, deleted = 0;
+        for (Long id : ids) {
+            User user = userMapper.selectById(id); // 逻辑删除的用户查不到 → null
+            if (user == null) { deleted++; continue; }
+            if ("DISABLED".equals(user.getStatus())) { banned++; continue; }
+
+            user.setStatus("DISABLED");
+            user.setBannedReason("批量封禁");
+            user.setBannedAt(LocalDateTime.now());
+            user.setBannedBy(operatorId);
+            user.setUnbannedAt(null); // 永久封禁
+            userMapper.updateById(user);
+            result.setSuccessCount(result.getSuccessCount() + 1);
+            writeOperationLogAsync(user.getId(), "BAN", operatorId, "批量封禁");
+        }
+        result.setSkippedCount(banned + deleted);
+        if (banned > 0) result.addSkipped(banned + " 个账号已封禁");
+        if (deleted > 0) result.addSkipped(deleted + " 个账号已删除");
+        log.info("批量封禁用户: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public BatchResultVO batchUnban(List<Long> ids, Long operatorId) {
+        BatchResultVO result = new BatchResultVO();
+        int active = 0, deleted = 0;
+        for (Long id : ids) {
+            User user = userMapper.selectById(id);
+            if (user == null) { deleted++; continue; }
+            if (!"DISABLED".equals(user.getStatus())) { active++; continue; }
+
+            user.setStatus("ACTIVE");
+            user.setBannedReason(null);
+            user.setBannedAt(null);
+            user.setBannedBy(null);
+            user.setUnbannedAt(LocalDateTime.now());
+            user.setUnbannedBy(operatorId);
+            userMapper.updateById(user);
+            result.setSuccessCount(result.getSuccessCount() + 1);
+            writeOperationLogAsync(user.getId(), "UNBAN", operatorId, "批量解封");
+        }
+        result.setSkippedCount(active + deleted);
+        if (active > 0) result.addSkipped(active + " 个账号未封禁");
+        if (deleted > 0) result.addSkipped(deleted + " 个账号已删除");
+        log.info("批量解封用户: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public BatchResultVO batchDelete(List<Long> ids, Long operatorId) {
+        BatchResultVO result = new BatchResultVO();
+        int active = 0, deleted = 0;
+        for (Long id : ids) {
+            User user = userMapper.selectById(id);
+            if (user == null) { deleted++; continue; }
+            // 启用账号不可删除（仅允许删除已封禁账号）
+            if ("ACTIVE".equals(user.getStatus())) { active++; continue; }
+
+            user.setDeleted(1); // 软删（MyBatis-Plus 逻辑删除字段）
+            userMapper.updateById(user);
+            result.setSuccessCount(result.getSuccessCount() + 1);
+            writeOperationLogAsync(user.getId(), "DELETE", operatorId, "批量删除");
+        }
+        result.setSkippedCount(active + deleted);
+        if (active > 0) result.addSkipped(active + " 个启用账号不可删除");
+        if (deleted > 0) result.addSkipped(deleted + " 个账号已删除");
+        log.info("批量删除用户: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
+        return result;
     }
 
     @Override

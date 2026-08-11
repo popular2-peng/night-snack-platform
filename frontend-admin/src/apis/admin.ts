@@ -32,6 +32,10 @@ export const getApplicationDetail = (id: number) => {
   return request.get(`/admin/merchant-application/${id}/detail`)
 }
 
+export const batchDeleteApplications = (ids: number[]) => {
+  return request.post('/admin/merchant-application/batch-delete', { ids })
+}
+
 export const approveApplicationV2 = (id: number, data: { initialStatus?: string; deliveryRadius?: number; reviewNote?: string }) => {
   return request.post(`/admin/application/${id}/approve`, data)
 }
@@ -63,6 +67,19 @@ export const resetPassword = (id: number) => {
 
 export const getUserLogs = (id: number) => {
   return request.get(`/admin/users/${id}/logs`)
+}
+
+// 批量操作
+export const batchBanUsers = (ids: number[]) => {
+  return request.post('/admin/users/batch-ban', { ids })
+}
+
+export const batchUnbanUsers = (ids: number[]) => {
+  return request.post('/admin/users/batch-unban', { ids })
+}
+
+export const batchDeleteUsers = (ids: number[]) => {
+  return request.post('/admin/users/batch-delete', { ids })
 }
 
 // 旧版兼容
@@ -128,6 +145,10 @@ export const getAdminOrderDetail = (id: number) => {
   return request.get(`/admin/orders/${id}`)
 }
 
+export const batchDeleteOrders = (ids: number[]) => {
+  return request.post('/admin/orders/batch-delete', { ids })
+}
+
 // ---- 品类管理 ----
 export const listCategories = (params: { page: number; size: number; keyword?: string; status?: string }) => {
   return request.get('/admin/category', { params })
@@ -167,4 +188,16 @@ export const deleteCategory = (id: number) => {
 
 export const reorderCategories = (items: { id: number; sortOrder: number }[]) => {
   return request.post('/admin/category/reorder', items)
+}
+
+export const batchEnableCategories = (ids: number[]) => {
+  return request.post('/admin/category/batch-enable', { ids })
+}
+
+export const batchDisableCategories = (ids: number[]) => {
+  return request.post('/admin/category/batch-disable', { ids })
+}
+
+export const batchDeleteCategories = (ids: number[]) => {
+  return request.post('/admin/category/batch-delete', { ids })
 }

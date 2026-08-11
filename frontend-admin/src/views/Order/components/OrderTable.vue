@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import {
   listAdminOrders, getAdminOrderDetail, getDashboardStats, getOrderStatusDistribution,
+  batchDeleteOrders,
 } from '@/apis/admin'
 import { ElMessage } from 'element-plus'
 import {
@@ -60,6 +61,23 @@ const stats = ref({ total: 0, pending: 0, paid: 0, cooking: 0, completed: 0 })
 const detailVisible = ref(false)
 const detail = ref<OrderDetail | null>(null)
 const detailLoading = ref(false)
+
+// ---- 批量删除 ----
+const selectedIds = ref<number[]>([])
+const batchLoading = ref(false)
+
+const handleBatchDelete = async () => {
+  if (!selectedIds.value.length) { ElMessage.warning('请先勾选订单'); return }
+  batchLoading.value = true
+  try {
+    const res = await batchDeleteOrders([...selectedIds.value])
+    ElMessage.success(res.data.message || '批量删除完成')
+    selectedIds.value = []
+    fetchOrders()
+    fetchStats()
+  } catch { /* 拦截器已提示 */ }
+  finally { batchLoading.value = false }
+}
 
 const statusOptions = [
   { label: '待支付', value: 'PENDING_PAY' },
@@ -179,8 +197,17 @@ onMounted(() => { fetchOrders(); fetchStats() })
       @refresh="handleRefresh"
     />
 
+    <!-- ====== 批量操作栏 ====== -->
+    <div v-if="selectedIds.length" class="batch-bar">
+      <span class="batch-count">已选 {{ selectedIds.length }} 项</span>
+      <el-button type="danger" :loading="batchLoading" @click="handleBatchDelete">批量删除</el-button>
+      <el-button link @click="selectedIds = []">取消选择</el-button>
+    </div>
+
     <!-- ====== 表格 ====== -->
-    <el-table :data="orders" stripe v-loading="loading" style="width: 100%">
+    <el-table :data="orders" stripe v-loading="loading" style="width: 100%"
+      @selection-change="(rows: OrderItem[]) => selectedIds = rows.map(r => r.id)">
+      <el-table-column type="selection" width="48" align="center" />
       <el-table-column type="index" label="编号" width="60" align="center" />
 
       <!-- 订单号 -->
@@ -367,6 +394,24 @@ onMounted(() => { fetchOrders(); fetchStats() })
 </template>
 
 <style scoped>
+/* ---- 批量操作栏 ---- */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  background: #EEF4FF;
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+.batch-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5B8DEF;
+  margin-right: 4px;
+}
+
 /* ---- 订单号链接样式 ---- */
 .order-no {
   color: var(--primary);

@@ -12,6 +12,7 @@ import com.nsp.pojo.dto.CategorySaveDTO;
 import com.nsp.pojo.entity.Merchant;
 import com.nsp.pojo.entity.MerchantCategory;
 import com.nsp.pojo.entity.PlatformCategory;
+import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.CategoryVO;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.server.mapper.MerchantCategoryMapper;
@@ -304,15 +305,97 @@ public class PlatformCategoryServiceImpl implements PlatformCategoryService {
 
     /** 检查品类是否绑定商家（merchant.category_id 或 merchant_category 关联表） */
     private void assertNoMerchantBound(Long id, String message) {
+        if (countMerchantBound(id) > 0) {
+            throw new BizException(ErrorCode.CATEGORY_HAS_MERCHANTS, message);
+        }
+    }
+
+    /** 品类绑定商家数 */
+    private long countMerchantBound(Long id) {
         Long merchantCount = merchantMapper.selectCount(
                 new LambdaQueryWrapper<Merchant>()
                         .eq(Merchant::getCategoryId, id));
         Long junctionCount = merchantCategoryMapper.selectCount(
                 new LambdaQueryWrapper<MerchantCategory>()
                         .eq(MerchantCategory::getCategoryId, id));
-        if (merchantCount > 0 || junctionCount > 0) {
-            throw new BizException(ErrorCode.CATEGORY_HAS_MERCHANTS, message);
+        return (merchantCount == null ? 0 : merchantCount) + (junctionCount == null ? 0 : junctionCount);
+    }
+
+    // ──────────────────────────────────────
+    // 批量操作（选中若干条，不满足条件的跳过并汇总）
+    // ──────────────────────────────────────
+
+    @Override
+    @Transactional
+    public BatchResultVO batchEnable(List<Long> ids) {
+        BatchResultVO result = new BatchResultVO();
+        int enabled = 0, deleted = 0;
+        for (Long id : ids) {
+            PlatformCategory category = platformCategoryMapper.selectById(id); // 逻辑删除 → null
+            if (category == null) { deleted++; continue; }
+            if ("ENABLED".equals(category.getStatus())) { enabled++; continue; }
+
+            category.setStatus("ENABLED");
+            platformCategoryMapper.updateById(category);
+            result.setSuccessCount(result.getSuccessCount() + 1);
+            log.info("批量启用品类: id={}", id);
         }
+        result.setSkippedCount(enabled + deleted);
+        if (enabled > 0) result.addSkipped(enabled + " 个品类已启用");
+        if (deleted > 0) result.addSkipped(deleted + " 个品类已删除");
+        log.info("批量启用品类: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public BatchResultVO batchDisable(List<Long> ids) {
+        BatchResultVO result = new BatchResultVO();
+        int disabled = 0, bound = 0, deleted = 0;
+        for (Long id : ids) {
+            PlatformCategory category = platformCategoryMapper.selectById(id);
+            if (category == null) { deleted++; continue; }
+            if ("DISABLED".equals(category.getStatus())) { disabled++; continue; }
+            // 有关联商家店铺的品类不可停用
+            if (countMerchantBound(id) > 0) { bound++; continue; }
+
+            category.setStatus("DISABLED");
+            platformCategoryMapper.updateById(category);
+            result.setSuccessCount(result.getSuccessCount() + 1);
+            log.info("批量停用品类: id={}", id);
+        }
+        result.setSkippedCount(disabled + bound + deleted);
+        if (disabled > 0) result.addSkipped(disabled + " 个品类已停用");
+        if (bound > 0) result.addSkipped(bound + " 个品类有关联商家不可停用");
+        if (deleted > 0) result.addSkipped(deleted + " 个品类已删除");
+        log.info("批量停用品类: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public BatchResultVO batchDelete(List<Long> ids) {
+        BatchResultVO result = new BatchResultVO();
+        int notDisabled = 0, bound = 0, deleted = 0;
+        for (Long id : ids) {
+            PlatformCategory category = platformCategoryMapper.selectById(id);
+            if (category == null) { deleted++; continue; }
+            // 仅停用状态可删除
+            if (!"DISABLED".equals(category.getStatus())) { notDisabled++; continue; }
+            // 有关联商家店铺的品类不可删除
+            if (countMerchantBound(id) > 0) { bound++; continue; }
+
+            category.setDeleted(1); // 软删
+            platformCategoryMapper.updateById(category);
+            result.setSuccessCount(result.getSuccessCount() + 1);
+            log.info("批量删除品类: id={}", id);
+        }
+        result.setSkippedCount(notDisabled + bound + deleted);
+        if (notDisabled > 0) result.addSkipped(notDisabled + " 个品类未停用不可删除");
+        if (bound > 0) result.addSkipped(bound + " 个品类有关联商家不可删除");
+        if (deleted > 0) result.addSkipped(deleted + " 个品类已删除");
+        log.info("批量删除品类: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
+        return result;
     }
 
     private PlatformCategory findById(Long id) {

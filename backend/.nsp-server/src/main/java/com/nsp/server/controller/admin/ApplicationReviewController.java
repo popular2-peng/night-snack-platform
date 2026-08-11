@@ -3,8 +3,10 @@ package com.nsp.server.controller.admin;
 import com.nsp.common.result.Result;
 import com.nsp.pojo.dto.ApproveApplicationDTO;
 import com.nsp.pojo.dto.AuditDTO;
+import com.nsp.pojo.dto.BatchIdsDTO;
 import com.nsp.pojo.dto.RejectApplicationDTO;
 import com.nsp.pojo.vo.AdminApplicationVO;
+import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.server.annotation.RequireRole;
 import com.nsp.server.service.ApplicationReviewService;
@@ -61,6 +63,12 @@ public class ApplicationReviewController {
     @GetMapping("/merchant-application/{id}/detail")
     public Result<AdminApplicationVO> applicationDetail(@PathVariable Long id) {
         return Result.ok(applicationReviewService.getApplicationDetail(id));
+    }
+
+    @Operation(summary = "批量删除入驻申请（不存在/已删除的自动跳过）")
+    @PostMapping("/merchant-application/batch-delete")
+    public Result<BatchResultVO> batchDelete(@Valid @RequestBody BatchIdsDTO dto) {
+        return Result.ok(applicationReviewService.batchDelete(dto.getIds()));
     }
 
     @Operation(summary = "通过入驻申请（V2，含初始营业状态/配送半径/审核备注）")
