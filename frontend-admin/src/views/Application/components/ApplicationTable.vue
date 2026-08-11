@@ -146,19 +146,21 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
       date-label="申请"
       @search="handleSearch"
       @reset="handleReset"
-    />
-
-    <!-- ====== 批量操作栏 ====== -->
-    <div v-if="selectedIds.length" class="batch-bar">
-      <span class="batch-count">已选 {{ selectedIds.length }} 项</span>
-      <el-button type="danger" :loading="batchLoading" @click="handleBatchDelete">批量删除</el-button>
-      <el-button link @click="selectedIds = []">取消选择</el-button>
-    </div>
+    >
+      <!-- 批量操作（与商家管理页一致：搜索栏右侧，选中后显示） -->
+      <template #extra>
+        <template v-if="selectedIds.length">
+          <el-button type="danger" plain :loading="batchLoading" @click="handleBatchDelete">
+            批量删除 ({{ selectedIds.length }})
+          </el-button>
+        </template>
+      </template>
+    </SearchFilterBar>
 
     <!-- ====== 表格 ====== -->
     <el-table :data="apps" stripe v-loading="loading" style="width: 100%"
       @selection-change="(rows: AppItem[]) => selectedIds = rows.map(r => r.id)">
-      <el-table-column type="selection" width="48" align="center" />
+      <el-table-column type="selection" width="42" fixed="left" />
       <el-table-column type="index" label="编号" width="56" align="center" />
       <el-table-column label="LOGO" width="72" align="center">
         <template #default="{ row }">
@@ -216,21 +218,4 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
 </template>
 
 <style scoped>
-/* ---- 批量操作栏 ---- */
-.batch-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-  padding: 10px 16px;
-  background: #EEF4FF;
-  border-radius: 8px;
-  flex-wrap: wrap;
-}
-.batch-count {
-  font-size: 13px;
-  font-weight: 600;
-  color: #5B8DEF;
-  margin-right: 4px;
-}
 </style>
