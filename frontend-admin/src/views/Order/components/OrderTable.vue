@@ -375,6 +375,26 @@ onMounted(() => { fetchOrders(); fetchStats() })
 </template>
 
 <style scoped>
+/* ---- 统计条（与用户/商家管理页一致） ---- */
+.stats-strip {
+  display: flex; align-items: center; gap: 20px;
+  margin-bottom: 20px; padding: 16px 20px;
+  background: var(--bg); border-radius: var(--border-radius-sm);
+  flex-wrap: wrap;
+}
+.stat-item { display: flex; flex-direction: column; }
+.stat-item-value {
+  font-size: 22px; font-weight: 700; color: var(--text-primary);
+  line-height: 1.2; font-variant-numeric: tabular-nums;
+}
+.stat-item-value.text-success  { color: var(--success); }
+.stat-item-value.text-danger   { color: var(--danger); }
+.stat-item-value.text-warning  { color: var(--warning); }
+.stat-item-value.text-primary  { color: var(--color-primary, #5B8DEF); }
+.stat-item-value.text-info     { color: var(--info); }
+.stat-item-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.stat-divider { width: 1px; height: 32px; background: var(--border-color); }
+
 /* ---- 订单号链接样式 ---- */
 .order-no {
   color: var(--primary);
