@@ -29,9 +29,6 @@ public class MerchantApplication {
     /** 商家登录密码（BCrypt，注册时填写） */
     private String password;
 
-    /** 申请理由 */
-    private String reason;
-
     /** 审核状态：PENDING / APPROVED / REJECTED */
     private String status;
 

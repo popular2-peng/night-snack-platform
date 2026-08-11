@@ -303,16 +303,15 @@ POST /api/merchant/register
 | `username` | string | 是 | 登录账号（审核通过后即为商家登录账号；前端自动生成，如 `m` + 10 位随机） |
 | `password` | string | 是 | 登录密码（BCrypt 加密存储） |
 | `phone` | string | 是 | 联系人手机号（商家登录凭据） |
-| `ownerName` | string | 是 | 联系人姓名（申请人/店主，2-10 个中文字符） |
+| `ownerName` | string | 是 | 联系人姓名（申请人/店主，2-20 个中文字符，允许少数民族姓名间隔号 `·`，如"阿不都·热合曼"） |
 | `shopName` | string | 是 | 店铺名称 |
 | `categoryId` | long | 是 | 主营品类 ID（`category` 表，须为 `ENABLED`） |
 | `province` | string | 是 | 所在省（如"广东省"） |
 | `city` | string | 是 | 所在市（如"深圳市"） |
 | `district` | string | 是 | 所在区县（如"南山区"） |
 | `address` | string | 是 | 详细地址（提交后后端调用百度地图地理编码转换为坐标） |
-| `reason` | string | 否 | 入驻理由 |
+| `logoUrl` | string | 否 | 店铺 LOGO OSS URL（商家端必传，JPG/PNG） |
 | `description` | string | 否 | 店铺介绍 |
-| `logoUrl` | string | 否 | 店铺头像 OSS URL |
 
 > 提交后创建 `PENDING` 入驻申请 + 申请人账号；管理员审核通过后**直接复用本次填写的账号密码**创建商家，不生成默认密码。
 > 地址坐标：后端调用百度地理编码接口（`geocoding/v3`）将「省+市+区县+详细地址」转换为 `lat/lng` 存入申请；AK 未配置或校验失败时坐标为空，申请仍可提交（审核通过创建商家时坐标待补充）。

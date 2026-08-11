@@ -38,10 +38,6 @@ public class MerchantRegisterDTO {
     @NotNull(message = "请选择主营品类")
     private Long categoryId;
 
-    /** 申请理由（可选） */
-    @Size(max = 500, message = "申请理由最多 500 字")
-    private String reason;
-
     /** 店铺简介（可选） */
     @Size(max = 200, message = "店铺简介最多 200 字")
     private String description;
@@ -49,9 +45,12 @@ public class MerchantRegisterDTO {
     /** 店铺 LOGO OSS URL（可选） */
     private String logoUrl;
 
-    /** 联系人姓名（申请人/店主，必须为中文字符） */
+    /**
+     * 联系人姓名（申请人/店主，中文字符，允许少数民族姓名中的间隔号 ·）
+     * 如：王小宝、阿不都·热合曼
+     */
     @NotBlank(message = "联系人姓名不能为空")
-    @Pattern(regexp = "^[\\u4e00-\\u9fa5]{2,10}$", message = "联系人姓名需为 2-10 个中文字符")
+    @Pattern(regexp = "^[\\u4e00-\\u9fa5·]{2,20}$", message = "联系人姓名需为 2-20 个中文字符（可含间隔号·）")
     private String ownerName;
 
     /** 所在省 */

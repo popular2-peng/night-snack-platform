@@ -179,7 +179,6 @@ public class MerchantServiceImpl implements MerchantService {
         app.setUsername(dto.getUsername());
         app.setPassword(applicant.getPassword());
         app.setCategoryId(dto.getCategoryId());
-        app.setReason(dto.getReason());
         app.setDescription(dto.getDescription());
         app.setLogoUrl(dto.getLogoUrl());
         // 联系人 + 地址信息（审核通过后直接用于创建商家）

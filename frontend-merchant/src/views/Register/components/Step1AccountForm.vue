@@ -25,8 +25,8 @@ const formRef = ref<FormInstance>()
 
 /** 手机号：11 位数字 */
 const PHONE_REGEX = /^1[3-9]\d{9}$/
-/** 联系人姓名：2-10 个中文字符 */
-const OWNER_NAME_REGEX = /^[一-龥]{2,10}$/
+/** 联系人姓名：2-20 个中文字符，允许少数民族姓名中的间隔号·（如"阿不都·热合曼"） */
+const OWNER_NAME_REGEX = /^[一-龥·]{2,20}$/
 /** 密码：6-20 位，必须包含字母和数字 */
 const PASSWORD_REGEX = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d!@#$%^&*()_+]{6,20}$/
 
@@ -37,7 +37,7 @@ const rules: FormRules = {
   ],
   ownerName: [
     { required: true, message: '请输入联系人姓名', trigger: 'blur' },
-    { pattern: OWNER_NAME_REGEX, message: '联系人姓名需为 2-10 个中文字符', trigger: 'blur' },
+    { pattern: OWNER_NAME_REGEX, message: '联系人姓名需为 2-20 个中文字符（可含间隔号·）', trigger: 'blur' },
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },

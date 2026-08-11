@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import {
   listApplications, listAllEnabledCategories,
-  approveApplicationV2, rejectApplicationV2,
 } from '@/apis/admin'
-import { ElMessage } from 'element-plus'
 import SearchFilterBar from '@/components/SearchFilterBar.vue'
 import StatsStrip from '@/components/StatsStrip.vue'
 import ApplicationDetailDrawer from './ApplicationDetailDrawer.vue'
 
 interface AppItem {
-  id: number; shopName: string; applicantUsername: string; phone: string
-  reason: string; logoUrl: string; categoryName: string
-  status: string; rejectReason: string; createdAt: string
+  id: number; shopName: string; applicantUsername: string; ownerName: string
+  phone: string; logoUrl: string; categoryName: string
+  status: string; rejectReason: string; createdAt: string; reviewedAt: string
 }
 
 const apps = ref<AppItem[]>([])
@@ -83,51 +81,20 @@ const handleReset = () => { page.value = 1; fetchApps() }
 const handleSizeChange = (val: number) => { size.value = val; fetchApps() }
 const handlePageChange = (val: number) => { page.value = val; fetchApps() }
 
-// ---- 通过弹窗 ----
-const approveVisible = ref(false)
-const approveTarget = ref<AppItem | null>(null)
-const approveForm = ref({ initialStatus: 'OPEN', deliveryRadius: 3000, reviewNote: '' })
-
-const openApprove = (row: AppItem) => {
-  approveTarget.value = row
-  approveForm.value = { initialStatus: 'OPEN', deliveryRadius: 3000, reviewNote: '' }
-  approveVisible.value = true
-}
-const confirmApprove = async () => {
-  await approveApplicationV2(approveTarget.value!.id, approveForm.value)
-  ElMessage.success('已通过')
-  approveVisible.value = false
-  fetchApps()
-}
-
-// ---- 拒绝弹窗 ----
-const rejectVisible = ref(false)
-const rejectTarget = ref<AppItem | null>(null)
-const rejectReason = ref('')
-
-const rejectCharCount = computed(() => rejectReason.value.length)
-const rejectValid = computed(() => rejectCharCount.value >= 10 && rejectCharCount.value <= 200)
-
-const openReject = (row: AppItem) => {
-  rejectTarget.value = row
-  rejectReason.value = ''
-  rejectVisible.value = true
-}
-const confirmReject = async () => {
-  if (!rejectValid.value) { ElMessage.warning('拒绝原因需 10-200 字'); return }
-  await rejectApplicationV2(rejectTarget.value!.id, rejectReason.value)
-  ElMessage.success('已拒绝')
-  rejectVisible.value = false
-  fetchApps()
-}
-
-// ---- 详情抽屉 ----
+// ---- 详情抽屉（通过/拒绝操作移入抽屉内） ----
 const detailVisible = ref(false)
 const detailAppId = ref<number | null>(null)
 
 const openDetail = (row: AppItem) => {
   detailAppId.value = row.id
   detailVisible.value = true
+}
+
+// 抽屉内完成审核后刷新列表
+const handleAuditDone = () => {
+  detailVisible.value = false
+  fetchApps()
+  fetchStats()
 }
 
 // ---- 格式化 ----
@@ -178,9 +145,8 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
       <el-table-column prop="shopName" label="申请店铺名" min-width="140" show-overflow-tooltip
         header-align="center" />
       <el-table-column prop="categoryName" label="品类" width="110" align="center" />
-      <el-table-column prop="applicantUsername" label="申请人" width="100" align="center" />
+      <el-table-column prop="ownerName" label="申请人" min-width="150" align="center" show-overflow-tooltip />
       <el-table-column prop="phone" label="联系电话" width="130" align="center" />
-      <el-table-column prop="reason" label="申请理由" min-width="180" show-overflow-tooltip header-align="center" />
       <el-table-column label="状态" width="90" align="center">
         <template #default="{ row }">
           <el-tag :type="statusMap[row.status]?.type || 'warning'" size="small" effect="plain">
@@ -191,12 +157,11 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
       <el-table-column label="申请时间" width="150" align="center">
         <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="200" align="center" fixed="right">
+      <el-table-column label="审核时间" width="150" align="center">
+        <template #default="{ row }">{{ formatTime(row.reviewedAt) || '' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="90" align="center" fixed="right">
         <template #default="{ row }">
-          <template v-if="row.status === 'PENDING'">
-            <el-button size="small" type="success" @click="openApprove(row)">通过</el-button>
-            <el-button size="small" type="danger" @click="openReject(row)">拒绝</el-button>
-          </template>
           <el-button size="small" @click="openDetail(row)">详情</el-button>
         </template>
       </el-table-column>
@@ -212,51 +177,12 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
       />
     </div>
 
-    <!-- ====== 通过弹窗 ====== -->
-    <el-dialog v-model="approveVisible" title="通过商家入驻申请" width="480px">
-      <p style="margin-bottom:16px">店铺：<strong>{{ approveTarget?.shopName }}</strong> ｜ 申请人：<strong>{{ approveTarget?.applicantUsername }}</strong></p>
-      <el-form label-width="100px" label-position="left">
-        <el-form-item label="初始营业状态">
-          <el-select v-model="approveForm.initialStatus" style="width:100%">
-            <el-option label="营业中" value="OPEN" />
-            <el-option label="打烊" value="CLOSED" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="配送半径">
-          <el-input-number v-model="approveForm.deliveryRadius" :min="500" :max="20000" :step="500" style="width:100%" />
-          <span style="margin-left:8px;font-size:12px;color:var(--text-secondary)">米</span>
-        </el-form-item>
-        <el-form-item label="审核备注">
-          <el-input v-model="approveForm.reviewNote" type="textarea" :rows="3" placeholder="可选，内部留存"
-            maxlength="200" show-word-limit />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="approveVisible = false">取消</el-button>
-        <el-button type="success" @click="confirmApprove">确认通过</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- ====== 拒绝弹窗 ====== -->
-    <el-dialog v-model="rejectVisible" title="拒绝商家入驻申请" width="480px">
-      <p style="margin-bottom:12px">店铺：<strong>{{ rejectTarget?.shopName }}</strong> ｜ 申请人：<strong>{{ rejectTarget?.applicantUsername }}</strong></p>
-      <el-input v-model="rejectReason" type="textarea" :rows="4"
-        placeholder="请输入拒绝原因（必填，10-200 字，将展示给商家）"
-        maxlength="200" show-word-limit />
-      <p style="margin-top:6px;font-size:12px" :style="{ color: rejectValid ? 'var(--success)' : 'var(--danger)' }">
-        当前 {{ rejectCharCount }} 字{{ rejectCharCount < 10 ? '（还需 ' + (10 - rejectCharCount) + ' 字）' : '' }}
-      </p>
-      <template #footer>
-        <el-button @click="rejectVisible = false">取消</el-button>
-        <el-button type="danger" :disabled="!rejectValid" @click="confirmReject">确认拒绝</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- ====== 详情抽屉（子组件） ====== -->
+    <!-- ====== 详情抽屉（含通过/拒绝操作，子组件） ====== -->
     <ApplicationDetailDrawer
       :visible="detailVisible"
       :application-id="detailAppId"
       @update:visible="detailVisible = $event"
+      @audit-done="handleAuditDone"
     />
 
   </div>

@@ -67,32 +67,23 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         if (dateEnd != null && !dateEnd.isBlank()) {
             wrapper.le(MerchantApplication::getCreatedAt, LocalDateTime.parse(dateEnd + "T23:59:59"));
         }
-        wrapper.orderByAsc(MerchantApplication::getCreatedAt);
+        // 最新申请在前
+        wrapper.orderByDesc(MerchantApplication::getId);
 
         Page<MerchantApplication> result = merchantApplicationMapper.selectPage(
                 new Page<>(page, size), wrapper);
 
-        List<AdminApplicationVO> list = result.getRecords().stream().map(a -> {
-            AdminApplicationVO vo = new AdminApplicationVO();
-            BeanUtil.copyProperties(a, vo);
-
-            User applicant = userMapper.selectById(a.getApplicantUserId());
-            vo.setApplicantUsername(applicant != null ? applicant.getUsername() : "未知");
-            vo.setPhone(applicant != null ? PhoneMaskUtil.mask(applicant.getPhone()) : "");
-
-            if (a.getCategoryId() != null) {
-                PlatformCategory c = platformCategoryMapper.selectById(a.getCategoryId());
-                vo.setCategoryName(c != null ? c.getName() : "");
-            }
-
-            return vo;
-        }).toList();
+        List<AdminApplicationVO> list = result.getRecords().stream().map(this::toVO).toList();
         return new PageVO<>(result.getTotal(), list);
     }
 
     @Override
     public AdminApplicationVO getApplicationDetail(Long id) {
-        MerchantApplication a = findById(id);
+        return toVO(findById(id));
+    }
+
+    /** 申请 → VO（补充申请人用户名/脱敏手机号/品类名/完整地址） */
+    private AdminApplicationVO toVO(MerchantApplication a) {
         AdminApplicationVO vo = new AdminApplicationVO();
         BeanUtil.copyProperties(a, vo);
 
@@ -104,6 +95,14 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
             PlatformCategory c = platformCategoryMapper.selectById(a.getCategoryId());
             vo.setCategoryName(c != null ? c.getName() : "");
         }
+
+        // 完整地址：省 + 市 + 区县 + 详细地址
+        StringBuilder addr = new StringBuilder();
+        if (a.getProvince() != null) addr.append(a.getProvince());
+        if (a.getCity() != null) addr.append(a.getCity());
+        if (a.getDistrict() != null) addr.append(a.getDistrict());
+        if (a.getAddress() != null) addr.append(a.getAddress());
+        vo.setAddress(addr.length() == 0 ? null : addr.toString());
 
         return vo;
     }
