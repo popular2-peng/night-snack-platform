@@ -27,6 +27,7 @@ export const uploadFileToOss = (sign: UploadSignVO, file: File): Promise<string>
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
     const randomName = Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
     const objectKey = sign.dir + randomName + '.' + ext
+    const objectUrl = sign.host + '/' + objectKey
 
     const form = new FormData()
     form.append('key', objectKey)
@@ -35,17 +36,29 @@ export const uploadFileToOss = (sign: UploadSignVO, file: File): Promise<string>
     form.append('signature', sign.signature)
     form.append('file', file)
 
+    /** 用 Image 探测验证对象是否可访问（img 加载不受 CORS 读取限制） */
+    const probeByImage = () => {
+      const img = new Image()
+      img.onload = () => resolve(objectUrl)
+      img.onerror = () => reject(new Error('OSS 直传失败，请检查网络后重试'))
+      img.src = objectUrl
+    }
+
     const xhr = new XMLHttpRequest()
     xhr.open('POST', sign.host)
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         // 直传成功：对象 URL = host + '/' + key
-        resolve(sign.host + '/' + objectKey)
+        resolve(objectUrl)
       } else {
         reject(new Error(`OSS 直传失败: HTTP ${xhr.status}`))
       }
     }
-    xhr.onerror = () => reject(new Error('OSS 直传网络错误'))
+    xhr.onerror = () => {
+      // 网络错误时可能是 bucket 未配置 CORS 导致响应被浏览器拦截（图片实际已上传成功，OSS 返回 204）。
+      // 用 Image 探测确认：对象可访问则视为上传成功，避免误报。
+      probeByImage()
+    }
     xhr.send(form)
   })
 }

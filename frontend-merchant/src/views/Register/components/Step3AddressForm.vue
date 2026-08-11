@@ -87,6 +87,7 @@ const handleSubmit = async () => {
       city: props.form.city,
       district: props.form.district,
       address: props.form.address,
+      logoUrl: props.form.logoUrl || undefined,
     })
     ElMessage.success('入驻申请已提交，请等待平台审核')
     router.push('/login')
