@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -61,7 +62,12 @@ public class OrderServiceImpl implements OrderService {
     private final CartService cartService;
     private final ObjectMapper objectMapper;
 
+    /** 订单号日期前缀（yyyyMMdd，Redis 自增序号键按天分桶） */
+    private static final DateTimeFormatter ORDER_NO_DAY = DateTimeFormatter.ofPattern("yyyyMMdd");
+    /** 降级路径用的完整时间戳格式 */
     private static final DateTimeFormatter ORDER_NO_DATE = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    /** 自增序号键 TTL（天） */
+    private static final long ORDER_NO_KEY_TTL_DAYS = 2;
 
     // ──────────────────────────────────────
     // 下单
@@ -510,10 +516,27 @@ public class OrderServiceImpl implements OrderService {
     // 内部方法 — 工具
     // ──────────────────────────────────────
 
+    /**
+     * 生成订单号：`NSP + yyyyMMdd + 当天 6 位自增序号`（如 NSP20260805000001）
+     *
+     * <p>序号由 Redis 原子自增（key `order:no:{yyyyMMdd}`，按天分桶）生成：
+     * 下单即通过 INCR 预占一个序号，并发下多名用户也不会拿到重复订单号，
+     * 同一天最多 999999 单；key 设置 2 天 TTL 防止无限堆积。
+     * Redis 不可用时降级为「时间戳 + 4 位随机数」（极小概率冲突，由 uk_order_no 兜底）。
+     */
     private String generateOrderNo() {
-        String prefix = "NSP" + LocalDateTime.now().format(ORDER_NO_DATE);
-        String suffix = String.format("%04d", new Random().nextInt(10000));
-        return prefix + suffix;
+        String day = LocalDateTime.now().format(ORDER_NO_DAY);
+        String key = "order:no:" + day;
+        try {
+            Long seq = redisTemplate.opsForValue().increment(key);
+            if (seq != null && seq > 0) {
+                redisTemplate.expire(key, Duration.ofDays(ORDER_NO_KEY_TTL_DAYS));
+                return "NSP" + day + String.format("%06d", seq);
+            }
+        } catch (Exception e) {
+            log.warn("Redis 订单号自增异常，降级时间戳随机: key={}", key, e);
+        }
+        return "NSP" + LocalDateTime.now().format(ORDER_NO_DATE) + String.format("%04d", new Random().nextInt(10000));
     }
 
     private String toJson(Object obj) {
