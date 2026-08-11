@@ -3,6 +3,7 @@ package com.nsp.server;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 夜宵外卖平台启动类
@@ -17,6 +18,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication(scanBasePackages = "com.nsp")
 @MapperScan("com.nsp.server.mapper")
+@EnableScheduling
 public class NsPApplication {
 
     public static void main(String[] args) {

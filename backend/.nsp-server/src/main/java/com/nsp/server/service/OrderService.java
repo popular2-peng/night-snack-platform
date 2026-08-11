@@ -42,4 +42,10 @@ public interface OrderService {
     /** 商家拒单（已支付后拒单需触发退款） */
     void rejectOrder(Long orderId, Long merchantId, Long userId, String reason);
 
+    /** 超时自动取消（PENDING_PAY 未支付 / PAID 商家未接单，已支付则 mock 退款） */
+    void timeoutCancel(Long orderId, String reason);
+
+    /** 超时自动完成（COOKING 超过时限视为已送达，自动转 COMPLETED） */
+    void timeoutComplete(Long orderId);
+
 }

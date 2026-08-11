@@ -2,6 +2,7 @@ package com.nsp.server.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -54,6 +55,7 @@ public class OrderServiceImpl implements OrderService {
     private final MerchantMapper merchantMapper;
     private final UserMapper userMapper;
     private final AddressMapper addressMapper;
+    private final PaymentRecordMapper paymentRecordMapper;
     private final StringRedisTemplate redisTemplate;
     private final MapService mapService;
     private final CartService cartService;
@@ -346,6 +348,63 @@ public class OrderServiceImpl implements OrderService {
     }
 
     // ──────────────────────────────────────
+    // 超时自动任务（定时扫描调用，见 OrderTimeoutScheduler）
+    // ──────────────────────────────────────
+
+    @Override
+    @Transactional
+    public void timeoutCancel(Long orderId, String reason) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BizException(ErrorCode.ORDER_NOT_FOUND, MessageConst.ORDER_NOT_FOUND_MSG);
+        }
+        // 仅待支付 / 已支付（未接单）可被超时取消
+        if (order.getStatus() != OrderStatus.PENDING_PAY && order.getStatus() != OrderStatus.PAID) {
+            throw new BizException(ErrorCode.ORDER_STATUS_ERROR, MessageConst.ORDER_STATUS_CANCEL_MSG);
+        }
+        OrderStatus fromStatus = order.getStatus();
+        boolean paid = fromStatus == OrderStatus.PAID;
+
+        order.setStatus(OrderStatus.CANCELLED);
+        orderMapper.updateById(order);
+
+        // 释放预扣库存
+        restoreStock(orderId);
+
+        // 已支付订单超时取消 → mock 退款（正式环境替换为支付宝/微信退款接口调用）
+        if (paid) {
+            paymentRecordMapper.update(null, new LambdaUpdateWrapper<PaymentRecord>()
+                    .eq(PaymentRecord::getOrderNo, order.getOrderNo())
+                    .eq(PaymentRecord::getStatus, "SUCCESS")
+                    .set(PaymentRecord::getStatus, "REFUNDED"));
+            log.info("超时未接单自动退款: orderNo={}", order.getOrderNo());
+        }
+
+        saveStatusLog(orderId, fromStatus.getCode(),
+                OrderStatus.CANCELLED.getCode(), "system", reason);
+        log.info("订单超时自动取消: orderId={}, orderNo={}, reason={}", orderId, order.getOrderNo(), reason);
+    }
+
+    @Override
+    @Transactional
+    public void timeoutComplete(Long orderId) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BizException(ErrorCode.ORDER_NOT_FOUND, MessageConst.ORDER_NOT_FOUND_MSG);
+        }
+        if (order.getStatus() != OrderStatus.COOKING) {
+            throw new BizException(ErrorCode.ORDER_STATUS_ERROR, MessageConst.ORDER_STATUS_COMPLETE_MSG);
+        }
+
+        order.setStatus(OrderStatus.COMPLETED);
+        orderMapper.updateById(order);
+
+        saveStatusLog(orderId, OrderStatus.COOKING.getCode(),
+                OrderStatus.COMPLETED.getCode(), "system", "配送超时自动确认送达");
+        log.info("订单超时自动完成: orderId={}, orderNo={}", orderId, order.getOrderNo());
+    }
+
+    // ──────────────────────────────────────
     // 内部方法 — 库存
     // ──────────────────────────────────────
 
@@ -473,6 +532,9 @@ public class OrderServiceImpl implements OrderService {
         logEntry.setToStatus(to);
         logEntry.setOperator(operator);
         logEntry.setReason(reason);
+        // 必须显式设置时间：列默认值是随机表达式（V1 为测试造数设计），
+        // 不设置会导致运行期日志时间乱序（如支付早于下单）
+        logEntry.setCreatedAt(LocalDateTime.now());
         orderStatusLogMapper.insert(logEntry);
     }
 

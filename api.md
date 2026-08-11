@@ -508,6 +508,16 @@ DELETE /api/user/cart
 
 ### 4.4 订单
 
+> **订单超时自动任务**（后端每 60 秒扫描一次，操作人记录为 `system`）：
+>
+> | 规则 | 触发条件 | 动作 |
+> |------|---------|------|
+> | 超时未支付 | 下单后 15 分钟仍为 `PENDING_PAY` | 自动取消 `CANCELLED`，释放预扣库存 |
+> | 超时未接单 | 支付后 15 分钟商家未接单（`PAID`） | 自动取消 `CANCELLED`，释放库存 + mock 退款（`payment_record` 置 `REFUNDED`） |
+> | 超时自动完成 | 制作中（`COOKING`）超过 30 分钟 | 自动完成 `COMPLETED`（视为已送达） |
+>
+> 状态停留时长依据该状态下最后一条 `order_status_log.created_at` 判定（不依赖 `updated_at`）。
+
 #### 创建订单（下单）
 
 ```

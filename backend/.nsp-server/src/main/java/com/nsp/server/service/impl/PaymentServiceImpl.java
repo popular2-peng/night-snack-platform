@@ -8,11 +8,13 @@ import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.PayRequestDTO;
 import com.nsp.pojo.entity.Order;
 import com.nsp.pojo.entity.OrderItem;
+import com.nsp.pojo.entity.OrderStatusLog;
 import com.nsp.pojo.entity.PaymentRecord;
 import com.nsp.pojo.entity.Product;
 import com.nsp.pojo.vo.PayVO;
 import com.nsp.server.mapper.OrderItemMapper;
 import com.nsp.server.mapper.OrderMapper;
+import com.nsp.server.mapper.OrderStatusLogMapper;
 import com.nsp.server.mapper.PaymentRecordMapper;
 import com.nsp.server.mapper.ProductMapper;
 import com.nsp.server.service.AlipayService;
@@ -46,6 +48,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final OrderItemMapper orderItemMapper;
     private final PaymentRecordMapper paymentRecordMapper;
     private final ProductMapper productMapper;
+    private final OrderStatusLogMapper orderStatusLogMapper;
     private final AlipayService alipayService;
     private final WechatMockService wechatMockService;
 
@@ -186,6 +189,17 @@ public class PaymentServiceImpl implements PaymentService {
         order.setPayChannel(com.nsp.common.enums.PayChannel.fromCode(channel));
         order.setPayTime(LocalDateTime.now());
         orderMapper.updateById(order);
+
+        // 记录状态流转日志（显式设置时间，避免列随机默认值导致时间乱序）
+        OrderStatusLog statusLog = new OrderStatusLog();
+        statusLog.setOrderId(order.getId());
+        statusLog.setFromStatus(OrderStatus.PENDING_PAY.getCode());
+        statusLog.setToStatus(OrderStatus.PAID.getCode());
+        statusLog.setOperator("system");
+        statusLog.setReason("支付回调成功");
+        statusLog.setCreatedAt(LocalDateTime.now());
+        orderStatusLogMapper.insert(statusLog);
+
         log.info("订单已支付: orderNo={}, channel={}, tradeNo={}", order.getOrderNo(), channel, tradeNo);
     }
 
