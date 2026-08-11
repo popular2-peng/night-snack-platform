@@ -44,6 +44,7 @@ public final class ErrorCode {
     public static final int USER_ALREADY_BANNED      = 2303; // 用户已被封禁，无需重复操作
     public static final int USER_NOT_BANNED          = 2304; // 用户未被封禁，无法解封
     public static final int USER_RESET_PASSWORD_FAIL = 2305; // 重置密码失败（用户状态异常）
+    public static final int USER_ACTIVE_CANNOT_DELETE = 2306; // 启用账号不可删除
     public static final int USER_PHONE_FORMAT_ERROR  = 2306; // 手机号格式不正确
     public static final int USER_BAN_DURATION_INVALID = 2307; // 封禁时长不能为负数
 

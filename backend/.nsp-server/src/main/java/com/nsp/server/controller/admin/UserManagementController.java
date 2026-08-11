@@ -96,6 +96,15 @@ public class UserManagementController {
         return Result.ok(newPassword);
     }
 
+    @Operation(summary = "删除用户（物理删除 + 级联清理订单/地址，启用账号不可删除）")
+    @DeleteMapping("/users/{id}")
+    public Result<Void> deleteUser(
+            @Parameter(description = "用户 ID") @PathVariable Long id,
+            @AuthenticationPrincipal Long operatorId) {
+        userManagementService.deleteUser(id, operatorId);
+        return Result.ok();
+    }
+
     // ── 批量操作（封禁需选时长，不提供批量封禁） ──
 
     @Operation(summary = "批量启用（未封禁/已删除的自动跳过）")

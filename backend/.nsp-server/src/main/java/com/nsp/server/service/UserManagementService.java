@@ -51,7 +51,10 @@ public interface UserManagementService {
     /** 批量启用（未封禁/已删除的跳过；封禁需选时长，不提供批量封禁） */
     BatchResultVO batchUnban(List<Long> ids, Long operatorId);
 
-    /** 批量删除（软删，启用账号不可删除：ACTIVE 跳过） */
+    /** 删除单个用户（物理删除 + 级联清理订单/地址，启用账号不可删除） */
+    void deleteUser(Long id, Long operatorId);
+
+    /** 批量删除（物理删除 + 级联清理订单/地址，启用账号不可删除：ACTIVE 跳过） */
     BatchResultVO batchDelete(List<Long> ids, Long operatorId);
 
     /** 用户操作日志列表 */

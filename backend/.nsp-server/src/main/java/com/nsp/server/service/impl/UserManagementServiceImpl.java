@@ -9,12 +9,21 @@ import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.common.util.PhoneMaskUtil;
 import com.nsp.pojo.dto.BanUserDTO;
+import com.nsp.pojo.entity.Order;
+import com.nsp.pojo.entity.OrderItem;
+import com.nsp.pojo.entity.OrderStatusLog;
+import com.nsp.pojo.entity.PaymentRecord;
 import com.nsp.pojo.entity.User;
+import com.nsp.pojo.entity.UserAddress;
 import com.nsp.pojo.vo.AdminUserVO;
 import com.nsp.pojo.vo.BatchResultVO;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.pojo.vo.UserDetailVO;
+import com.nsp.server.mapper.AddressMapper;
+import com.nsp.server.mapper.OrderItemMapper;
 import com.nsp.server.mapper.OrderMapper;
+import com.nsp.server.mapper.OrderStatusLogMapper;
+import com.nsp.server.mapper.PaymentRecordMapper;
 import com.nsp.server.mapper.UserMapper;
 import com.nsp.server.service.UserManagementService;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +50,10 @@ public class UserManagementServiceImpl implements UserManagementService {
 
     private final UserMapper userMapper;
     private final OrderMapper orderMapper;
+    private final OrderItemMapper orderItemMapper;
+    private final OrderStatusLogMapper orderStatusLogMapper;
+    private final PaymentRecordMapper paymentRecordMapper;
+    private final AddressMapper addressMapper;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -206,6 +219,18 @@ public class UserManagementServiceImpl implements UserManagementService {
 
     @Override
     @Transactional
+    public void deleteUser(Long id, Long operatorId) {
+        User user = findById(id);
+        if ("ACTIVE".equals(user.getStatus())) {
+            throw new BizException(ErrorCode.USER_ACTIVE_CANNOT_DELETE, MessageConst.USER_ACTIVE_CANNOT_DELETE_MSG);
+        }
+        cascadeDeleteUser(id);
+        writeOperationLogAsync(id, "DELETE", operatorId, "删除用户");
+        log.info("删除用户: userId={}, operatorId={}", id, operatorId);
+    }
+
+    @Override
+    @Transactional
     public BatchResultVO batchDelete(List<Long> ids, Long operatorId) {
         BatchResultVO result = new BatchResultVO();
         int active = 0, deleted = 0;
@@ -215,16 +240,41 @@ public class UserManagementServiceImpl implements UserManagementService {
             // 启用账号不可删除（仅允许删除已封禁账号）
             if ("ACTIVE".equals(user.getStatus())) { active++; continue; }
 
-            user.setDeleted(1); // 软删（MyBatis-Plus 逻辑删除字段）
-            userMapper.updateById(user);
+            cascadeDeleteUser(id);
             result.setSuccessCount(result.getSuccessCount() + 1);
-            writeOperationLogAsync(user.getId(), "DELETE", operatorId, "批量删除");
+            writeOperationLogAsync(id, "DELETE", operatorId, "批量删除");
         }
         result.setSkippedCount(active + deleted);
         if (active > 0) result.addSkipped(active + " 个启用账号不可删除");
         if (deleted > 0) result.addSkipped(deleted + " 个账号已删除");
         log.info("批量删除用户: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
         return result;
+    }
+
+    /**
+     * 级联物理删除用户及其关联数据（事务内）：
+     * 订单 → 订单明细/状态日志/支付记录；收货地址；用户本身
+     */
+    private void cascadeDeleteUser(Long userId) {
+        // 1. 用户订单及其明细/日志/支付记录
+        List<Order> orders = orderMapper.selectList(
+                new LambdaQueryWrapper<Order>().eq(Order::getUserId, userId));
+        for (Order o : orders) {
+            orderItemMapper.delete(new LambdaQueryWrapper<OrderItem>()
+                    .eq(OrderItem::getOrderId, o.getId()));
+            orderStatusLogMapper.delete(new LambdaQueryWrapper<OrderStatusLog>()
+                    .eq(OrderStatusLog::getOrderId, o.getId()));
+            paymentRecordMapper.delete(new LambdaQueryWrapper<PaymentRecord>()
+                    .eq(PaymentRecord::getOrderNo, o.getOrderNo()));
+        }
+        orderMapper.delete(new LambdaQueryWrapper<Order>().eq(Order::getUserId, userId));
+
+        // 2. 收货地址
+        addressMapper.delete(new LambdaQueryWrapper<UserAddress>()
+                .eq(UserAddress::getUserId, userId));
+
+        // 3. 用户本身（物理删除，绕过逻辑删除拦截）
+        userMapper.physicalDeleteById(userId);
     }
 
     @Override

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import {
-  listUsers, getUserDetail, banUser, unbanUser, resetPassword, getUserLogs,
+  listUsers, getUserDetail, banUser, unbanUser, resetPassword, getUserLogs, deleteUser,
   batchUnbanUsers, batchDeleteUsers,
 } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -175,6 +175,17 @@ const handleUnban = async (row: UserItem) => {
   fetchStats()
 }
 
+// ---- 删除（物理删除 + 级联清理订单/地址） ----
+const handleDelete = async (row: UserItem) => {
+  await ElMessageBox.confirm(
+    `确定删除用户「${row.username}」？删除后将同时清理其订单、收货地址等关联数据，且不可恢复！`,
+    '危险操作', { type: 'error', confirmButtonText: '确认删除' })
+  await deleteUser(row.id)
+  ElMessage.success('删除成功')
+  fetchUsers()
+  fetchStats()
+}
+
 // ---- 重置密码 ----
 const openResetPwd = (row: UserItem) => {
   resetPwdTarget.value = row
@@ -316,6 +327,7 @@ onMounted(() => { fetchUsers(); fetchStats() })
                 </template>
                 <template v-else>
                   <el-dropdown-item divided @click="handleUnban(row)" style="color:#67C23A">解封</el-dropdown-item>
+                  <el-dropdown-item divided @click="handleDelete(row)" style="color:#F56C6C">删除</el-dropdown-item>
                 </template>
               </el-dropdown-menu>
             </template>

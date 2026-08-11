@@ -65,6 +65,10 @@ export const resetPassword = (id: number) => {
   return request.put(`/admin/users/${id}/reset-password`)
 }
 
+export const deleteUser = (id: number) => {
+  return request.delete(`/admin/users/${id}`)
+}
+
 export const getUserLogs = (id: number) => {
   return request.get(`/admin/users/${id}/logs`)
 }
