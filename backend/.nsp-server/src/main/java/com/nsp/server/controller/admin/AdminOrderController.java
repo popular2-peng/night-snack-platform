@@ -32,9 +32,10 @@ public class AdminOrderController {
             @Parameter(description = "搜索：订单号/用户名/商家名") @RequestParam(required = false) String keyword,
             @Parameter(description = "状态筛选：PENDING_PAY/PAID/ACCEPTED/COOKING/COMPLETED/CANCELLED/REFUNDING/REFUNDED")
             @RequestParam(required = false) String status,
+            @Parameter(description = "支付渠道筛选：ALIPAY/WECHAT_MOCK") @RequestParam(required = false) String payChannel,
             @Parameter(description = "下单起始日期（yyyy-MM-dd）") @RequestParam(required = false) String dateStart,
             @Parameter(description = "下单截止日期（yyyy-MM-dd）") @RequestParam(required = false) String dateEnd) {
-        return Result.ok(orderService.getAdminOrders(page, size, keyword, status, dateStart, dateEnd));
+        return Result.ok(orderService.getAdminOrders(page, size, keyword, status, payChannel, dateStart, dateEnd));
     }
 
     @Operation(summary = "订单详情（含明细与状态流转日志）")

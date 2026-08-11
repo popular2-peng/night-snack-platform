@@ -20,9 +20,9 @@ public interface OrderService {
     /** 商家查询自己店铺的订单列表 */
     PageVO<OrderListVO> getMerchantOrders(Long merchantId, Long userId, int page, int size);
 
-    /** 管理员查询全部订单列表（支持订单号/用户名/商家名关键词、状态、下单日期范围筛选） */
+    /** 管理员查询全部订单列表（支持订单号/用户名/商家名关键词、状态、支付渠道、下单日期范围筛选） */
     PageVO<AdminOrderVO> getAdminOrders(int page, int size, String keyword, String status,
-                                        String dateStart, String dateEnd);
+                                        String payChannel, String dateStart, String dateEnd);
 
     /** 查询订单详情（用户查自己的、商家查自己店的、管理员查所有） */
     OrderVO getOrderDetail(Long orderId, Long userId, String role);

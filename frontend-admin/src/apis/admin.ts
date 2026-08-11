@@ -120,7 +120,7 @@ export const activateMerchant = (id: number) => {
 }
 
 // ---- 订单管理 ----
-export const listAdminOrders = (params: { page: number; size: number; keyword?: string; status?: string; dateStart?: string; dateEnd?: string }) => {
+export const listAdminOrders = (params: { page: number; size: number; keyword?: string; status?: string; payChannel?: string; dateStart?: string; dateEnd?: string }) => {
   return request.get('/admin/orders', { params })
 }
 

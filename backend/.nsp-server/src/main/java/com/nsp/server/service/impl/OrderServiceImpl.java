@@ -149,6 +149,9 @@ public class OrderServiceImpl implements OrderService {
         order.setPayChannel(PayChannel.fromCode(dto.getPayChannel()));
         orderMapper.insert(order);
 
+        // created_at 由数据库默认值（CURRENT_TIMESTAMP）填充，insert 后重新加载以回填
+        order = orderMapper.selectById(order.getId());
+
         for (int i = 0; i < specs.size(); i++) {
             OrderItem oi = new OrderItem();
             oi.setOrderId(order.getId());
@@ -182,7 +185,7 @@ public class OrderServiceImpl implements OrderService {
                 new Page<>(page, size),
                 new LambdaQueryWrapper<Order>()
                         .eq(Order::getUserId, userId)
-                        .orderByDesc(Order::getCreatedAt));
+                        .orderByDesc(Order::getId));
 
         return toPageVO(result);
     }
@@ -199,16 +202,17 @@ public class OrderServiceImpl implements OrderService {
                 new Page<>(page, size),
                 new LambdaQueryWrapper<Order>()
                         .eq(Order::getMerchantId, merchantId)
-                        .orderByDesc(Order::getCreatedAt));
+                        .orderByDesc(Order::getId));
 
         return toPageVO(result);
     }
 
     @Override
     public PageVO<AdminOrderVO> getAdminOrders(int page, int size, String keyword,
-                                               String status, String dateStart, String dateEnd) {
+                                               String status, String payChannel,
+                                               String dateStart, String dateEnd) {
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
-        wrapper.orderByDesc(Order::getCreatedAt);
+        wrapper.orderByDesc(Order::getId);
 
         // 关键词：订单号模糊 / 下单用户名模糊 / 商家名模糊（后两者用子查询关联 user、merchant 表）
         if (keyword != null && !keyword.isBlank()) {
@@ -224,6 +228,14 @@ public class OrderServiceImpl implements OrderService {
             OrderStatus statusEnum = OrderStatus.fromCode(status);
             if (statusEnum != null) {
                 wrapper.eq(Order::getStatus, statusEnum);
+            }
+        }
+
+        // 支付渠道筛选（ALIPAY / WECHAT_MOCK，非法值忽略）
+        if (payChannel != null && !payChannel.isBlank()) {
+            PayChannel channelEnum = PayChannel.fromCode(payChannel);
+            if (channelEnum != null) {
+                wrapper.eq(Order::getPayChannel, channelEnum);
             }
         }
 

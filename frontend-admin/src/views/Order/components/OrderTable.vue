@@ -49,6 +49,7 @@ const page = ref(1)
 const size = ref(10)
 const keyword = ref('')
 const statusFilter = ref('')
+const payChannelFilter = ref('')
 const dateRange = ref<string[]>(['', ''])
 const loading = ref(false)
 
@@ -71,6 +72,11 @@ const statusOptions = [
   { label: '已退款', value: 'REFUNDED' },
 ]
 
+const payChannelOptions = [
+  { label: '支付宝', value: 'ALIPAY' },
+  { label: '微信', value: 'WECHAT_MOCK' },
+]
+
 // ---- 数据获取 ----
 const fetchOrders = async () => {
   loading.value = true
@@ -78,6 +84,7 @@ const fetchOrders = async () => {
     const params: any = { page: page.value, size: size.value }
     if (keyword.value) params.keyword = keyword.value
     if (statusFilter.value) params.status = statusFilter.value
+    if (payChannelFilter.value) params.payChannel = payChannelFilter.value
     if (dateRange.value?.[0]) params.dateStart = dateRange.value[0]
     if (dateRange.value?.[1]) params.dateEnd = dateRange.value[1]
     const res = await listAdminOrders(params)
@@ -103,7 +110,7 @@ const fetchStats = async () => {
 }
 
 const handleSearch = () => { page.value = 1; fetchOrders() }
-const handleReset = () => { page.value = 1; fetchOrders() }
+const handleReset = () => { payChannelFilter.value = ''; page.value = 1; fetchOrders() }
 const handleRefresh = () => { fetchOrders(); fetchStats() }
 const handleSizeChange = (val: number) => { size.value = val; fetchOrders() }
 const handlePageChange = (val: number) => { page.value = val; fetchOrders() }
@@ -167,7 +174,20 @@ onMounted(() => { fetchOrders(); fetchStats() })
       @search="handleSearch"
       @reset="handleReset"
       @refresh="handleRefresh"
-    />
+    >
+      <!-- 支付方式筛选（仅订单管理页显示） -->
+      <template #extra>
+        <el-select
+          v-model="payChannelFilter"
+          placeholder="支付方式"
+          clearable
+          style="width: 120px"
+          @change="handleSearch"
+        >
+          <el-option v-for="o in payChannelOptions" :key="o.value" :label="o.label" :value="o.value" />
+        </el-select>
+      </template>
+    </SearchFilterBar>
 
     <!-- ====== 表格 ====== -->
     <el-table :data="orders" stripe v-loading="loading" style="width: 100%">

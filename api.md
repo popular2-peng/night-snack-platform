@@ -511,7 +511,7 @@ DELETE /api/user/cart
 > **订单号规则**：`NSP + yyyyMMdd + 当天 6 位自增序号`（如 `NSP20260811000001`）。
 > 序号由 Redis 原子自增（key `order:no:{yyyyMMdd}`，按天分桶，TTL 2 天）生成 —— 下单时即预占序号，
 > 多名用户并发下单也不会产生重复订单号，同一天上限 999999 单；Redis 不可用时降级为「时间戳 + 4 位随机数」。
-> 订单号中的日期始终等于订单创建时间（`created_at`）。
+> 订单号中的日期始终等于订单创建时间（`created_at`）。订单 `created_at` 由服务器当前时间写入（列默认 `CURRENT_TIMESTAMP`），与状态流转日志首条（下单）时间一致；列表接口默认按订单 ID 降序返回（最新订单在前）。
 
 > **订单超时自动任务**（后端每 60 秒扫描一次，操作人记录为 `system`）：
 >
@@ -1591,6 +1591,7 @@ GET /api/admin/orders
 | `size` | int | 否 | 每页条数，默认 20 |
 | `keyword` | string | 否 | 订单号 / 下单用户名 / 商家名模糊搜索 |
 | `status` | string | 否 | 状态筛选（见下方状态码表） |
+| `payChannel` | string | 否 | 支付渠道筛选：`ALIPAY` / `WECHAT_MOCK` |
 | `dateStart` | string | 否 | 下单起始日期（`yyyy-MM-dd`，含当天） |
 | `dateEnd` | string | 否 | 下单截止日期（`yyyy-MM-dd`，含当天） |
 
