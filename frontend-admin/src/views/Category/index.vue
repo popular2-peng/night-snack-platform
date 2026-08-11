@@ -7,6 +7,7 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import SearchFilterBar from '@/components/SearchFilterBar.vue'
+import StatsStrip from '@/components/StatsStrip.vue'
 
 // ---- types ----
 interface CategoryItem {
@@ -196,23 +197,12 @@ onMounted(() => { fetchCategories(); fetchStats() })
 <template>
   <div class="page-card">
 
-    <!-- ====== 统计条 ====== -->
-    <div class="stats-strip">
-      <div class="stat-item">
-        <span class="stat-item-value">{{ stats.total }}</span>
-        <span class="stat-item-label">品类总数</span>
-      </div>
-      <div class="stat-divider" />
-      <div class="stat-item">
-        <span class="stat-item-value text-success">{{ stats.enabled }}</span>
-        <span class="stat-item-label">已启用</span>
-      </div>
-      <div class="stat-divider" />
-      <div class="stat-item">
-        <span class="stat-item-value text-info">{{ stats.disabled }}</span>
-        <span class="stat-item-label">已停用</span>
-      </div>
-    </div>
+    <!-- ====== 统计条（公共组件） ====== -->
+    <StatsStrip :items="[
+      { value: stats.total, label: '品类总数' },
+      { value: stats.enabled, label: '已启用', color: 'success' },
+      { value: stats.disabled, label: '已停用', color: 'info' },
+    ]" />
 
     <!-- ====== 搜索 + 操作 ====== -->
     <SearchFilterBar
@@ -371,23 +361,6 @@ onMounted(() => { fetchCategories(); fetchStats() })
 </template>
 
 <style scoped>
-/* ---- 统计条 ---- */
-.stats-strip {
-  display: flex; align-items: center; gap: 24px;
-  margin-bottom: 20px; padding: 16px 20px;
-  background: var(--bg); border-radius: var(--border-radius-sm);
-  flex-wrap: wrap;
-}
-.stat-item { display: flex; flex-direction: column; }
-.stat-item-value {
-  font-size: 22px; font-weight: 700; color: var(--text-primary);
-  line-height: 1.2; font-variant-numeric: tabular-nums;
-}
-.stat-item-value.text-success { color: var(--success); }
-.stat-item-value.text-info    { color: var(--info); }
-.stat-item-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-.stat-divider { width: 1px; height: 32px; background: var(--border-color); }
-
 /* ---- 分页 ---- */
 .pagination-wrap { display: flex; justify-content: flex-end; margin-top: 16px; }
 </style>

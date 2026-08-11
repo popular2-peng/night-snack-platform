@@ -8,6 +8,7 @@ import {
   MoreFilled, Male, Female, Phone, Calendar, ShoppingBag, Coin, User, WarningFilled,
 } from '@element-plus/icons-vue'
 import SearchFilterBar from '@/components/SearchFilterBar.vue'
+import StatsStrip from '@/components/StatsStrip.vue'
 
 // ---- 类型 ----
 interface UserItem {
@@ -184,33 +185,14 @@ onMounted(() => { fetchUsers(); fetchStats() })
 <template>
   <div class="page-card">
 
-    <!-- ====== 统计条 ====== -->
-    <div class="stats-strip">
-      <div class="stat-item">
-        <span class="stat-item-value">{{ stats.total }}</span>
-        <span class="stat-item-label">用户总数</span>
-      </div>
-      <div class="stat-divider" />
-      <div class="stat-item">
-        <span class="stat-item-value text-primary">{{ stats.todayNew }}</span>
-        <span class="stat-item-label">今日新增</span>
-      </div>
-      <div class="stat-divider" />
-      <div class="stat-item">
-        <span class="stat-item-value text-success">{{ stats.active }}</span>
-        <span class="stat-item-label">活跃用户</span>
-      </div>
-      <div class="stat-divider" />
-      <div class="stat-item">
-        <span class="stat-item-value text-danger">{{ stats.disabled }}</span>
-        <span class="stat-item-label">已封禁</span>
-      </div>
-      <div class="stat-divider" />
-      <div class="stat-item">
-        <span class="stat-item-value text-warning">{{ stats.todayOrders }}</span>
-        <span class="stat-item-label">今日订单数</span>
-      </div>
-    </div>
+    <!-- ====== 统计条（公共组件） ====== -->
+    <StatsStrip :items="[
+      { value: stats.total, label: '用户总数' },
+      { value: stats.todayNew, label: '今日新增', color: 'primary' },
+      { value: stats.active, label: '活跃用户', color: 'success' },
+      { value: stats.disabled, label: '已封禁', color: 'danger' },
+      { value: stats.todayOrders, label: '今日订单数', color: 'warning' },
+    ]" />
 
     <!-- ====== 搜索 ====== -->
     <SearchFilterBar
@@ -523,25 +505,6 @@ onMounted(() => { fetchUsers(); fetchStats() })
 </template>
 
 <style scoped>
-/* ---- 统计条 ---- */
-.stats-strip {
-  display: flex; align-items: center; gap: 20px;
-  margin-bottom: 20px; padding: 16px 20px;
-  background: var(--bg); border-radius: var(--border-radius-sm);
-  flex-wrap: wrap;
-}
-.stat-item { display: flex; flex-direction: column; }
-.stat-item-value {
-  font-size: 22px; font-weight: 700; color: var(--text-primary);
-  line-height: 1.2; font-variant-numeric: tabular-nums;
-}
-.stat-item-value.text-success  { color: var(--success); }
-.stat-item-value.text-danger   { color: var(--danger); }
-.stat-item-value.text-warning  { color: var(--warning); }
-.stat-item-value.text-primary  { color: var(--color-primary, #5B8DEF); }
-.stat-item-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-.stat-divider { width: 1px; height: 32px; background: var(--border-color); }
-
 /* ---- Drawer：头部卡片 ---- */
 .drawer-hero {
   position: relative;

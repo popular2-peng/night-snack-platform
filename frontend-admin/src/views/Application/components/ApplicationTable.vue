@@ -6,6 +6,7 @@ import {
 } from '@/apis/admin'
 import { ElMessage } from 'element-plus'
 import SearchFilterBar from '@/components/SearchFilterBar.vue'
+import StatsStrip from '@/components/StatsStrip.vue'
 import ApplicationDetailDrawer from './ApplicationDetailDrawer.vue'
 
 interface AppItem {
@@ -138,28 +139,13 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
 <template>
   <div class="page-card">
 
-    <!-- ====== 统计条 ====== -->
-    <div class="stats-strip">
-      <div class="stat-item">
-        <span class="stat-item-value">{{ stats.total }}</span>
-        <span class="stat-item-label">申请总数</span>
-      </div>
-      <div class="stat-divider" />
-      <div class="stat-item">
-        <span class="stat-item-value text-warning">{{ stats.pending }}</span>
-        <span class="stat-item-label">待审核</span>
-      </div>
-      <div class="stat-divider" />
-      <div class="stat-item">
-        <span class="stat-item-value text-success">{{ stats.approved }}</span>
-        <span class="stat-item-label">已通过</span>
-      </div>
-      <div class="stat-divider" />
-      <div class="stat-item">
-        <span class="stat-item-value text-danger">{{ stats.rejected }}</span>
-        <span class="stat-item-label">已拒绝</span>
-      </div>
-    </div>
+    <!-- ====== 统计条（公共组件） ====== -->
+    <StatsStrip :items="[
+      { value: stats.total, label: '申请总数' },
+      { value: stats.pending, label: '待审核', color: 'warning' },
+      { value: stats.approved, label: '已通过', color: 'success' },
+      { value: stats.rejected, label: '已拒绝', color: 'danger' },
+    ]" />
 
     <!-- ====== 搜索 ====== -->
     <SearchFilterBar
@@ -277,26 +263,4 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
 </template>
 
 <style scoped>
-/* ---- 统计条 ---- */
-.stats-strip {
-  display: flex; align-items: center; gap: 24px;
-  margin-bottom: 20px; padding: 16px 20px;
-  background: var(--bg); border-radius: var(--border-radius-sm);
-  flex-wrap: wrap;
-}
-.stat-item { display: flex; flex-direction: column; }
-.stat-item-value {
-  font-size: 22px; font-weight: 700; color: var(--text-primary);
-  line-height: 1.2; font-variant-numeric: tabular-nums;
-}
-.stat-item-value.text-warning { color: var(--warning); }
-.stat-item-value.text-success { color: var(--success); }
-.stat-item-value.text-danger  { color: var(--danger); }
-.stat-item-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-.stat-divider { width: 1px; height: 32px; background: var(--border-color); }
-
-@media (max-width: 768px) {
-  .stats-strip { gap: 16px; padding: 12px; }
-  .stat-item-value { font-size: 18px; }
-}
 </style>
