@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import {
   listUsers, getUserDetail, banUser, unbanUser, resetPassword, getUserLogs,
-  batchBanUsers, batchUnbanUsers, batchDeleteUsers,
+  batchUnbanUsers, batchDeleteUsers,
 } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -225,12 +225,9 @@ onMounted(() => { fetchUsers(); fetchStats() })
       @reset="handleReset"
       @refresh="handleRefresh"
     >
-      <!-- 批量操作（与商家管理页一致：搜索栏右侧，选中后显示） -->
+      <!-- 批量操作（与商家管理页一致：搜索栏右侧，选中后显示；封禁需选时长走单个封禁） -->
       <template #extra>
         <template v-if="selectedIds.length">
-          <el-button type="warning" plain :loading="batchLoading" @click="runBatch(batchBanUsers, '批量封禁')">
-            批量封禁 ({{ selectedIds.length }})
-          </el-button>
           <el-button type="success" plain :loading="batchLoading" @click="runBatch(batchUnbanUsers, '批量启用')">
             批量启用 ({{ selectedIds.length }})
           </el-button>

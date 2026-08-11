@@ -48,10 +48,7 @@ public interface UserManagementService {
     /** 重置用户密码（返回新密码） */
     String resetPassword(Long id, Long operatorId);
 
-    /** 批量封禁（已封禁/已删除的跳过） */
-    BatchResultVO batchBan(List<Long> ids, Long operatorId);
-
-    /** 批量启用（未封禁/已删除的跳过） */
+    /** 批量启用（未封禁/已删除的跳过；封禁需选时长，不提供批量封禁） */
     BatchResultVO batchUnban(List<Long> ids, Long operatorId);
 
     /** 批量删除（软删，启用账号不可删除：ACTIVE 跳过） */

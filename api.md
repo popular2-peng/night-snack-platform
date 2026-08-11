@@ -1887,14 +1887,13 @@ PAID ──(退款)──→ REFUNDING ──(退款成功)──→ REFUNDED
 | 88 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
 | 89 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
 | 90 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
-| 91 | POST | `/api/admin/users/batch-ban` | 批量封禁用户 | ADMIN |
-| 92 | POST | `/api/admin/users/batch-unban` | 批量启用用户 | ADMIN |
-| 93 | POST | `/api/admin/users/batch-delete` | 批量删除用户 | ADMIN |
-| 94 | POST | `/api/admin/category/batch-enable` | 批量启用品类 | ADMIN |
-| 95 | POST | `/api/admin/category/batch-disable` | 批量停用品类 | ADMIN |
-| 96 | POST | `/api/admin/category/batch-delete` | 批量删除品类 | ADMIN |
-| 97 | POST | `/api/admin/orders/batch-delete` | 批量删除订单 | ADMIN |
-| 98 | POST | `/api/admin/merchant-application/batch-delete` | 批量删除入驻申请 | ADMIN |
+| 91 | POST | `/api/admin/users/batch-unban` | 批量启用用户 | ADMIN |
+| 92 | POST | `/api/admin/users/batch-delete` | 批量删除用户 | ADMIN |
+| 93 | POST | `/api/admin/category/batch-enable` | 批量启用品类 | ADMIN |
+| 94 | POST | `/api/admin/category/batch-disable` | 批量停用品类 | ADMIN |
+| 95 | POST | `/api/admin/category/batch-delete` | 批量删除品类 | ADMIN |
+| 96 | POST | `/api/admin/orders/batch-delete` | 批量删除订单 | ADMIN |
+| 97 | POST | `/api/admin/merchant-application/batch-delete` | 批量删除入驻申请 | ADMIN |
 
 ---
 

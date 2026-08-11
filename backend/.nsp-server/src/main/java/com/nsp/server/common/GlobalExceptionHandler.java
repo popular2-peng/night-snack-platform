@@ -36,6 +36,14 @@ public class GlobalExceptionHandler {
         return Result.fail(ErrorCode.PARAM_ERROR, msg);
     }
 
+    /** 请求路径不存在（未映射的接口）→ 404，而非按系统异常返回 500 */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public Result<Void> handleNotFound(org.springframework.web.servlet.resource.NoResourceFoundException e) {
+        log.warn("接口不存在: {}", e.getResourcePath());
+        return Result.fail(ErrorCode.SYSTEM_ERROR, "接口不存在");
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleException(Exception e) {

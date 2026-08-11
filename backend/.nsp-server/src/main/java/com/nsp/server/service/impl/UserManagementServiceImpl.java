@@ -179,32 +179,6 @@ public class UserManagementServiceImpl implements UserManagementService {
 
     @Override
     @Transactional
-    public BatchResultVO batchBan(List<Long> ids, Long operatorId) {
-        BatchResultVO result = new BatchResultVO();
-        int banned = 0, deleted = 0;
-        for (Long id : ids) {
-            User user = userMapper.selectById(id); // 逻辑删除的用户查不到 → null
-            if (user == null) { deleted++; continue; }
-            if ("DISABLED".equals(user.getStatus())) { banned++; continue; }
-
-            user.setStatus("DISABLED");
-            user.setBannedReason("批量封禁");
-            user.setBannedAt(LocalDateTime.now());
-            user.setBannedBy(operatorId);
-            user.setUnbannedAt(null); // 永久封禁
-            userMapper.updateById(user);
-            result.setSuccessCount(result.getSuccessCount() + 1);
-            writeOperationLogAsync(user.getId(), "BAN", operatorId, "批量封禁");
-        }
-        result.setSkippedCount(banned + deleted);
-        if (banned > 0) result.addSkipped(banned + " 个账号已封禁");
-        if (deleted > 0) result.addSkipped(deleted + " 个账号已删除");
-        log.info("批量封禁用户: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
-        return result;
-    }
-
-    @Override
-    @Transactional
     public BatchResultVO batchUnban(List<Long> ids, Long operatorId) {
         BatchResultVO result = new BatchResultVO();
         int active = 0, deleted = 0;

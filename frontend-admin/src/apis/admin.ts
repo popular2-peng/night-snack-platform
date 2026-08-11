@@ -69,11 +69,7 @@ export const getUserLogs = (id: number) => {
   return request.get(`/admin/users/${id}/logs`)
 }
 
-// 批量操作
-export const batchBanUsers = (ids: number[]) => {
-  return request.post('/admin/users/batch-ban', { ids })
-}
-
+// 批量操作（封禁需选时长，走单个封禁）
 export const batchUnbanUsers = (ids: number[]) => {
   return request.post('/admin/users/batch-unban', { ids })
 }

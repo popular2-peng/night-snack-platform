@@ -96,14 +96,7 @@ public class UserManagementController {
         return Result.ok(newPassword);
     }
 
-    // ── 批量操作 ──
-
-    @Operation(summary = "批量封禁（已封禁/已删除的自动跳过）")
-    @PostMapping("/users/batch-ban")
-    public Result<BatchResultVO> batchBan(@Valid @RequestBody BatchIdsDTO dto,
-                                          @AuthenticationPrincipal Long operatorId) {
-        return Result.ok(userManagementService.batchBan(dto.getIds(), operatorId));
-    }
+    // ── 批量操作（封禁需选时长，不提供批量封禁） ──
 
     @Operation(summary = "批量启用（未封禁/已删除的自动跳过）")
     @PostMapping("/users/batch-unban")
