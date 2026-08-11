@@ -166,28 +166,18 @@ onMounted(() => { fetchOrders(); fetchStats() })
     <SearchFilterBar
       v-model:keyword="keyword"
       v-model:filter-value="statusFilter"
+      v-model:pay-channel-value="payChannelFilter"
       v-model:date-range="dateRange"
       placeholder="搜索订单号/用户名/商家名"
       :filter-options="statusOptions"
       filter-placeholder="状态筛选"
+      :pay-channel-options="payChannelOptions"
+      pay-channel-placeholder="支付方式"
       date-label="下单"
       @search="handleSearch"
       @reset="handleReset"
       @refresh="handleRefresh"
-    >
-      <!-- 支付方式筛选（仅订单管理页显示） -->
-      <template #extra>
-        <el-select
-          v-model="payChannelFilter"
-          placeholder="支付方式"
-          clearable
-          style="width: 120px"
-          @change="handleSearch"
-        >
-          <el-option v-for="o in payChannelOptions" :key="o.value" :label="o.label" :value="o.value" />
-        </el-select>
-      </template>
-    </SearchFilterBar>
+    />
 
     <!-- ====== 表格 ====== -->
     <el-table :data="orders" stripe v-loading="loading" style="width: 100%">

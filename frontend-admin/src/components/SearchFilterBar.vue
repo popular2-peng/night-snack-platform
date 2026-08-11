@@ -13,6 +13,10 @@ defineProps<{
   filterPlaceholder?: string
   filterWidth?: number | string
   filterOptions?: FilterOption[]
+  /** 支付方式下拉选项（可选，如订单管理页；不传则不显示，显示在状态筛选右侧） */
+  payChannelOptions?: FilterOption[]
+  /** 支付方式下拉占位符 */
+  payChannelPlaceholder?: string
   /** 分类筛选下拉选项（可选，如平台品类；不传则不显示） */
   categoryOptions?: FilterOption[]
   /** 分类下拉占位符 */
@@ -23,6 +27,7 @@ defineProps<{
 
 const keyword = defineModel<string>('keyword', { default: '' })
 const filterValue = defineModel<string>('filterValue', { default: '' })
+const payChannelValue = defineModel<string>('payChannelValue', { default: '' })
 const categoryValue = defineModel<string>('categoryValue', { default: '' })
 const dateRange = defineModel<string[]>('dateRange', { default: () => ['', ''] })
 
@@ -49,6 +54,7 @@ const onDateEnd = () => { emit('search') }
 const handleReset = () => {
   keyword.value = ''
   filterValue.value = ''
+  payChannelValue.value = ''
   categoryValue.value = ''
   dateRange.value = ['', '']
   emit('reset')
@@ -77,6 +83,18 @@ const handleReset = () => {
       @change="emit('search')"
     >
       <el-option v-for="o in filterOptions" :key="o.value" :label="o.label" :value="o.value" />
+    </el-select>
+
+    <!-- 支付方式筛选（可选，显示在状态筛选右侧） -->
+    <el-select
+      v-if="payChannelOptions && payChannelOptions.length"
+      v-model="payChannelValue"
+      :placeholder="payChannelPlaceholder || '支付方式'"
+      clearable
+      :style="{ width: '120px' }"
+      @change="emit('search')"
+    >
+      <el-option v-for="o in payChannelOptions" :key="o.value" :label="o.label" :value="o.value" />
     </el-select>
 
     <el-select
