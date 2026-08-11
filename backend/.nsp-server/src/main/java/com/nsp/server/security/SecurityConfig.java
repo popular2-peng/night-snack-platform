@@ -53,11 +53,12 @@ public class SecurityConfig {
                                 "/api/user/register"
                         ).permitAll()
 
-                        // 商家端：登录 + 入驻申请（注册）+ 注册页品类下拉
+                        // 商家端：登录 + 入驻申请（注册）+ 注册页品类下拉 + 注册页 OSS 签名（匿名直传店铺 LOGO）
                         .requestMatchers(
                                 "/api/merchant/login",
                                 "/api/merchant/register",
-                                "/api/merchant/category/all"
+                                "/api/merchant/category/all",
+                                "/api/upload/sign"
                         ).permitAll()
 
                         // 管理端登录

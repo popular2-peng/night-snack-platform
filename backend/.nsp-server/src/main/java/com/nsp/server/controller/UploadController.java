@@ -27,9 +27,8 @@ public class UploadController {
 
     private final UploadService uploadService;
 
-    @Operation(summary = "获取 OSS 上传签名")
+    @Operation(summary = "获取 OSS 上传签名（匿名可用：商家入驻注册页未登录时直传店铺 LOGO；登录用户正常传 userId 限流）")
     @GetMapping("/sign")
-    @RequireRole({"USER", "MERCHANT", "ADMIN"})
     public Result<UploadSignVO> sign(@RequestParam String bizType,
                                      @RequestParam(required = false) Long targetId,
                                      @RequestParam String fileName,

@@ -17,6 +17,7 @@ export const registerApi = (data: {
   city: string
   district: string
   address: string
+  logoUrl?: string
   description?: string
 }) => {
   return request.post('/merchant/register', data)

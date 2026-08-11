@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
-import { Shop, CollectionTag } from '@element-plus/icons-vue'
+import { Shop, CollectionTag, Plus, Picture } from '@element-plus/icons-vue'
+import type { UploadRequestOptions } from 'element-plus'
+import { uploadSignApi, uploadFileToOss } from '@/apis/upload'
+import { ElMessage } from 'element-plus'
 
 /** 共享表单状态（父组件 Register/index.vue 持有） */
 interface RegisterForm {
@@ -15,6 +18,7 @@ interface RegisterForm {
   city: string
   district: string
   address: string
+  logoUrl: string
 }
 
 interface CategoryOption {
@@ -40,6 +44,32 @@ const rules: FormRules = {
   categoryId: [
     { required: true, message: '请选择主营品类', trigger: 'change' },
   ],
+  logoUrl: [
+    { required: true, message: '请上传店铺 LOGO', trigger: 'change' },
+  ],
+}
+
+/** 自定义上传：签名 → 直传 OSS → 得到 URL */
+const handleUpload = async (options: UploadRequestOptions) => {
+  const file = options.file as File
+  try {
+    const signRes = await uploadSignApi('SHOP_LOGO', file.name)
+    const url = await uploadFileToOss(signRes.data, file)
+    props.form.logoUrl = url
+    ElMessage.success('LOGO 上传成功')
+  } catch (e: any) {
+    props.form.logoUrl = ''
+    ElMessage.error(e?.message || 'LOGO 上传失败')
+  }
+}
+
+const handleUploadError = () => {
+  props.form.logoUrl = ''
+  ElMessage.error('LOGO 上传失败，请重试')
+}
+
+const handleRemoveLogo = () => {
+  props.form.logoUrl = ''
 }
 
 const handleNext = async () => {
@@ -52,6 +82,26 @@ const handleNext = async () => {
 <template>
   <el-form ref="formRef" :model="form" :rules="rules" label-position="top" size="large">
     <div class="form-section-title">店铺信息</div>
+    <el-form-item label="店铺 LOGO（JPG / PNG，必填）" prop="logoUrl">
+      <el-upload
+        class="logo-uploader"
+        accept=".jpg,.jpeg,.png"
+        :show-file-list="false"
+        :http-request="handleUpload"
+        :on-error="handleUploadError"
+      >
+        <img v-if="form.logoUrl" :src="form.logoUrl" class="logo-preview" alt="店铺LOGO" />
+        <div v-else class="logo-placeholder">
+          <el-icon :size="24"><Plus /></el-icon>
+          <span>上传 JPG / PNG</span>
+        </div>
+      </el-upload>
+      <div v-if="form.logoUrl" class="logo-actions">
+        <el-icon><Picture /></el-icon>
+        <span>上传成功，点击图片可重新上传</span>
+        <el-button link type="danger" @click="handleRemoveLogo">移除</el-button>
+      </div>
+    </el-form-item>
     <el-form-item label="店铺名称" prop="shopName">
       <el-input v-model="form.shopName" placeholder="如：老王小吃店" maxlength="20">
         <template #prefix><el-icon><Shop /></el-icon></template>
@@ -92,6 +142,46 @@ const handleNext = async () => {
   color: var(--text-secondary);
   margin: -4px 0 8px;
 }
+/* ---- LOGO 上传 ---- */
+.logo-uploader :deep(.el-upload) {
+  width: 120px;
+  height: 120px;
+  border: 1px dashed #DCDFE6;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all .25s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logo-uploader :deep(.el-upload:hover) {
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(91, 141, 239, 0.15);
+}
+.logo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.logo-preview {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.logo-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.logo-actions .el-button { margin-left: 8px; }
 .step-actions {
   display: flex;
   gap: 12px;

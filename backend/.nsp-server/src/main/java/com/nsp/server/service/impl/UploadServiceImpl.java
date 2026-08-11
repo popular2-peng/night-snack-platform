@@ -62,8 +62,8 @@ public class UploadServiceImpl implements UploadService {
 
     @Override
     public UploadSignVO sign(Long userId, String bizType, Long targetId, String fileName) {
-        // 限流
-        String limitKey = "upload:sign:limit:" + userId;
+        // 限流（匿名请求（入驻注册页）统一按 anon 计数）
+        String limitKey = "upload:sign:limit:" + (userId != null ? userId : "anon");
         String countStr = redisTemplate.opsForValue().get(limitKey);
         int count = countStr == null ? 0 : Integer.parseInt(countStr);
         if (count >= SIGN_LIMIT_PER_MINUTE) {

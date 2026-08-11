@@ -21,6 +21,7 @@ const form = reactive({
   city: '',
   district: '',
   address: '',
+  logoUrl: '',
 })
 
 /** 平台品类（第二步选择、第三步展示名称） */
