@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { showToast } from 'vant'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const form = reactive({ phone: '', password: '' })
@@ -27,7 +28,9 @@ const handleLogin = async () => {
   try {
     await authStore.login(form)
     showToast('登录成功')
-    router.push('/home')
+    // 从需登录页面跳转过来时（如订单页），登录后回跳原页面
+    const redirect = (route.query.redirect as string) || '/home'
+    router.replace(redirect)
   } catch (e: any) {
     if (e?.message === '该账号不是用户账号') {
       showToast('该账号不是用户账号')

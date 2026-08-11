@@ -28,7 +28,7 @@ const routes: RouteRecordRaw[] = [
         path: 'orders',
         name: 'Orders',
         component: () => import('@/views/PlaceholderPage.vue'),
-        meta: { title: '订单', tabbar: true, placeholder: true },
+        meta: { title: '订单', tabbar: true, placeholder: true, requiresAuth: true },
       },
       {
         path: 'profile',
@@ -45,12 +45,16 @@ const router = createRouter({
   routes,
 })
 
-// 路由守卫：首页等页面无需登录即可浏览，不做强制跳转；
-// 仅当调用需要鉴权的接口返回 401/403 时，由 request 拦截器清空登录态并跳转登录页。
+// 路由守卫：
+// 1. 标记 requiresAuth 的页面（如订单页）必须登录，未登录跳转登录页；
+// 2. 已登录访问登录/注册页时跳回首页；
+// 3. token 过期（调用接口返回 401/403）由 request 拦截器清空登录态并跳转登录页。
 router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('token')
   const role = localStorage.getItem('role')
-  if ((to.path === '/login' || to.path === '/register') && token && role === 'USER') {
+  if (to.meta.requiresAuth && !token) {
+    next({ path: '/login', query: { redirect: to.fullPath } })
+  } else if ((to.path === '/login' || to.path === '/register') && token && role === 'USER') {
     next('/home')
   } else {
     next()
