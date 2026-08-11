@@ -29,11 +29,18 @@ public class MapServiceImpl implements MapService {
     private static final String CACHE_KEY_PREFIX = "shop:distance:cache:";
     private static final int CACHE_TTL_HOURS = 1;
 
+    /** 百度地理编码 API（URL 公开不敏感；AK 由 baidu.map.ak 注入，默认地址可被 application.yml 覆盖） */
+    private static final String GEOCODE_API_DEFAULT =
+            "https://api.map.baidu.com/geocoding/v3/?address=%s&city=%s&output=json&ak=%s";
+
     @Value("${baidu.map.ak}")
     private String baiduAk;
 
     @Value("${baidu.map.distance-api}")
     private String distanceApi;
+
+    @Value("${baidu.map.geocode-api:" + GEOCODE_API_DEFAULT + "}")
+    private String geocodeApi;
 
     private final StringRedisTemplate redisTemplate;
     private final RestTemplate restTemplate;
@@ -136,6 +143,51 @@ public class MapServiceImpl implements MapService {
                                BigDecimal lat2, BigDecimal lng2) {
         double dist = HaversineUtil.distance(lat1, lng1, lat2, lng2);
         return Math.round(dist);
+    }
+
+    /**
+     * 地理编码：省 + 市 + 区县 + 详细地址 → [lat, lng]
+     *
+     * <p>百度 geocoding v3 API（`ret_coordtype=wgs84ll` 返回 WGS84 坐标，
+     * 与项目内其他坐标一致）；未配置 AK / 调用失败 / 返回空结果时返回 {@code null}，
+     * 由调用方（入驻申请）降级处理 —— 申请仍可提交，坐标待后续补充。
+     */
+    @Override
+    public BigDecimal[] geocode(String province, String city, String district, String detail) {
+        // 未配置百度 AK，直接放弃地理编码
+        if ("placeholder".equals(baiduAk) || baiduAk == null || baiduAk.isBlank()) {
+            log.warn("百度地图 AK 未配置，跳过地理编码: {}{}{}{}", province, city, district, detail);
+            return null;
+        }
+
+        String fullAddress = (province == null ? "" : province)
+                + (city == null ? "" : city)
+                + (district == null ? "" : district)
+                + (detail == null ? "" : detail);
+        if (fullAddress.isBlank()) {
+            return null;
+        }
+
+        try {
+            String url = String.format(geocodeApi, fullAddress, city, baiduAk);
+            String response = restTemplate.getForObject(url, String.class);
+            if (response != null) {
+                JsonNode root = objectMapper.readTree(response);
+                int status = root.path("status").asInt();
+                if (status == 0) {
+                    JsonNode location = root.path("result").path("location");
+                    BigDecimal lat = location.path("lat").decimalValue();
+                    BigDecimal lng = location.path("lng").decimalValue();
+                    log.info("百度地理编码成功: address={}, lat={}, lng={}", fullAddress, lat, lng);
+                    return new BigDecimal[]{lat, lng};
+                }
+                log.warn("百度地理编码返回异常: status={}, msg={}, address={}",
+                        status, root.path("message").asText(), fullAddress);
+            }
+        } catch (Exception e) {
+            log.warn("百度地理编码调用失败: address={}, err={}", fullAddress, e.getMessage());
+        }
+        return null;
     }
 
 }

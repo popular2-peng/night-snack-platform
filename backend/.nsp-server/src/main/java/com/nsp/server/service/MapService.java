@@ -29,4 +29,18 @@ public interface MapService {
                                     BigDecimal userLat, BigDecimal userLng,
                                     Long shopId);
 
+    /**
+     * 地理编码：地址 → 经纬度（百度地图 Web API）
+     *
+     * <p>入驻申请时把「省 + 市 + 区县 + 详细地址」转成坐标，
+     * 后续下单配送范围校验、距离计算使用。
+     *
+     * @param province 省
+     * @param city     市
+     * @param district 区县
+     * @param detail   详细地址
+     * @return 长度为 2 的数组 [lat, lng]；未配置 AK 或解析失败返回 {@code null}（调用方降级处理）
+     */
+    BigDecimal[] geocode(String province, String city, String district, String detail);
+
 }

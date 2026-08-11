@@ -141,6 +141,10 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         merchant.setDeliveryRadius(dto.getDeliveryRadius() != null ? dto.getDeliveryRadius() : 5000);
         merchant.setAvgRating(BigDecimal.valueOf(5.0));                // 新店默认 5.0 分
         merchant.setTotalOrders(0);
+        // 注册时填写的地址 + 百度地理编码坐标（若有）
+        merchant.setAddress(joinAddress(app));
+        merchant.setLat(app.getLat());
+        merchant.setLng(app.getLng());
         merchant.setCreatedAt(LocalDateTime.now());
         merchant.setUpdatedAt(LocalDateTime.now());
         merchantMapper.insert(merchant);
@@ -205,6 +209,10 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         merchant.setDeliveryRadius(5000);
         merchant.setAvgRating(BigDecimal.valueOf(5.0));
         merchant.setTotalOrders(0);
+        // 注册时填写的地址 + 百度地理编码坐标（若有）
+        merchant.setAddress(joinAddress(app));
+        merchant.setLat(app.getLat());
+        merchant.setLng(app.getLng());
         merchant.setCreatedAt(LocalDateTime.now());
         merchant.setUpdatedAt(LocalDateTime.now());
         merchantMapper.insert(merchant);
@@ -236,6 +244,16 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         MerchantApplication app = merchantApplicationMapper.selectById(id);
         if (app == null) throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, MessageConst.APPLICATION_NOT_FOUND_MSG);
         return app;
+    }
+
+    /** 拼接申请地址：省 + 市 + 区县 + 详细地址 */
+    private String joinAddress(MerchantApplication app) {
+        StringBuilder sb = new StringBuilder();
+        if (app.getProvince() != null) sb.append(app.getProvince());
+        if (app.getCity() != null) sb.append(app.getCity());
+        if (app.getDistrict() != null) sb.append(app.getDistrict());
+        if (app.getAddress() != null) sb.append(app.getAddress());
+        return sb.length() == 0 ? null : sb.toString();
     }
 
 }

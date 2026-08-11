@@ -182,6 +182,21 @@ public class MerchantServiceImpl implements MerchantService {
         app.setReason(dto.getReason());
         app.setDescription(dto.getDescription());
         app.setLogoUrl(dto.getLogoUrl());
+        // 联系人 + 地址信息（审核通过后直接用于创建商家）
+        app.setOwnerName(dto.getOwnerName());
+        app.setProvince(dto.getProvince());
+        app.setCity(dto.getCity());
+        app.setDistrict(dto.getDistrict());
+        app.setAddress(dto.getAddress());
+        // 调用百度地图地理编码获取坐标（AK 未配置/失败时 lat/lng 为 null，申请仍可提交）
+        BigDecimal[] location = mapService.geocode(
+                dto.getProvince(), dto.getCity(), dto.getDistrict(), dto.getAddress());
+        if (location != null) {
+            app.setLat(location[0]);
+            app.setLng(location[1]);
+        } else {
+            log.warn("入驻申请地理编码失败，坐标待补充: shopName={}", dto.getShopName());
+        }
         app.setStatus("PENDING");
         merchantApplicationMapper.insert(app);
 

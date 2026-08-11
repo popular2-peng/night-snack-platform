@@ -10,9 +10,13 @@ export const registerApi = (data: {
   username: string
   password: string
   phone: string
+  ownerName: string
   shopName: string
   categoryId: number
-  reason?: string
+  province: string
+  city: string
+  district: string
+  address: string
   description?: string
 }) => {
   return request.post('/merchant/register', data)

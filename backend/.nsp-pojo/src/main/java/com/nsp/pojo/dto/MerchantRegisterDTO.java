@@ -49,4 +49,26 @@ public class MerchantRegisterDTO {
     /** 店铺 LOGO OSS URL（可选） */
     private String logoUrl;
 
+    /** 联系人姓名（申请人/店主，必须为中文字符） */
+    @NotBlank(message = "联系人姓名不能为空")
+    @Pattern(regexp = "^[\\u4e00-\\u9fa5]{2,10}$", message = "联系人姓名需为 2-10 个中文字符")
+    private String ownerName;
+
+    /** 所在省 */
+    @NotBlank(message = "请选择省份")
+    private String province;
+
+    /** 所在市 */
+    @NotBlank(message = "请选择城市")
+    private String city;
+
+    /** 所在区县 */
+    @NotBlank(message = "请选择区县")
+    private String district;
+
+    /** 详细地址（后端调百度地图地理编码获取坐标） */
+    @NotBlank(message = "详细地址不能为空")
+    @Size(max = 200, message = "详细地址最多 200 字")
+    private String address;
+
 }

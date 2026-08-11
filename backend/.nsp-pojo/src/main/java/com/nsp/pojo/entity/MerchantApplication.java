@@ -64,4 +64,27 @@ public class MerchantApplication {
     /** 拒绝原因（展示给商家看） */
     private String rejectReason;
 
+    // ==================== 入驻地址信息（注册时填写） ====================
+
+    /** 联系人姓名（店主，中文） */
+    private String ownerName;
+
+    /** 所在省 */
+    private String province;
+
+    /** 所在市 */
+    private String city;
+
+    /** 所在区县 */
+    private String district;
+
+    /** 详细地址 */
+    private String address;
+
+    /** 纬度（百度地理编码结果） */
+    private java.math.BigDecimal lat;
+
+    /** 经度（百度地理编码结果） */
+    private java.math.BigDecimal lng;
+
 }
