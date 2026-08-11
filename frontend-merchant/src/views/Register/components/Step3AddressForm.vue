@@ -19,6 +19,7 @@ interface RegisterForm {
   city: string
   district: string
   address: string
+  logoUrl: string
 }
 
 interface CategoryOption {
