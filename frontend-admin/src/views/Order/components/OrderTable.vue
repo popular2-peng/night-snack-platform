@@ -2,9 +2,9 @@
 import { ref, onMounted } from 'vue'
 import {
   listAdminOrders, getAdminOrderDetail, getDashboardStats, getOrderStatusDistribution,
-  batchDeleteOrders,
+  batchDeleteOrders, refundOrder, batchRefundOrders,
 } from '@/apis/admin'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ShoppingBag, Coin, Timer, Van, User, Document,
 } from '@element-plus/icons-vue'
@@ -77,6 +77,39 @@ const handleBatchDelete = async () => {
     fetchStats()
   } catch { /* 拦截器已提示 */ }
   finally { batchLoading.value = false }
+}
+
+// ---- 批量退款 / 单条退款 ----
+/** 可退款状态：已支付/已接单/制作中可退，退款中可重试 */
+const REFUNDABLE_STATUS = ['PAID', 'ACCEPTED', 'COOKING', 'REFUNDING']
+const isRefundable = (status: string) => REFUNDABLE_STATUS.includes(status)
+
+const handleBatchRefund = async () => {
+  if (!selectedIds.value.length) { ElMessage.warning('请先勾选订单'); return }
+  await ElMessageBox.confirm(
+    `确定退款选中的 ${selectedIds.value.length} 条订单？不可退订单（未支付/已完成/已退款）将自动跳过。`,
+    '批量退款', { type: 'warning', confirmButtonText: '确认退款' })
+  batchLoading.value = true
+  try {
+    const res = await batchRefundOrders([...selectedIds.value])
+    ElMessage.success(res.data.message || '批量退款完成')
+    selectedIds.value = []
+    fetchOrders()
+    fetchStats()
+  } catch { /* 拦截器已提示 */ }
+  finally { batchLoading.value = false }
+}
+
+const handleRefund = async (row: OrderItem) => {
+  await ElMessageBox.confirm(
+    `确定退款订单 ${row.orderNo}（${formatMoney(row.totalAmount)}）？支付宝沙箱将发起真实退款。`,
+    '订单退款', { type: 'warning', confirmButtonText: '确认退款' })
+  try {
+    await refundOrder(row.id)
+    ElMessage.success('退款成功')
+    fetchOrders()
+    fetchStats()
+  } catch { /* 拦截器已提示 */ }
 }
 
 const statusOptions = [
@@ -199,6 +232,9 @@ onMounted(() => { fetchOrders(); fetchStats() })
       <!-- 批量操作（与商家管理页一致：搜索栏右侧，选中后显示） -->
       <template #extra>
         <template v-if="selectedIds.length">
+          <el-button type="warning" plain :loading="batchLoading" @click="handleBatchRefund">
+            批量退款 ({{ selectedIds.length }})
+          </el-button>
           <el-button type="danger" plain :loading="batchLoading" @click="handleBatchDelete">
             批量删除 ({{ selectedIds.length }})
           </el-button>
@@ -256,9 +292,13 @@ onMounted(() => { fetchOrders(); fetchStats() })
       </el-table-column>
 
       <!-- 操作 -->
-      <el-table-column label="操作" width="90" align="center" fixed="right">
+      <el-table-column label="操作" width="160" align="center" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="openDetail(row)">查看详情</el-button>
+          <el-button v-if="isRefundable(row.status)" size="small" type="warning" plain
+            @click="handleRefund(row)">
+            {{ row.status === 'REFUNDING' ? '重试退款' : '退款' }}
+          </el-button>
         </template>
       </el-table-column>
     </el-table>

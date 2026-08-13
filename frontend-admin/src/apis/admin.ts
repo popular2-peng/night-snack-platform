@@ -157,6 +157,14 @@ export const batchDeleteOrders = (ids: number[]) => {
   return request.post('/admin/orders/batch-delete', { ids })
 }
 
+export const refundOrder = (id: number) => {
+  return request.post(`/admin/orders/${id}/refund`)
+}
+
+export const batchRefundOrders = (ids: number[]) => {
+  return request.post('/admin/orders/batch-refund', { ids })
+}
+
 // ---- 品类管理 ----
 export const listCategories = (params: { page: number; size: number; keyword?: string; status?: string }) => {
   return request.get('/admin/category', { params })

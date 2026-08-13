@@ -4,6 +4,7 @@ import { loginApi, registerApi } from '@/apis/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token') || '')
+  const refreshToken = ref(localStorage.getItem('refreshToken') || '')
   const username = ref(localStorage.getItem('username') || '')
   const role = ref(localStorage.getItem('role') || '')
   const userId = ref(localStorage.getItem('userId') || '')
@@ -17,11 +18,13 @@ export const useAuthStore = defineStore('auth', () => {
       throw new Error('该账号不是用户账号')
     }
     token.value = res.data.accessToken
+    refreshToken.value = res.data.refreshToken
     username.value = res.data.username
     role.value = res.data.role
     userId.value = String(res.data.userId)
 
     localStorage.setItem('token', res.data.accessToken)
+    localStorage.setItem('refreshToken', res.data.refreshToken)
     localStorage.setItem('username', res.data.username)
     localStorage.setItem('role', res.data.role)
     localStorage.setItem('userId', String(res.data.userId))
@@ -31,11 +34,13 @@ export const useAuthStore = defineStore('auth', () => {
   const register = async (form: { phone: string; password: string }) => {
     const res = await registerApi(form)
     token.value = res.data.accessToken
+    refreshToken.value = res.data.refreshToken
     username.value = res.data.username
     role.value = res.data.role
     userId.value = String(res.data.userId)
 
     localStorage.setItem('token', res.data.accessToken)
+    localStorage.setItem('refreshToken', res.data.refreshToken)
     localStorage.setItem('username', res.data.username)
     localStorage.setItem('role', res.data.role)
     localStorage.setItem('userId', String(res.data.userId))
@@ -43,11 +48,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   const logout = () => {
     token.value = ''
+    refreshToken.value = ''
     username.value = ''
     role.value = ''
     userId.value = ''
     localStorage.clear()
   }
 
-  return { token, username, role, userId, isLoggedIn, isUser, login, register, logout }
+  return { token, refreshToken, username, role, userId, isLoggedIn, isUser, login, register, logout }
 })
