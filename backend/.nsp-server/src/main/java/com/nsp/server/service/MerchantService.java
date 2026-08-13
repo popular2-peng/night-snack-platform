@@ -2,6 +2,7 @@ package com.nsp.server.service;
 
 import com.nsp.pojo.dto.LoginDTO;
 import com.nsp.pojo.dto.MerchantRegisterDTO;
+import com.nsp.pojo.dto.MerchantShopUpdateDTO;
 import com.nsp.pojo.vo.LoginVO;
 import com.nsp.pojo.vo.MerchantVO;
 import com.nsp.pojo.vo.PageVO;
@@ -31,6 +32,18 @@ public interface MerchantService {
      * 更新营业状态
      */
     void updateStatus(Long merchantId, Long userId, String status);
+
+    /**
+     * 更新店铺信息（部分更新，仅更新非空字段）
+     *
+     * <p>地址变更时服务端调用百度地理编码重新解析坐标（失败保留原坐标并告警）；
+     * 营业开始/结束时间必须成对填写；更新后返回最新店铺信息。
+     *
+     * @param merchantId 当前登录商家 ID（JWT 解析）
+     * @param dto        更新字段（全可选）
+     * @return 更新后的店铺信息
+     */
+    MerchantVO updateShop(Long merchantId, MerchantShopUpdateDTO dto);
 
     /**
      * 商家入驻申请（注册）

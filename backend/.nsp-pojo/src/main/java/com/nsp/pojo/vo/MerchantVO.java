@@ -7,7 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalTime;
 
 /**
- * 商家/店铺信息响应（含距离，用于用户端的附近商家列表）
+ * 商家/店铺信息响应（含距离，用于用户端的附近商家列表与商家端店铺设置）
  */
 @Data
 public class MerchantVO {
@@ -32,5 +32,14 @@ public class MerchantVO {
 
     /** 距离（米），仅用户端计算距离时填充 */
     private Integer distance;
+
+    /** 店铺 LOGO OSS URL */
+    private String logoUrl;
+
+    /** 店铺简介 */
+    private String description;
+
+    /** 店铺公告 */
+    private String notice;
 
 }

@@ -101,6 +101,8 @@ public final class MessageConst {
     public static final String MERCHANT_CLOSED_STATUS_MSG = "商家已处于打烊状态";
     /** 商家已在营业中（ORDER_STATUS_ERROR） */
     public static final String MERCHANT_OPEN_STATUS_MSG = "商家已在营业中";
+    /** 营业开始与结束时间需同时填写（PARAM_ERROR） */
+    public static final String MERCHANT_HOURS_PAIR_MSG = "营业开始与结束时间需同时填写";
     /** 非本店商家，无权操作（NOT_MERCHANT_OWNER） */
     public static final String NOT_MERCHANT_OWNER_MSG = "非本店商家，无权操作";
     /** 非本店商家（NOT_MERCHANT_OWNER，简短文案） */

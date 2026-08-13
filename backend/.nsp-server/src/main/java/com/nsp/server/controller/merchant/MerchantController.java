@@ -1,6 +1,7 @@
 package com.nsp.server.controller.merchant;
 
 import com.nsp.common.result.Result;
+import com.nsp.pojo.dto.MerchantShopUpdateDTO;
 import com.nsp.pojo.vo.MerchantVO;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.server.annotation.RequireRole;
@@ -9,6 +10,7 @@ import com.nsp.server.service.MerchantService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,6 +34,12 @@ public class MerchantController {
     @GetMapping("/shop")
     public Result<MerchantVO> getShop() {
         return Result.ok(merchantService.getById(MerchantContext.currentMerchantId()));
+    }
+
+    @Operation(summary = "更新店铺信息（当前登录商家，全字段可选部分更新；地址变更自动重新解析坐标）")
+    @PutMapping("/shop")
+    public Result<MerchantVO> updateShop(@Valid @RequestBody MerchantShopUpdateDTO dto) {
+        return Result.ok(merchantService.updateShop(MerchantContext.currentMerchantId(), dto));
     }
 
     @Operation(summary = "更新营业状态（营业中/打烊，当前登录商家）")

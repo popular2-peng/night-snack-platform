@@ -8,6 +8,7 @@ import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.LoginDTO;
 import com.nsp.pojo.dto.MerchantRegisterDTO;
+import com.nsp.pojo.dto.MerchantShopUpdateDTO;
 import com.nsp.pojo.entity.Merchant;
 import com.nsp.pojo.entity.MerchantApplication;
 import com.nsp.pojo.entity.PlatformCategory;
@@ -31,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -104,6 +106,62 @@ public class MerchantServiceImpl implements MerchantService {
         update.setStatus(status.toUpperCase());
         merchantMapper.updateById(update);
         log.info("商家状态更新: merchantId={}, status={}", merchantId, status);
+    }
+
+    @Override
+    public MerchantVO updateShop(Long merchantId, MerchantShopUpdateDTO dto) {
+        Merchant merchant = merchantMapper.selectById(merchantId);
+        if (merchant == null) {
+            throw new BizException(ErrorCode.MERCHANT_NOT_FOUND, MessageConst.MERCHANT_NOT_FOUND_MSG);
+        }
+
+        // 营业时间必须成对填写（只传一个视为参数错误）
+        boolean hasStart = dto.getBusinessHoursStart() != null && !dto.getBusinessHoursStart().isBlank();
+        boolean hasEnd = dto.getBusinessHoursEnd() != null && !dto.getBusinessHoursEnd().isBlank();
+        if (hasStart != hasEnd) {
+            throw new BizException(ErrorCode.PARAM_ERROR, MessageConst.MERCHANT_HOURS_PAIR_MSG);
+        }
+
+        // 部分更新：仅更新非空字段
+        if (dto.getName() != null && !dto.getName().isBlank()) {
+            merchant.setName(dto.getName().trim());
+        }
+        if (dto.getLogoUrl() != null && !dto.getLogoUrl().isBlank()) {
+            merchant.setLogoUrl(dto.getLogoUrl());
+        }
+        if (dto.getDescription() != null) {
+            merchant.setDescription(dto.getDescription());
+        }
+        if (dto.getNotice() != null) {
+            merchant.setNotice(dto.getNotice());
+        }
+        if (dto.getDeliveryRadius() != null) {
+            merchant.setDeliveryRadius(dto.getDeliveryRadius());
+        }
+        if (hasStart) {
+            merchant.setBusinessHoursStart(LocalTime.parse(dto.getBusinessHoursStart()));
+            merchant.setBusinessHoursEnd(LocalTime.parse(dto.getBusinessHoursEnd()));
+        }
+
+        // 地址变更 → 百度地理编码重新解析坐标；解析失败保留原坐标并告警（不阻断更新）
+        if (dto.getAddress() != null && !dto.getAddress().isBlank()
+                && !dto.getAddress().trim().equals(merchant.getAddress())) {
+            String newAddress = dto.getAddress().trim();
+            merchant.setAddress(newAddress);
+            BigDecimal[] location = mapService.geocode(null, null, null, newAddress);
+            if (location != null) {
+                merchant.setLat(location[0]);
+                merchant.setLng(location[1]);
+                log.info("店铺地址更新并重新解析坐标: merchantId={}, address={}, lat={}, lng={}",
+                        merchantId, newAddress, location[0], location[1]);
+            } else {
+                log.warn("店铺地址更新但地理编码失败，保留原坐标: merchantId={}, address={}", merchantId, newAddress);
+            }
+        }
+
+        merchantMapper.updateById(merchant);
+        log.info("店铺信息更新: merchantId={}, name={}", merchantId, merchant.getName());
+        return toVO(merchant);
     }
 
     @Override
