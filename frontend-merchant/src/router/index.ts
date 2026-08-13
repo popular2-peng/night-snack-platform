@@ -39,8 +39,8 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'shop',
         name: 'Shop',
-        component: () => import('@/views/PlaceholderPage.vue'),
-        meta: { title: '店铺设置', placeholder: true },
+        component: () => import('@/views/Shop/index.vue'),
+        meta: { title: '店铺设置' },
       },
     ],
   },
