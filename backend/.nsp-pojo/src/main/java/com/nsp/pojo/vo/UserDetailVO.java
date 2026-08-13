@@ -31,24 +31,19 @@ public class UserDetailVO {
     /** 历史总消费金额 */
     private BigDecimal totalSpent;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime lastLoginAt;
 
     /** 封禁原因 */
     private String bannedReason;
     /** 封禁时间 */
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime bannedAt;
     /** 解封时间 */
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime unbannedAt;
     /** 管理员备注 */
     private String remark;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime createdAt;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime updatedAt;
 
 }

@@ -55,4 +55,16 @@ public class JwtTokenProvider {
         return jwtUtil.getJti(token);
     }
 
+    /**
+     * 提取 Token 类型（ACCESS / REFRESH；旧 Token 无此 claim 时返回 null）
+     */
+    public String getTokenType(String token) {
+        return jwtUtil.getTokenType(token);
+    }
+
+    /** 仅校验是否过期（只捕获 ExpiredJwtException，供过滤器区分 1003/1004） */
+    public boolean isTokenExpired(String token) {
+        return jwtUtil.isExpired(token);
+    }
+
 }

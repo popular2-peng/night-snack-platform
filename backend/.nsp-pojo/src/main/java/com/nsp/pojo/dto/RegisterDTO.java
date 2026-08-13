@@ -2,7 +2,6 @@ package com.nsp.pojo.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
@@ -14,8 +13,10 @@ public class RegisterDTO {
     /** 用户名（可选）— 注册时系统自动生成，前端无需传入 */
     private String username;
 
+    /** 密码：6-20 位，必须同时包含字母和数字（与三端前端校验规则一致） */
     @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 32, message = "密码长度为 6-32 个字符")
+    @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d)[a-zA-Z\\d!@#$%^&*()_+]{6,20}$",
+            message = "密码6-20位，需包含字母和数字")
     private String password;
 
     @NotBlank(message = "手机号不能为空")

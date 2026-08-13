@@ -27,17 +27,29 @@ public class PaymentRecord {
     /** 第三方交易号（支付宝 trade_no / 微信 transaction_id） */
     private String tradeNo;
 
+    /** 退款请求号（商户侧生成，重试时复用，保证渠道侧幂等） */
+    private String outRefundNo;
+
     /** 支付金额 */
     private BigDecimal amount;
 
+    /** 退款金额 */
+    private BigDecimal refundAmount;
+
     /** 支付状态：PENDING / SUCCESS / FAILED / REFUNDED */
     private String status;
+
+    /** 退款状态：REFUNDING（退款中，失败可重试）/ REFUNDED（已退款） */
+    private String refundStatus;
 
     /** 回调通知次数 */
     private Integer notifyCount;
 
     /** 最后一次回调时间 */
     private LocalDateTime lastNotifyAt;
+
+    /** 退款完成时间 */
+    private LocalDateTime refundAt;
 
     /** 创建时间 */
     private LocalDateTime createdAt;

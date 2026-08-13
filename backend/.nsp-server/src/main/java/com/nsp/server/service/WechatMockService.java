@@ -25,4 +25,13 @@ public class WechatMockService {
         return "MOCK_PAID";
     }
 
+    /**
+     * Mock 退款 — 直接返回成功（保留渠道抽象，正式接入微信退款时替换实现）
+     *
+     * @param orderNo 订单号
+     */
+    public void mockRefund(String orderNo) {
+        log.info("微信 Mock 退款: orderNo={} → 直接成功", orderNo);
+    }
+
 }

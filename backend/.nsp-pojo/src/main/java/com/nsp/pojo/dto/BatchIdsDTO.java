@@ -1,6 +1,7 @@
 package com.nsp.pojo.dto;
 
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.List;
 public class BatchIdsDTO {
 
     @NotEmpty(message = "请至少选择一条数据")
+    @Size(max = 100, message = "单次批量操作最多 100 条")
     private List<Long> ids;
 
 }

@@ -1,6 +1,7 @@
 package com.nsp.common.jwt;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -15,8 +16,9 @@ import java.util.Map;
  *
  * <p>Token 结构：
  * <ul>
- *   <li>{@code sub} — 用户 ID</li>
+ *   <li>{@code sub} — 用户 ID（商家登录时即为 merchant.id）</li>
  *   <li>{@code role} — 角色（USER / MERCHANT / ADMIN）</li>
+ *   <li>{@code token_type} — Token 类型（ACCESS / REFRESH），防止刷新令牌被当作业务令牌使用</li>
  *   <li>{@code jti} — Token 唯一 ID，用于登出拉黑</li>
  *   <li>{@code iat} — 签发时间</li>
  *   <li>{@code exp} — 过期时间</li>
@@ -40,6 +42,11 @@ public class JwtUtil {
 
     /** JWT claims 中的角色字段名 */
     public static final String CLAIM_ROLE = "role";
+
+    /** JWT claims 中的 Token 类型字段名（ACCESS / REFRESH，用于防止刷新令牌被当作业务令牌使用） */
+    public static final String CLAIM_TOKEN_TYPE = "token_type";
+    public static final String TOKEN_TYPE_ACCESS = "ACCESS";
+    public static final String TOKEN_TYPE_REFRESH = "REFRESH";
 
     private final SecretKey secretKey;
 
@@ -70,21 +77,22 @@ public class JwtUtil {
      * @return JWT 字符串
      */
     public String generateAccessToken(Long userId, String role, String jti) {
-        return buildToken(userId, role, jti, ACCESS_EXPIRATION_MS);
+        return buildToken(userId, role, jti, ACCESS_EXPIRATION_MS, TOKEN_TYPE_ACCESS);
     }
 
     /**
      * 签发 Refresh Token（7 天有效）
      */
     public String generateRefreshToken(Long userId, String role, String jti) {
-        return buildToken(userId, role, jti, REFRESH_EXPIRATION_MS);
+        return buildToken(userId, role, jti, REFRESH_EXPIRATION_MS, TOKEN_TYPE_REFRESH);
     }
 
-    private String buildToken(Long userId, String role, String jti, long expirationMs) {
+    private String buildToken(Long userId, String role, String jti, long expirationMs, String tokenType) {
         long now = System.currentTimeMillis();
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim(CLAIM_ROLE, role)
+                .claim(CLAIM_TOKEN_TYPE, tokenType)
                 .id(jti)
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + expirationMs))
@@ -145,15 +153,27 @@ public class JwtUtil {
     }
 
     /**
-     * 判断 Token 是否已过期
+     * 判断 Token 是否已过期（仅过期返回 true；签名错误/格式错误等无效 Token 返回 false，
+     * 由调用方结合 {@link #isValid} 区分「过期 1003」与「无效 1004」）
      */
     public boolean isExpired(String token) {
         try {
             parseToken(token);
             return false;
-        } catch (JwtException e) {
+        } catch (ExpiredJwtException e) {
             return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
         }
+    }
+
+    /**
+     * 提取 Token 类型（ACCESS / REFRESH）
+     *
+     * @return 旧版本签发的 Token 无此 claim，返回 null（按 ACCESS 处理，平滑过渡）
+     */
+    public String getTokenType(String token) {
+        return parseToken(token).get(CLAIM_TOKEN_TYPE, String.class);
     }
 
 }

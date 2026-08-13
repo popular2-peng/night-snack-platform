@@ -27,6 +27,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -47,6 +48,9 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll()
 
+                        // 健康检查（运维探活，无需鉴权；只暴露 health 端点）
+                        .requestMatchers("/actuator/health").permitAll()
+
                         // 用户端：登录/注册公开
                         .requestMatchers(
                                 "/api/user/login",
@@ -64,6 +68,9 @@ public class SecurityConfig {
                         // 管理端登录
                         .requestMatchers("/api/admin/login").permitAll()
 
+                        // Token 刷新（三端通用，refresh token 本身即凭证，接口内部校验）
+                        .requestMatchers("/api/auth/refresh").permitAll()
+
                         // 支付回调 / OSS 回调（Phase 2）
                         .requestMatchers(
                                 "/api/pay/alipay/callback",
@@ -73,6 +80,9 @@ public class SecurityConfig {
                         // 其余接口全部需要认证
                         .anyRequest().authenticated()
                 )
+
+                // 401 统一响应：Result JSON（1001/1003/1004），替代 Spring 默认响应体
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(restAuthenticationEntryPoint))
 
                 // JWT 过滤器插在 UsernamePasswordAuthenticationFilter 之前
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

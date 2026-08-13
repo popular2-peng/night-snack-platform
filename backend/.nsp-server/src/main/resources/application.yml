@@ -42,6 +42,16 @@ mybatis-plus:
       logic-delete-value: 1
       logic-not-delete-value: 0
 
+# Actuator 健康检查（只暴露 health，不暴露 env/beans 等敏感端点）
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
 # SpringDoc OpenAPI（Swagger UI）
 springdoc:
   swagger-ui:

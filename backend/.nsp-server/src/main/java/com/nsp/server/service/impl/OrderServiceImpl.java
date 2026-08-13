@@ -2,7 +2,6 @@ package com.nsp.server.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +17,7 @@ import com.nsp.server.mapper.*;
 import com.nsp.server.service.CartService;
 import com.nsp.server.service.MapService;
 import com.nsp.server.service.OrderService;
+import com.nsp.server.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,6 +60,7 @@ public class OrderServiceImpl implements OrderService {
     private final StringRedisTemplate redisTemplate;
     private final MapService mapService;
     private final CartService cartService;
+    private final PaymentService paymentService;
     private final ObjectMapper objectMapper;
 
     /** 订单号日期前缀（yyyyMMdd，Redis 自增序号键按天分桶） */
@@ -68,6 +69,10 @@ public class OrderServiceImpl implements OrderService {
     private static final DateTimeFormatter ORDER_NO_DATE = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     /** 自增序号键 TTL（天） */
     private static final long ORDER_NO_KEY_TTL_DAYS = 2;
+    /** 下单幂等键 TTL（分钟）：覆盖正常下单耗时，超时后允许重建 */
+    private static final long IDEMPOTENCY_KEY_TTL_MINUTES = 10;
+    /** 幂等键占位值：首个请求处理中 */
+    private static final String IDEMPOTENCY_PENDING = "PENDING";
 
     // ──────────────────────────────────────
     // 下单
@@ -76,6 +81,31 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderVO createOrder(Long userId, OrderCreateDTO dto) {
+        // 0. 幂等拦截（必须在库存扣减之前，否则并发重复请求会二次扣减库存）：
+        //    同一 clientToken 首次请求占位 PENDING，成功后改写为订单号（重复请求直接返回该订单）；
+        //    占位期间（首个请求仍在处理）的重复请求抛 4006「订单创建中」。
+        String idempotencyKey = "order:client-token:" + userId + ":" + dto.getClientToken();
+        Boolean first = redisTemplate.opsForValue()
+                .setIfAbsent(idempotencyKey, IDEMPOTENCY_PENDING, Duration.ofMinutes(IDEMPOTENCY_KEY_TTL_MINUTES));
+        if (!Boolean.TRUE.equals(first)) {
+            String existing = redisTemplate.opsForValue().get(idempotencyKey);
+            if (existing != null && !IDEMPOTENCY_PENDING.equals(existing)) {
+                // 幂等命中：返回已创建的订单（同一 clientToken 的重复请求得到同一订单）
+                Order existOrder = orderMapper.selectOne(
+                        new LambdaQueryWrapper<Order>().eq(Order::getOrderNo, existing));
+                if (existOrder != null) {
+                    log.info("下单幂等命中（返回已创建订单）: userId={}, clientToken={}, orderNo={}",
+                            userId, dto.getClientToken(), existing);
+                    return toVO(existOrder);
+                }
+                // 键存在但订单已被删除 → 释放键，按新订单处理
+                redisTemplate.delete(idempotencyKey);
+            } else {
+                throw new BizException(ErrorCode.ORDER_CREATING, MessageConst.ORDER_CREATING_MSG);
+            }
+        }
+
+        try {
         // 1. 校验商家
         Merchant merchant = merchantMapper.selectById(dto.getMerchantId());
         if (merchant == null) {
@@ -172,7 +202,18 @@ public class OrderServiceImpl implements OrderService {
         log.info("下单成功: orderNo={}, userId={}, merchantId={}, amount={}",
                 orderNo, userId, merchant.getId(), totalAmount);
 
+        // 幂等键改写为订单号：此后同一 clientToken 的重复请求直接返回该订单
+        redisTemplate.opsForValue().set(idempotencyKey, orderNo, Duration.ofMinutes(IDEMPOTENCY_KEY_TTL_MINUTES));
         return toVO(order);
+        } catch (Exception e) {
+            // Redis 操作不参与事务回滚，异常路径必须手动释放幂等键，否则用户 10 分钟内无法重试
+            try {
+                redisTemplate.delete(idempotencyKey);
+            } catch (Exception redisEx) {
+                log.warn("幂等键释放失败（依赖 TTL 兜底）: key={}", idempotencyKey);
+            }
+            throw e;
+        }
     }
 
     // ──────────────────────────────────────
@@ -357,8 +398,15 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         orderMapper.updateById(order);
 
-        // 释放库存（退款由 PaymentService 处理）
+        // 释放库存
         restoreStock(orderId);
+
+        // 自动退款（支付宝沙箱真实退款 / 微信 mock 退款）；退款失败不阻断拒单主流程，可由管理员批量退款重试
+        try {
+            paymentService.refund(order.getOrderNo());
+        } catch (Exception e) {
+            log.error("商家拒单后自动退款失败（可重试）: orderId={}, orderNo={}", orderId, order.getOrderNo(), e);
+        }
 
         saveStatusLog(orderId, OrderStatus.PAID.getCode(),
                 OrderStatus.CANCELLED.getCode(), "MERCHANT", "商家拒单: " + reason);
@@ -389,13 +437,15 @@ public class OrderServiceImpl implements OrderService {
         // 释放预扣库存
         restoreStock(orderId);
 
-        // 已支付订单超时取消 → mock 退款（正式环境替换为支付宝/微信退款接口调用）
+        // 已支付订单超时取消 → 自动退款（支付宝沙箱真实退款 / 微信 mock 退款）；
+        // 退款失败仅记录日志不抛异常，订单保持 CANCELLED，可由管理员批量退款重试
         if (paid) {
-            paymentRecordMapper.update(null, new LambdaUpdateWrapper<PaymentRecord>()
-                    .eq(PaymentRecord::getOrderNo, order.getOrderNo())
-                    .eq(PaymentRecord::getStatus, "SUCCESS")
-                    .set(PaymentRecord::getStatus, "REFUNDED"));
-            log.info("超时未接单自动退款: orderNo={}", order.getOrderNo());
+            try {
+                paymentService.refund(order.getOrderNo());
+                log.info("超时未接单自动退款: orderNo={}", order.getOrderNo());
+            } catch (Exception e) {
+                log.error("超时取消自动退款失败（可重试）: orderId={}, orderNo={}", orderId, order.getOrderNo(), e);
+            }
         }
 
         saveStatusLog(orderId, fromStatus.getCode(),
@@ -447,6 +497,75 @@ public class OrderServiceImpl implements OrderService {
         result.setSkippedCount(missing);
         if (missing > 0) result.addSkipped(missing + " 条订单不存在");
         log.info("批量删除订单: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
+        return result;
+    }
+
+    // ──────────────────────────────────────
+    // 管理员退款（主动退款 / 批量退款）
+    // ──────────────────────────────────────
+
+    /**
+     * 管理员退款 — 状态流转：PAID/ACCEPTED/COOKING/REFUNDING → REFUNDING →（退款成功）REFUNDED
+     *
+     * <p>不加 @Transactional：渠道退款是外部 IO 调用，不宜包在长事务里；
+     * REFUNDING 本身是合法的中间态，失败后可重试（复用同一退款请求号，渠道侧幂等）。
+     */
+    @Override
+    public OrderVO refundOrder(Long orderId) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BizException(ErrorCode.ORDER_NOT_FOUND, MessageConst.ORDER_NOT_FOUND_MSG);
+        }
+
+        OrderStatus status = order.getStatus();
+        if (status == OrderStatus.PENDING_PAY) {
+            throw new BizException(ErrorCode.ORDER_STATUS_ERROR, MessageConst.ORDER_NOT_PAID_REFUND_MSG);
+        }
+        boolean retry = status == OrderStatus.REFUNDING;
+        if (!retry && status != OrderStatus.PAID && status != OrderStatus.ACCEPTED && status != OrderStatus.COOKING) {
+            throw new BizException(ErrorCode.ORDER_STATUS_ERROR,
+                    String.format(MessageConst.ORDER_STATUS_REFUND_MSG, status.getDesc()));
+        }
+
+        // 首次退款：置 REFUNDING + 记录流转日志（重试时不再重复记录）
+        if (!retry) {
+            order.setStatus(OrderStatus.REFUNDING);
+            orderMapper.updateById(order);
+            saveStatusLog(orderId, status.getCode(), OrderStatus.REFUNDING.getCode(), "ADMIN", "管理员发起退款");
+            log.info("管理员发起退款: orderId={}, orderNo={}", orderId, order.getOrderNo());
+        } else {
+            log.info("管理员重试退款: orderId={}, orderNo={}", orderId, order.getOrderNo());
+        }
+
+        // 渠道退款（失败抛 5007，订单保持 REFUNDING 可重试）
+        paymentService.refund(order.getOrderNo());
+
+        // 退款成功：置 REFUNDED + 记录流转日志
+        order = orderMapper.selectById(orderId);
+        order.setStatus(OrderStatus.REFUNDED);
+        orderMapper.updateById(order);
+        saveStatusLog(orderId, OrderStatus.REFUNDING.getCode(), OrderStatus.REFUNDED.getCode(), "ADMIN", "退款成功");
+        log.info("管理员退款完成: orderId={}, orderNo={}", orderId, order.getOrderNo());
+
+        return toVO(order);
+    }
+
+    @Override
+    public BatchResultVO batchRefund(List<Long> ids) {
+        BatchResultVO result = new BatchResultVO();
+        Map<String, Integer> skipReasonCounts = new LinkedHashMap<>();
+        for (Long id : ids) {
+            try {
+                refundOrder(id);
+                result.setSuccessCount(result.getSuccessCount() + 1);
+            } catch (BizException e) {
+                result.setSkippedCount(result.getSkippedCount() + 1);
+                skipReasonCounts.merge(e.getMessage(), 1, Integer::sum);
+            }
+        }
+        skipReasonCounts.forEach((reason, count) ->
+                result.addSkipped(count + " 条" + reason.replace("订单", "")));
+        log.info("批量退款: 成功={}, 跳过={}", result.getSuccessCount(), result.getSkippedCount());
         return result;
     }
 
@@ -595,8 +714,8 @@ public class OrderServiceImpl implements OrderService {
         logEntry.setToStatus(to);
         logEntry.setOperator(operator);
         logEntry.setReason(reason);
-        // 必须显式设置时间：列默认值是随机表达式（V1 为测试造数设计），
-        // 不设置会导致运行期日志时间乱序（如支付早于下单）
+        // 显式设置时间：created_at 列默认 CURRENT_TIMESTAMP（见 V1__init.sql），
+        // 但业务上需要「事件发生时刻」与写库动作解耦，避免依赖列默认值
         logEntry.setCreatedAt(LocalDateTime.now());
         orderStatusLogMapper.insert(logEntry);
     }

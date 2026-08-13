@@ -1,6 +1,7 @@
 package com.nsp.server.aspect;
 
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.server.annotation.RequireRole;
 import org.aspectj.lang.JoinPoint;
@@ -37,7 +38,7 @@ public class RoleAspect {
 
         if (authentication == null || !authentication.isAuthenticated()) {
             log.warn("未登录访问受保护接口: {}", joinPoint.getSignature());
-            throw new BizException(ErrorCode.UNAUTHORIZED, "请先登录");
+            throw new BizException(ErrorCode.UNAUTHORIZED, MessageConst.TOKEN_UNAUTHORIZED_MSG);
         }
 
         Set<String> userRoles = authentication.getAuthorities().stream()

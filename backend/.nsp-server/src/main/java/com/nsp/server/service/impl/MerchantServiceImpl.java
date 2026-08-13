@@ -14,6 +14,7 @@ import com.nsp.pojo.entity.PlatformCategory;
 import com.nsp.pojo.entity.User;
 import com.nsp.pojo.vo.LoginVO;
 import com.nsp.pojo.vo.MerchantVO;
+import com.nsp.pojo.vo.PageVO;
 import com.nsp.server.mapper.MerchantApplicationMapper;
 import com.nsp.server.mapper.MerchantMapper;
 import com.nsp.server.mapper.PlatformCategoryMapper;
@@ -52,12 +53,12 @@ public class MerchantServiceImpl implements MerchantService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Override
-    public List<MerchantVO> listNearby(BigDecimal lat, BigDecimal lng) {
+    public PageVO<MerchantVO> listNearby(BigDecimal lat, BigDecimal lng, int page, int size) {
         List<Merchant> merchants = merchantMapper.selectList(
                 new LambdaQueryWrapper<Merchant>()
                         .eq(Merchant::getStatus, "OPEN"));
 
-        return merchants.stream()
+        List<MerchantVO> sorted = merchants.stream()
                 .map(m -> {
                     MerchantVO vo = toVO(m);
                     long dist = mapService.calculateDistanceWithCache(
@@ -67,6 +68,15 @@ public class MerchantServiceImpl implements MerchantService {
                 })
                 .sorted(Comparator.comparingInt(MerchantVO::getDistance))
                 .toList();
+
+        // 全量距离排序后内存分页（商家规模小，可接受；规模增大后可改为排序结果缓存 + 分页）
+        int total = sorted.size();
+        int offset = (page - 1) * size;
+        if (offset >= total) {
+            return new PageVO<>((long) total, List.of());
+        }
+        List<MerchantVO> pageList = sorted.subList(offset, Math.min(offset + size, total));
+        return new PageVO<>((long) total, pageList);
     }
 
     @Override

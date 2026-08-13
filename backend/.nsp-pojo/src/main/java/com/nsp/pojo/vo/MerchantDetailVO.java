@@ -42,7 +42,6 @@ public class MerchantDetailVO {
     /** 封禁原因 */
     private String bannedReason;
     /** 封禁时间 */
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime bannedAt;
     /** 店铺公告 */
     private String notice;
@@ -55,13 +54,10 @@ public class MerchantDetailVO {
 
     private Integer deliveryRadius;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime lastLoginAt;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime createdAt;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime updatedAt;
 
 }

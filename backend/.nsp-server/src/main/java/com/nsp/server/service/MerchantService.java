@@ -4,8 +4,7 @@ import com.nsp.pojo.dto.LoginDTO;
 import com.nsp.pojo.dto.MerchantRegisterDTO;
 import com.nsp.pojo.vo.LoginVO;
 import com.nsp.pojo.vo.MerchantVO;
-
-import java.util.List;
+import com.nsp.pojo.vo.PageVO;
 
 /**
  * 商家业务接口
@@ -13,13 +12,15 @@ import java.util.List;
 public interface MerchantService {
 
     /**
-     * 查询附近商家（按距离排序）
+     * 查询附近商家（按距离升序排序后分页返回）
      *
-     * @param lat 用户纬度
-     * @param lng 用户经度
-     * @return 商家列表（含距离）
+     * @param lat  用户纬度
+     * @param lng  用户经度
+     * @param page 页码（从 1 开始）
+     * @param size 每页条数
+     * @return 分页商家列表（含距离）
      */
-    List<MerchantVO> listNearby(java.math.BigDecimal lat, java.math.BigDecimal lng);
+    PageVO<MerchantVO> listNearby(java.math.BigDecimal lat, java.math.BigDecimal lng, int page, int size);
 
     /**
      * 查询商家详情

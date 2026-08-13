@@ -15,6 +15,16 @@ public final class MessageConst {
     private MessageConst() { /* 工具类禁止实例化 */ }
 
     // ==================== 通用 1000 ~ 1999 ====================
+    /** 请先登录（UNAUTHORIZED） */
+    public static final String TOKEN_UNAUTHORIZED_MSG = "请先登录";
+    /** Token 已过期（TOKEN_EXPIRED） */
+    public static final String TOKEN_EXPIRED_MSG = "Token 已过期，请重新登录";
+    /** Token 无效（TOKEN_INVALID） */
+    public static final String TOKEN_INVALID_MSG = "Token 无效";
+    /** 刷新令牌无效（TOKEN_INVALID） */
+    public static final String TOKEN_REFRESH_INVALID_MSG = "刷新令牌无效，请重新登录";
+    /** 账号已被封禁，无法刷新登录态（FORBIDDEN） */
+    public static final String TOKEN_REFRESH_ACCOUNT_BANNED_MSG = "账号已被封禁，无法刷新登录态";
     /** 商家已被封禁（FORBIDDEN） */
     public static final String FORBIDDEN_MERCHANT_BANNED_MSG = "商家已被封禁";
     /** 账号已被封禁（FORBIDDEN） */
@@ -139,14 +149,26 @@ public final class MessageConst {
     public static final String ORDER_STATUS_COMPLETE_MSG = "只有制作中订单可以标记完成";
     /** 库存不足（STOCK_INSUFFICIENT），参数：specId */
     public static final String STOCK_INSUFFICIENT_MSG = "库存不足: specId=%s";
+    /** 订单未支付，无法退款（ORDER_STATUS_ERROR） */
+    public static final String ORDER_NOT_PAID_REFUND_MSG = "订单未支付，无法退款";
+    /** 当前状态不允许退款（ORDER_STATUS_ERROR），参数：状态描述 */
+    public static final String ORDER_STATUS_REFUND_MSG = "当前状态不允许退款: %s";
     /** 库存未初始化（SPEC_NOT_FOUND），参数：specId */
     public static final String STOCK_NOT_INITIALIZED_MSG = "库存未初始化: specId=%s";
+    /** 订单创建中，请勿重复提交（ORDER_CREATING） */
+    public static final String ORDER_CREATING_MSG = "订单创建中，请勿重复提交";
 
     // ==================== 支付域 5000 ~ 5999 ====================
     /** 未找到支付记录（PAY_ORDER_NOT_FOUND） */
     public static final String PAY_RECORD_NOT_FOUND_MSG = "未找到支付记录";
     /** 支付宝回调验签失败（PAY_SIGN_ERROR） */
     public static final String PAY_ALIPAY_SIGN_ERROR_MSG = "支付宝回调验签失败";
+    /** 订单无成功支付记录，无法退款（REFUND_RECORD_NOT_FOUND） */
+    public static final String REFUND_RECORD_NOT_FOUND_MSG = "订单无成功支付记录，无法退款";
+    /** 渠道无真实交易，按本地退款处理（REFUND_TRADE_NOT_EXIST） */
+    public static final String REFUND_TRADE_NOT_EXIST_MSG = "渠道无真实交易，已按本地退款处理";
+    /** 退款调用失败，可重试（REFUND_FAILED） */
+    public static final String REFUND_FAILED_MSG = "退款调用失败，请稍后重试";
 
     // ==================== 上传域 6000 ~ 6999 ====================
     /** 签名请求过于频繁（UPLOAD_SIGN_LIMIT），参数：每分钟上限 */

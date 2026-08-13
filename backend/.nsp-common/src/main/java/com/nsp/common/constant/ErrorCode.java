@@ -46,8 +46,8 @@ public final class ErrorCode {
     public static final int USER_RESET_PASSWORD_FAIL = 2305; // 重置密码失败（用户状态异常）
     public static final int USER_ACTIVE_CANNOT_DELETE = 2306; // 启用账号不可删除
     public static final int MERCHANT_MUST_BANNED       = 2307; // 商家未封禁不可删除
-    public static final int USER_PHONE_FORMAT_ERROR  = 2306; // 手机号格式不正确
-    public static final int USER_BAN_DURATION_INVALID = 2307; // 封禁时长不能为负数
+    public static final int USER_PHONE_FORMAT_ERROR  = 2308; // 手机号格式不正确
+    public static final int USER_BAN_DURATION_INVALID = 2309; // 封禁时长不能为负数
 
     // ==================== 商品/商家域 3000 ~ 3999 ====================
     public static final int MERCHANT_NOT_FOUND     = 3001; // 商家不存在
@@ -66,12 +66,16 @@ public final class ErrorCode {
     public static final int OUT_OF_DELIVERY_RANGE  = 4003; // 超出配送范围
     public static final int NOT_IN_BUSINESS_HOURS  = 4004; // 非营业时间
     public static final int CART_EMPTY             = 4005; // 购物车为空
+    public static final int ORDER_CREATING         = 4006; // 订单创建中，请勿重复提交
 
     // ==================== 支付域 5000 ~ 5999 ====================
     public static final int PAY_ORDER_NOT_FOUND    = 5001; // 支付订单不存在
     public static final int PAY_ORDER_PAID         = 5002; // 订单已支付（幂等）
     public static final int PAY_SIGN_ERROR         = 5003; // 支付签名校验失败
     public static final int PAY_CHANNEL_ERROR      = 5004; // 支付渠道异常
+    public static final int REFUND_RECORD_NOT_FOUND = 5005; // 订单无成功支付记录，无法退款
+    public static final int REFUND_TRADE_NOT_EXIST  = 5006; // 渠道无真实交易（内部降级处理，不对外暴露）
+    public static final int REFUND_FAILED           = 5007; // 退款调用失败，可重试
 
     // ==================== 上传域 6000 ~ 6999 ====================
     public static final int UPLOAD_SIGN_LIMIT      = 6001; // 上传签名请求过于频繁

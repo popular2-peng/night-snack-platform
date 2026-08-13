@@ -4,10 +4,13 @@ import com.alipay.api.AlipayApiException;
 import com.alipay.api.AlipayClient;
 import com.alipay.api.DefaultAlipayClient;
 import com.alipay.api.request.AlipayTradePrecreateRequest;
+import com.alipay.api.request.AlipayTradeRefundRequest;
 import com.alipay.api.response.AlipayTradePrecreateResponse;
+import com.alipay.api.response.AlipayTradeRefundResponse;
 import com.alipay.api.internal.util.AlipaySignature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nsp.common.constant.ErrorCode;
+import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,6 +115,57 @@ public class AlipayService {
         } catch (AlipayApiException e) {
             log.error("支付宝验签异常", e);
             return false;
+        }
+    }
+
+    /**
+     * 支付宝退款（沙箱同步返回）
+     *
+     * <p>out_request_no 为商户侧退款请求号：同一请求号重复调用时，
+     * 支付宝直接返回上一次结果，天然幂等 —— 调用方必须保证重试时复用同一请求号。
+     *
+     * @param orderNo      商户订单号（原支付 out_trade_no）
+     * @param outRefundNo  退款请求号（商户侧生成并持久化）
+     * @param refundAmount 退款金额（元，两位小数，≤ 原支付金额）
+     * @throws BizException 5006 渠道无真实交易（沙箱未真实支付）；5007 其他退款失败
+     */
+    public void refund(String orderNo, String outRefundNo, String refundAmount) {
+        try {
+            AlipayClient client = getClient();
+            AlipayTradeRefundRequest request = new AlipayTradeRefundRequest();
+
+            Map<String, Object> bizContent = Map.of(
+                    "out_trade_no", orderNo,
+                    "out_request_no", outRefundNo,
+                    "refund_amount", refundAmount
+            );
+            request.setBizContent(objectMapper.writeValueAsString(bizContent));
+
+            AlipayTradeRefundResponse response = client.execute(request);
+            if (response.isSuccess()) {
+                log.info("支付宝退款成功: orderNo={}, outRefundNo={}, amount={}, tradeNo={}",
+                        orderNo, outRefundNo, refundAmount, response.getTradeNo());
+                return;
+            }
+
+            // 沙箱中未真实支付的订单在支付宝侧不存在交易 → 交由上层降级处理
+            if ("ACQ.TRADE_NOT_EXIST".equals(response.getCode())) {
+                log.warn("支付宝退款失败-渠道无真实交易: orderNo={}, code={}, msg={}",
+                        orderNo, response.getCode(), response.getMsg());
+                throw new BizException(ErrorCode.REFUND_TRADE_NOT_EXIST,
+                        MessageConst.REFUND_TRADE_NOT_EXIST_MSG);
+            }
+            log.error("支付宝退款失败: orderNo={}, code={}, msg={}",
+                    orderNo, response.getCode(), response.getMsg());
+            throw new BizException(ErrorCode.REFUND_FAILED, MessageConst.REFUND_FAILED_MSG);
+        } catch (BizException e) {
+            throw e;
+        } catch (AlipayApiException e) {
+            log.error("支付宝退款 API 异常: orderNo={}", orderNo, e);
+            throw new BizException(ErrorCode.REFUND_FAILED, MessageConst.REFUND_FAILED_MSG);
+        } catch (Exception e) {
+            log.error("支付宝退款异常: orderNo={}", orderNo, e);
+            throw new BizException(ErrorCode.REFUND_FAILED, MessageConst.REFUND_FAILED_MSG);
         }
     }
 

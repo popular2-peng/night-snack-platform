@@ -1,6 +1,5 @@
 package com.nsp.pojo.vo;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -34,11 +33,10 @@ public class AdminApplicationVO {
     /** 经度（百度地理编码） */
     private BigDecimal lng;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
+    /** 申请时间（ISO-8601 T 格式，见全局 Jackson 配置） */
     private LocalDateTime createdAt;
 
     /** 审核时间（未审核为 null） */
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime reviewedAt;
 
 }

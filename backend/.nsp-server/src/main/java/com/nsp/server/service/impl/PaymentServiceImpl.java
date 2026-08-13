@@ -179,9 +179,82 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
+    @Override
+    public void refund(String orderNo) {
+        PaymentRecord record = paymentRecordMapper.selectOne(
+                new LambdaQueryWrapper<PaymentRecord>()
+                        .eq(PaymentRecord::getOrderNo, orderNo)
+                        .last("LIMIT 1"));
+        if (record == null) {
+            throw new BizException(ErrorCode.REFUND_RECORD_NOT_FOUND, MessageConst.REFUND_RECORD_NOT_FOUND_MSG);
+        }
+        // 已退款 → 幂等直接返回
+        if ("REFUNDED".equals(record.getStatus())) {
+            log.info("订单已退款（幂等跳过）: orderNo={}", orderNo);
+            return;
+        }
+        // 未成功支付的记录不可退款
+        if (!"SUCCESS".equals(record.getStatus())) {
+            throw new BizException(ErrorCode.REFUND_RECORD_NOT_FOUND, MessageConst.REFUND_RECORD_NOT_FOUND_MSG);
+        }
+
+        String channel = record.getChannel();
+        BigDecimal amount = record.getAmount();
+
+        // 微信 mock 通道：直接成功（保留渠道抽象，正式渠道替换实现）
+        if ("WECHAT_MOCK".equalsIgnoreCase(channel)) {
+            wechatMockService.mockRefund(orderNo);
+            markRefundSuccess(record, amount);
+            return;
+        }
+
+        if (!"ALIPAY".equalsIgnoreCase(channel)) {
+            throw new BizException(ErrorCode.PARAM_ERROR,
+                    String.format(MessageConst.PARAM_PAY_CHANNEL_UNSUPPORTED_MSG, channel));
+        }
+
+        // 生成/复用退款请求号并置 REFUNDING —— 短事务落库，不包住外部渠道调用
+        if (record.getOutRefundNo() == null) {
+            record.setOutRefundNo(generateOutRefundNo(orderNo));
+        }
+        record.setRefundStatus("REFUNDING");
+        paymentRecordMapper.updateById(record);
+        log.info("发起退款: orderNo={}, outRefundNo={}", orderNo, record.getOutRefundNo());
+
+        try {
+            alipayService.refund(orderNo, record.getOutRefundNo(),
+                    amount.setScale(2, RoundingMode.HALF_UP).toString());
+        } catch (BizException e) {
+            // 沙箱无真实交易（未在沙箱实际支付）→ 降级本地标记退款，保证演示链路完整
+            if (e.getCode() == ErrorCode.REFUND_TRADE_NOT_EXIST) {
+                log.warn("支付宝退款降级为本地标记: orderNo={}", orderNo);
+                markRefundSuccess(record, amount);
+                return;
+            }
+            // 其他失败：保持 REFUNDING，可重试
+            throw e;
+        }
+        markRefundSuccess(record, amount);
+    }
+
     // ──────────────────────────────────────
     // 内部方法
     // ──────────────────────────────────────
+
+    /** 退款成功落库：主状态 + 退款中间态 + 退款金额 + 退款时间 */
+    private void markRefundSuccess(PaymentRecord record, BigDecimal amount) {
+        record.setStatus("REFUNDED");
+        record.setRefundStatus("REFUNDED");
+        record.setRefundAmount(amount);
+        record.setRefundAt(LocalDateTime.now());
+        paymentRecordMapper.updateById(record);
+        log.info("退款完成: orderNo={}, amount={}", record.getOrderNo(), amount);
+    }
+
+    /** 生成退款请求号：RF + 订单号 + 毫秒时间戳（重试时复用已持久化的值，保证渠道侧幂等） */
+    private String generateOutRefundNo(String orderNo) {
+        return "RF" + orderNo + System.currentTimeMillis();
+    }
 
     /** 支付成功后更新订单状态 */
     private void markOrderPaid(Order order, String channel, String tradeNo) {

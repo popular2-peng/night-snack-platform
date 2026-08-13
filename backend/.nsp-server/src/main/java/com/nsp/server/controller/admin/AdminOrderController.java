@@ -53,4 +53,16 @@ public class AdminOrderController {
         return Result.ok(orderService.batchDelete(dto.getIds()));
     }
 
+    @Operation(summary = "订单退款（PAID/ACCEPTED/COOKING 可退，REFUNDING 可重试；支付宝沙箱真实退款，微信 mock）")
+    @PostMapping("/orders/{id}/refund")
+    public Result<OrderVO> refund(@Parameter(description = "订单 ID") @PathVariable Long id) {
+        return Result.ok(orderService.refundOrder(id));
+    }
+
+    @Operation(summary = "批量退款（不可退订单跳过并汇总原因，部分成功不算失败）")
+    @PostMapping("/orders/batch-refund")
+    public Result<BatchResultVO> batchRefund(@Valid @RequestBody BatchIdsDTO dto) {
+        return Result.ok(orderService.batchRefund(dto.getIds()));
+    }
+
 }

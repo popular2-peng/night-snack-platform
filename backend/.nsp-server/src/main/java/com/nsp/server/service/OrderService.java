@@ -51,4 +51,13 @@ public interface OrderService {
     /** 批量删除订单（事务内级联删除订单明细/状态日志/支付记录，不存在/已删除的跳过） */
     com.nsp.pojo.vo.BatchResultVO batchDelete(java.util.List<Long> ids);
 
+    /**
+     * 管理员退款 — 可退款状态：PAID / ACCEPTED / COOKING；REFUNDING（上次失败）可重试。
+     * 成功：订单 REFUNDING → 渠道退款 → REFUNDED；失败：保持 REFUNDING，抛 5007 可重试。
+     */
+    OrderVO refundOrder(Long orderId);
+
+    /** 管理员批量退款 — 逐条执行 refundOrder，不可退（未支付/已完成/已退款/不存在）的跳过并汇总原因 */
+    com.nsp.pojo.vo.BatchResultVO batchRefund(java.util.List<Long> ids);
+
 }

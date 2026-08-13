@@ -19,9 +19,10 @@ public class MerchantRegisterDTO {
     @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9_]{3,19}$", message = "账号格式不正确")
     private String username;
 
-    /** 登录密码（明文，后端 BCrypt 加密存储） */
+    /** 登录密码（明文，后端 BCrypt 加密存储）：6-20 位，必须同时包含字母和数字 */
     @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 20, message = "密码长度 6-20 位")
+    @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d)[a-zA-Z\\d!@#$%^&*()_+]{6,20}$",
+            message = "密码6-20位，需包含字母和数字")
     private String password;
 
     /** 手机号 */
@@ -42,7 +43,8 @@ public class MerchantRegisterDTO {
     @Size(max = 200, message = "店铺简介最多 200 字")
     private String description;
 
-    /** 店铺 LOGO OSS URL（可选） */
+    /** 店铺 LOGO OSS URL（必填，前端 OSS 直传后回传 URL） */
+    @NotBlank(message = "店铺 LOGO 不能为空")
     private String logoUrl;
 
     /**
