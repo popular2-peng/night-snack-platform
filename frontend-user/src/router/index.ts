@@ -36,6 +36,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Profile/index.vue'),
         meta: { title: '我的', tabbar: true },
       },
+      {
+        path: 'address',
+        name: 'Address',
+        component: () => import('@/views/Address/index.vue'),
+        meta: { title: '我的收货地址', requiresAuth: true },
+      },
+      {
+        path: 'address/edit',
+        name: 'AddressEdit',
+        component: () => import('@/views/Address/edit.vue'),
+        meta: { title: '收货地址编辑', requiresAuth: true },
+      },
     ],
   },
 ]

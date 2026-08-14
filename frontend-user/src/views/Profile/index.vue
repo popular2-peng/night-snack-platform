@@ -40,7 +40,7 @@ async function handleLogout() {
       </div>
 
       <van-cell-group inset style="margin-top: 16px">
-        <van-cell title="收货地址" is-link to="/profile" />
+        <van-cell title="收货地址" is-link to="/address" />
         <van-cell title="我的收藏" is-link to="/profile" />
         <van-cell title="联系客服" is-link to="/profile" />
       </van-cell-group>
