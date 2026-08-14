@@ -51,6 +51,9 @@ public class SecurityConfig {
                         // 健康检查（运维探活，无需鉴权；只暴露 health 端点）
                         .requestMatchers("/actuator/health").permitAll()
 
+                        // WebSocket 握手（/ws/merchant）：握手鉴权由 WsHandshakeInterceptor 校验 token
+                        .requestMatchers("/ws/**").permitAll()
+
                         // 用户端：登录/注册公开
                         .requestMatchers(
                                 "/api/user/login",

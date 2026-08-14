@@ -99,6 +99,12 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- WebSocket（商家端订单实时推送 /ws/merchant） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
         <!-- 支付宝沙箱 SDK -->
         <dependency>
             <groupId>com.alipay.sdk</groupId>

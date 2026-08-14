@@ -17,8 +17,9 @@ public interface OrderService {
     /** 用户查询自己的订单列表 */
     PageVO<OrderListVO> getUserOrders(Long userId, int page, int size);
 
-    /** 商家查询自己店铺的订单列表（支持状态筛选，非法状态值忽略） */
-    PageVO<OrderListVO> getMerchantOrders(Long merchantId, Long userId, int page, int size, String status);
+    /** 商家查询自己店铺的订单列表（支持状态筛选与下单日期范围，非法状态值忽略） */
+    PageVO<OrderListVO> getMerchantOrders(Long merchantId, Long userId, int page, int size,
+                                          String status, String dateStart, String dateEnd);
 
     /** 商家订单状态分布统计（tab 角标）：status → 数量 */
     java.util.Map<String, Long> getMerchantOrderStats(Long merchantId, Long userId);

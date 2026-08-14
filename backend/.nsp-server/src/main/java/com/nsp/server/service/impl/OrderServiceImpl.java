@@ -232,7 +232,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public PageVO<OrderListVO> getMerchantOrders(Long merchantId, Long userId, int page, int size, String status) {
+    public PageVO<OrderListVO> getMerchantOrders(Long merchantId, Long userId, int page, int size,
+                                                 String status, String dateStart, String dateEnd) {
         // 校验 userId 是该商家店主
         Merchant merchant = merchantMapper.selectById(merchantId);
         if (merchant == null || !merchant.getId().equals(userId)) {
@@ -249,6 +250,14 @@ public class OrderServiceImpl implements OrderService {
             if (statusEnum != null) {
                 wrapper.eq(Order::getStatus, statusEnum);
             }
+        }
+
+        // 下单日期范围（含边界当天；今日订单 = dateStart=dateEnd=今天）
+        if (dateStart != null && !dateStart.isBlank()) {
+            wrapper.ge(Order::getCreatedAt, LocalDate.parse(dateStart).atStartOfDay());
+        }
+        if (dateEnd != null && !dateEnd.isBlank()) {
+            wrapper.le(Order::getCreatedAt, LocalDate.parse(dateEnd).atTime(LocalTime.MAX));
         }
 
         Page<Order> result = orderMapper.selectPage(new Page<>(page, size), wrapper);

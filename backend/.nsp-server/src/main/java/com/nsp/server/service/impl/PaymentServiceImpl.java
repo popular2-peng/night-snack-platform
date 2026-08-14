@@ -1,6 +1,7 @@
 package com.nsp.server.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nsp.common.constant.ErrorCode;
 import com.nsp.common.constant.MessageConst;
 import com.nsp.common.enums.OrderStatus;
@@ -12,6 +13,7 @@ import com.nsp.pojo.entity.OrderStatusLog;
 import com.nsp.pojo.entity.PaymentRecord;
 import com.nsp.pojo.entity.Product;
 import com.nsp.pojo.vo.PayVO;
+import com.nsp.server.config.JacksonConfig;
 import com.nsp.server.mapper.OrderItemMapper;
 import com.nsp.server.mapper.OrderMapper;
 import com.nsp.server.mapper.OrderStatusLogMapper;
@@ -20,6 +22,7 @@ import com.nsp.server.mapper.ProductMapper;
 import com.nsp.server.service.AlipayService;
 import com.nsp.server.service.PaymentService;
 import com.nsp.server.service.WechatMockService;
+import com.nsp.server.ws.MerchantWsSessionManager;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +54,8 @@ public class PaymentServiceImpl implements PaymentService {
     private final OrderStatusLogMapper orderStatusLogMapper;
     private final AlipayService alipayService;
     private final WechatMockService wechatMockService;
+    private final MerchantWsSessionManager wsSessionManager;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
@@ -256,7 +261,7 @@ public class PaymentServiceImpl implements PaymentService {
         return "RF" + orderNo + System.currentTimeMillis();
     }
 
-    /** 支付成功后更新订单状态 */
+    /** 支付成功后更新订单状态（WECHAT_MOCK 直付与支付宝回调统一入口） */
     private void markOrderPaid(Order order, String channel, String tradeNo) {
         order.setStatus(OrderStatus.PAID);
         order.setPayChannel(com.nsp.common.enums.PayChannel.fromCode(channel));
@@ -274,6 +279,27 @@ public class PaymentServiceImpl implements PaymentService {
         orderStatusLogMapper.insert(statusLog);
 
         log.info("订单已支付: orderNo={}, channel={}, tradeNo={}", order.getOrderNo(), channel, tradeNo);
+
+        // WebSocket 实时推送：通知商家有新订单（推送失败不影响支付主流程）
+        pushNewOrderNotify(order);
+    }
+
+    /** WebSocket 推送 NEW_ORDER 消息给对应商家（尽力而为，失败仅告警） */
+    private void pushNewOrderNotify(Order order) {
+        try {
+            // createdAt 统一 ISO-8601（与 REST 接口时间格式一致，不带纳秒尾巴）
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "type", "NEW_ORDER",
+                    "data", Map.of(
+                            "orderId", order.getId(),
+                            "orderNo", order.getOrderNo(),
+                            "totalAmount", order.getTotalAmount(),
+                            "createdAt", JacksonConfig.LOCAL_DATE_TIME_FORMATTER.format(LocalDateTime.now())
+                    )));
+            wsSessionManager.sendToMerchant(order.getMerchantId(), payload);
+        } catch (Exception e) {
+            log.warn("新订单 WS 推送失败（不影响支付）: orderNo={}, err={}", order.getOrderNo(), e.getMessage());
+        }
     }
 
     /** 组装商品描述 */

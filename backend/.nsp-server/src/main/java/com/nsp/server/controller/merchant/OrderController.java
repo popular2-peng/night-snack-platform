@@ -27,13 +27,15 @@ public class OrderController {
 
     private final OrderService orderService;
 
-    @Operation(summary = "店铺订单列表（当前登录商家，支持状态筛选，含商品明细与地址快照）")
+    @Operation(summary = "店铺订单列表（当前登录商家，支持状态筛选与下单日期范围，含商品明细与地址快照）")
     @GetMapping
     public Result<PageVO<OrderListVO>> list(@RequestParam(defaultValue = "1") int page,
                                              @RequestParam(defaultValue = "20") int size,
-                                             @RequestParam(required = false) String status) {
+                                             @RequestParam(required = false) String status,
+                                             @RequestParam(required = false) String dateStart,
+                                             @RequestParam(required = false) String dateEnd) {
         Long merchantId = MerchantContext.currentMerchantId();
-        return Result.ok(orderService.getMerchantOrders(merchantId, merchantId, page, size, status));
+        return Result.ok(orderService.getMerchantOrders(merchantId, merchantId, page, size, status, dateStart, dateEnd));
     }
 
     @Operation(summary = "订单状态分布统计（tab 角标：status → 数量）")
