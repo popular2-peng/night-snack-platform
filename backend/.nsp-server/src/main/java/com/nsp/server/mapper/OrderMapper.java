@@ -52,4 +52,12 @@ public interface OrderMapper extends BaseMapper<Order> {
             "</script>")
     List<Map<String, Object>> selectUserOrderStats(@Param("userIds") List<Long> userIds);
 
+    /**
+     * 单商家订单状态分布统计（商家端订单管理 tab 角标用）
+     * 返回每行含 status, cnt
+     */
+    @Select("SELECT status, COUNT(*) AS cnt FROM `order` " +
+            "WHERE merchant_id = #{merchantId} GROUP BY status")
+    List<Map<String, Object>> selectStatusStats(@Param("merchantId") Long merchantId);
+
 }

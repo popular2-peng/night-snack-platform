@@ -936,10 +936,26 @@ DELETE /api/merchant/product/spec/{specId}
 #### 店铺订单列表（当前登录商家）
 
 ```
-GET /api/merchant/order?page=1&size=20
+GET /api/merchant/order?page=1&size=20&status={status}
 ```
 
-**响应 data：** `PageVO<OrderListVO>`
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `page` | int | 否 | 页码，默认 1 |
+| `size` | int | 否 | 每页条数，默认 20 |
+| `status` | string | 否 | 状态筛选：`PENDING_PAY`/`PAID`/`ACCEPTED`/`COOKING`/`COMPLETED`/`CANCELLED`/`REFUNDING`/`REFUNDED`（非法值忽略，不传返回全部） |
+
+**响应 data：** `PageVO<OrderListVO>`（含 `items` 商品明细与 `addressSnapshot` 地址快照，订单卡片可直接渲染）
+
+---
+
+#### 订单状态分布统计
+
+```
+GET /api/merchant/order/stats
+```
+
+**响应 data：** `Map<String, Long>`（状态码 → 数量，如 `{"PAID": 2, "COOKING": 1, "COMPLETED": 8}`，用于订单页 tab 角标）
 
 ---
 
@@ -2000,67 +2016,68 @@ PAID / ACCEPTED / COOKING ──(管理员退款)──→ REFUNDING ──(退�
 | 41 | PUT | `/api/merchant/product/{id}/status` | 上架/下架 | MERCHANT |
 | 42 | POST | `/api/merchant/product/{productId}/spec` | 添加规格 | MERCHANT |
 | 43 | DELETE | `/api/merchant/product/spec/{specId}` | 删除规格 | MERCHANT |
-| 44 | GET | `/api/merchant/order` | 店铺订单列表（JWT 解析商家） | MERCHANT |
-| 45 | GET | `/api/merchant/order/{id}` | 订单详情 | MERCHANT |
-| 46 | PUT | `/api/merchant/order/{id}/accept` | 接单 | MERCHANT |
-| 47 | PUT | `/api/merchant/order/{id}/cooking` | 开始制作 | MERCHANT |
-| 48 | PUT | `/api/merchant/order/{id}/complete` | 完成制作 | MERCHANT |
-| 49 | PUT | `/api/merchant/order/{id}/reject` | 拒单（自动退款） | MERCHANT |
-| 50 | GET | `/api/admin/dashboard/stats` | 核心统计卡片 | ADMIN |
-| 51 | GET | `/api/admin/dashboard/order-stats` | 订单状态分布 | ADMIN |
-| 52 | GET | `/api/admin/dashboard/recent-orders` | 最新订单 | ADMIN |
-| 53 | GET | `/api/admin/merchant-application/pending` | 入驻申请列表 | ADMIN |
-| 54 | GET | `/api/admin/merchant-application/{id}/detail` | 申请详情 | ADMIN |
-| 55 | PUT | `/api/admin/merchant-application/{id}/approve` | 通过申请(V1) | ADMIN |
-| 56 | PUT | `/api/admin/merchant-application/{id}/reject` | 拒绝申请(V1) | ADMIN |
-| 57 | POST | `/api/admin/application/{id}/approve` | 通过申请(V2) | ADMIN |
-| 58 | POST | `/api/admin/application/{id}/reject` | 拒绝申请(V2) | ADMIN |
-| 59 | GET | `/api/admin/users` | 用户列表 | ADMIN |
-| 60 | GET | `/api/admin/users/{id}/detail` | 用户详情 | ADMIN |
-| 61 | PUT | `/api/admin/users/{id}/ban` | 封禁用户（推荐） | ADMIN |
-| 62 | PUT | `/api/admin/users/{id}/unban` | 解封用户（推荐） | ADMIN |
-| 63 | PUT | `/api/admin/users/{id}/disable` | 封禁用户（旧版兼容） | ADMIN |
-| 64 | PUT | `/api/admin/users/{id}/enable` | 解封用户（旧版兼容） | ADMIN |
-| 65 | GET | `/api/admin/users/{id}/logs` | 用户操作日志 | ADMIN |
-| 66 | DELETE | `/api/admin/users/{id}` | 删除用户（物理删+级联） | ADMIN |
-| 67 | POST | `/api/admin/users/batch-unban` | 批量启用用户 | ADMIN |
-| 68 | POST | `/api/admin/users/batch-delete` | 批量删除用户（物理删+级联） | ADMIN |
-| 69 | GET | `/api/admin/merchants` | 商家列表(V1) | ADMIN |
-| 70 | PUT | `/api/admin/merchants/{id}/suspend` | 封禁商家(V1) | ADMIN |
-| 71 | PUT | `/api/admin/merchants/{id}/activate` | 解封商家(V1) | ADMIN |
-| 72 | GET | `/api/admin/merchant/stats` | 商家统计概览 | ADMIN |
-| 73 | GET | `/api/admin/merchant/{id}/detail` | 商家详情(V2) | ADMIN |
-| 74 | PUT | `/api/admin/merchant/{id}/pause` | 暂停营业 | ADMIN |
-| 75 | PUT | `/api/admin/merchant/{id}/resume` | 恢复营业 | ADMIN |
-| 76 | PUT | `/api/admin/merchant/{id}/ban` | 封禁商家(V2) | ADMIN |
-| 77 | PUT | `/api/admin/merchant/{id}/unban` | 解封商家(V2) | ADMIN |
-| 78 | DELETE | `/api/admin/merchant/{id}` | 删除商家 | ADMIN |
-| 79 | POST | `/api/admin/merchant/batch-delete` | 批量删除商家（级联商品等） | ADMIN |
-| 80 | GET | `/api/admin/merchant/{id}/logs` | 商家操作日志 | ADMIN |
-| 81 | GET | `/api/admin/category` | 品类列表 | ADMIN |
-| 82 | GET | `/api/admin/category/all` | 全部启用品类 | ADMIN |
-| 83 | GET | `/api/admin/category/stats` | 品类统计 | ADMIN |
-| 84 | GET | `/api/admin/category/{id}` | 品类详情 | ADMIN |
-| 85 | POST | `/api/admin/category` | 新增品类 | ADMIN |
-| 86 | PUT | `/api/admin/category/{id}` | 修改品类 | ADMIN |
-| 87 | PUT | `/api/admin/category/{id}/enable` | 启用品类 | ADMIN |
-| 88 | PUT | `/api/admin/category/{id}/disable` | 停用品类 | ADMIN |
-| 89 | DELETE | `/api/admin/category/{id}` | 删除品类 | ADMIN |
-| 90 | POST | `/api/admin/category/reorder` | 批量排序 | ADMIN |
-| 91 | POST | `/api/admin/category/batch-enable` | 批量启用品类 | ADMIN |
-| 92 | POST | `/api/admin/category/batch-disable` | 批量停用品类 | ADMIN |
-| 93 | POST | `/api/admin/category/batch-delete` | 批量删除品类 | ADMIN |
-| 94 | GET | `/api/admin/orders` | 订单列表 | ADMIN |
-| 95 | GET | `/api/admin/orders/{id}` | 订单详情 | ADMIN |
-| 96 | POST | `/api/admin/orders/{id}/refund` | 订单退款 | ADMIN |
-| 97 | POST | `/api/admin/orders/batch-refund` | 批量退款 | ADMIN |
-| 98 | POST | `/api/admin/orders/batch-delete` | 批量删除订单 | ADMIN |
-| 99 | POST | `/api/admin/merchant-application/batch-approve` | 批量通过入驻申请 | ADMIN |
-| 100 | POST | `/api/admin/merchant-application/batch-reject` | 批量拒绝入驻申请 | ADMIN |
-| 101 | GET | `/api/upload/sign` | OSS 上传签名 | 登录 |
-| 102 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
-| 103 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
-| 104 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
+| 44 | GET | `/api/merchant/order` | 店铺订单列表（JWT 解析商家，支持状态筛选） | MERCHANT |
+| 45 | GET | `/api/merchant/order/stats` | 订单状态分布统计（tab 角标） | MERCHANT |
+| 46 | GET | `/api/merchant/order/{id}` | 订单详情 | MERCHANT |
+| 47 | PUT | `/api/merchant/order/{id}/accept` | 接单 | MERCHANT |
+| 48 | PUT | `/api/merchant/order/{id}/cooking` | 开始制作 | MERCHANT |
+| 49 | PUT | `/api/merchant/order/{id}/complete` | 完成制作 | MERCHANT |
+| 50 | PUT | `/api/merchant/order/{id}/reject` | 拒单（自动退款） | MERCHANT |
+| 51 | GET | `/api/admin/dashboard/stats` | 核心统计卡片 | ADMIN |
+| 52 | GET | `/api/admin/dashboard/order-stats` | 订单状态分布 | ADMIN |
+| 53 | GET | `/api/admin/dashboard/recent-orders` | 最新订单 | ADMIN |
+| 54 | GET | `/api/admin/merchant-application/pending` | 入驻申请列表 | ADMIN |
+| 55 | GET | `/api/admin/merchant-application/{id}/detail` | 申请详情 | ADMIN |
+| 56 | PUT | `/api/admin/merchant-application/{id}/approve` | 通过申请(V1) | ADMIN |
+| 57 | PUT | `/api/admin/merchant-application/{id}/reject` | 拒绝申请(V1) | ADMIN |
+| 58 | POST | `/api/admin/application/{id}/approve` | 通过申请(V2) | ADMIN |
+| 59 | POST | `/api/admin/application/{id}/reject` | 拒绝申请(V2) | ADMIN |
+| 60 | GET | `/api/admin/users` | 用户列表 | ADMIN |
+| 61 | GET | `/api/admin/users/{id}/detail` | 用户详情 | ADMIN |
+| 62 | PUT | `/api/admin/users/{id}/ban` | 封禁用户（推荐） | ADMIN |
+| 63 | PUT | `/api/admin/users/{id}/unban` | 解封用户（推荐） | ADMIN |
+| 64 | PUT | `/api/admin/users/{id}/disable` | 封禁用户（旧版兼容） | ADMIN |
+| 65 | PUT | `/api/admin/users/{id}/enable` | 解封用户（旧版兼容） | ADMIN |
+| 66 | GET | `/api/admin/users/{id}/logs` | 用户操作日志 | ADMIN |
+| 67 | DELETE | `/api/admin/users/{id}` | 删除用户（物理删+级联） | ADMIN |
+| 68 | POST | `/api/admin/users/batch-unban` | 批量启用用户 | ADMIN |
+| 69 | POST | `/api/admin/users/batch-delete` | 批量删除用户（物理删+级联） | ADMIN |
+| 70 | GET | `/api/admin/merchants` | 商家列表(V1) | ADMIN |
+| 71 | PUT | `/api/admin/merchants/{id}/suspend` | 封禁商家(V1) | ADMIN |
+| 72 | PUT | `/api/admin/merchants/{id}/activate` | 解封商家(V1) | ADMIN |
+| 73 | GET | `/api/admin/merchant/stats` | 商家统计概览 | ADMIN |
+| 74 | GET | `/api/admin/merchant/{id}/detail` | 商家详情(V2) | ADMIN |
+| 75 | PUT | `/api/admin/merchant/{id}/pause` | 暂停营业 | ADMIN |
+| 76 | PUT | `/api/admin/merchant/{id}/resume` | 恢复营业 | ADMIN |
+| 77 | PUT | `/api/admin/merchant/{id}/ban` | 封禁商家(V2) | ADMIN |
+| 78 | PUT | `/api/admin/merchant/{id}/unban` | 解封商家(V2) | ADMIN |
+| 79 | DELETE | `/api/admin/merchant/{id}` | 删除商家 | ADMIN |
+| 80 | POST | `/api/admin/merchant/batch-delete` | 批量删除商家（级联商品等） | ADMIN |
+| 81 | GET | `/api/admin/merchant/{id}/logs` | 商家操作日志 | ADMIN |
+| 82 | GET | `/api/admin/category` | 品类列表 | ADMIN |
+| 83 | GET | `/api/admin/category/all` | 全部启用品类 | ADMIN |
+| 84 | GET | `/api/admin/category/stats` | 品类统计 | ADMIN |
+| 85 | GET | `/api/admin/category/{id}` | 品类详情 | ADMIN |
+| 86 | POST | `/api/admin/category` | 新增品类 | ADMIN |
+| 87 | PUT | `/api/admin/category/{id}` | 修改品类 | ADMIN |
+| 88 | PUT | `/api/admin/category/{id}/enable` | 启用品类 | ADMIN |
+| 89 | PUT | `/api/admin/category/{id}/disable` | 停用品类 | ADMIN |
+| 90 | DELETE | `/api/admin/category/{id}` | 删除品类 | ADMIN |
+| 91 | POST | `/api/admin/category/reorder` | 批量排序 | ADMIN |
+| 92 | POST | `/api/admin/category/batch-enable` | 批量启用品类 | ADMIN |
+| 93 | POST | `/api/admin/category/batch-disable` | 批量停用品类 | ADMIN |
+| 94 | POST | `/api/admin/category/batch-delete` | 批量删除品类 | ADMIN |
+| 95 | GET | `/api/admin/orders` | 订单列表 | ADMIN |
+| 96 | GET | `/api/admin/orders/{id}` | 订单详情 | ADMIN |
+| 97 | POST | `/api/admin/orders/{id}/refund` | 订单退款 | ADMIN |
+| 98 | POST | `/api/admin/orders/batch-refund` | 批量退款 | ADMIN |
+| 99 | POST | `/api/admin/orders/batch-delete` | 批量删除订单 | ADMIN |
+| 100 | POST | `/api/admin/merchant-application/batch-approve` | 批量通过入驻申请 | ADMIN |
+| 101 | POST | `/api/admin/merchant-application/batch-reject` | 批量拒绝入驻申请 | ADMIN |
+| 102 | GET | `/api/upload/sign` | OSS 上传签名 | 登录 |
+| 103 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
+| 104 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
+| 105 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
 
 ---
 

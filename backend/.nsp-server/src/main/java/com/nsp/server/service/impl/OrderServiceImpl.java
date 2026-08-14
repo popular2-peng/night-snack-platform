@@ -232,20 +232,45 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public PageVO<OrderListVO> getMerchantOrders(Long merchantId, Long userId, int page, int size) {
+    public PageVO<OrderListVO> getMerchantOrders(Long merchantId, Long userId, int page, int size, String status) {
         // 校验 userId 是该商家店主
         Merchant merchant = merchantMapper.selectById(merchantId);
         if (merchant == null || !merchant.getId().equals(userId)) {
             throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, MessageConst.NOT_MERCHANT_ORDER_VIEW_MSG);
         }
 
-        Page<Order> result = orderMapper.selectPage(
-                new Page<>(page, size),
-                new LambdaQueryWrapper<Order>()
-                        .eq(Order::getMerchantId, merchantId)
-                        .orderByDesc(Order::getId));
+        LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<Order>()
+                .eq(Order::getMerchantId, merchantId)
+                .orderByDesc(Order::getId);
+
+        // 状态筛选（非法状态值忽略，不拼条件）
+        if (status != null && !status.isBlank()) {
+            OrderStatus statusEnum = OrderStatus.fromCode(status);
+            if (statusEnum != null) {
+                wrapper.eq(Order::getStatus, statusEnum);
+            }
+        }
+
+        Page<Order> result = orderMapper.selectPage(new Page<>(page, size), wrapper);
 
         return toPageVO(result);
+    }
+
+    @Override
+    public Map<String, Long> getMerchantOrderStats(Long merchantId, Long userId) {
+        Merchant merchant = merchantMapper.selectById(merchantId);
+        if (merchant == null || !merchant.getId().equals(userId)) {
+            throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, MessageConst.NOT_MERCHANT_ORDER_VIEW_MSG);
+        }
+        Map<String, Long> stats = new HashMap<>();
+        for (Map<String, Object> row : orderMapper.selectStatusStats(merchantId)) {
+            Object statusObj = row.get("status");
+            Object cntObj = row.get("cnt");
+            if (statusObj != null && cntObj != null) {
+                stats.put(statusObj.toString(), Long.parseLong(cntObj.toString()));
+            }
+        }
+        return stats;
     }
 
     @Override
@@ -721,13 +746,27 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private PageVO<OrderListVO> toPageVO(Page<Order> result) {
-        List<OrderListVO> list = result.getRecords().stream().map(o -> {
+        List<Order> records = result.getRecords();
+
+        // 批量加载订单明细（一次 IN 查询，避免逐单 N+1）
+        Map<Long, List<OrderItem>> itemMap = records.isEmpty() ? Map.of()
+                : orderItemMapper.selectList(new LambdaQueryWrapper<OrderItem>()
+                        .in(OrderItem::getOrderId, records.stream().map(Order::getId).toList()))
+                .stream().collect(Collectors.groupingBy(OrderItem::getOrderId));
+
+        List<OrderListVO> list = records.stream().map(o -> {
             OrderListVO vo = new OrderListVO();
             BeanUtil.copyProperties(o, vo);
             vo.setStatus(o.getStatus().getCode());
             // 查询商家名称
             Merchant m = merchantMapper.selectById(o.getMerchantId());
             vo.setMerchantName(m != null ? m.getName() : "");
+            // 填充商品明细（商家端订单卡片直接渲染）
+            vo.setItems(itemMap.getOrDefault(o.getId(), List.of()).stream().map(oi -> {
+                OrderItemVO iv = new OrderItemVO();
+                BeanUtil.copyProperties(oi, iv);
+                return iv;
+            }).toList());
             return vo;
         }).toList();
         return new PageVO<>(result.getTotal(), list);
