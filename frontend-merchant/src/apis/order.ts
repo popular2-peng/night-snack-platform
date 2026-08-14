@@ -38,8 +38,14 @@ export interface MerchantOrderDetailVO {
   statusLogs: { fromStatus: string | null; toStatus: string; operator: string; reason: string; createdAt: string }[]
 }
 
-/** 店铺订单列表（支持状态筛选） */
-export const getMerchantOrdersApi = (params: { page: number; size: number; status?: string }) => {
+/** 店铺订单列表（支持状态筛选与下单日期范围，今日订单 = dateStart=dateEnd=今天） */
+export const getMerchantOrdersApi = (params: {
+  page: number
+  size: number
+  status?: string
+  dateStart?: string
+  dateEnd?: string
+}) => {
   return request.get<{ total: number; list: MerchantOrderListVO[] }>('/merchant/order', { params })
 }
 

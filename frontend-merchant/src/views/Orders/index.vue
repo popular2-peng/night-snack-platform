@@ -1,14 +1,28 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, ElNotification } from 'element-plus'
 import {
-  Refresh, User, Phone, Location, Clock, Document, Coin, Van,
+  Refresh, User, Phone, Location, Clock, Document, Coin, Van, Calendar,
 } from '@element-plus/icons-vue'
 import {
   getMerchantOrdersApi, getMerchantOrderStatsApi, getMerchantOrderDetailApi,
   acceptOrderApi, startCookingApi, completeOrderApi, rejectOrderApi,
   type MerchantOrderListVO, type MerchantOrderDetailVO,
 } from '@/apis/order'
+
+const route = useRoute()
+
+/** 页面模式：today 今日订单（0 点之后）/ all 全部订单（可选时间范围） */
+const mode = computed<'today' | 'all'>(() => (route.meta.mode === 'all' ? 'all' : 'today'))
+const pageTitle = computed(() => (mode.value === 'today' ? '今日订单' : '全部订单'))
+
+/** 今日日期字符串（yyyy-MM-dd） */
+const todayStr = () => {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
 
 // ---- 状态定义（美团风格：按处理阶段分 tab） ----
 const TABS = [
@@ -40,16 +54,31 @@ const size = ref(10)
 const loading = ref(false)
 const stats = ref<Record<string, number>>({})
 
-/** 上一轮待接单数量（新单通知用） */
-let prevPaidCount: number | null = null
+/** 全部订单：可选下单时间范围（yyyy-MM-dd 起止，含当天） */
+const dateRange = ref<string[]>([])
 
 const fetchOrders = async (silent = false) => {
   if (!silent) loading.value = true
   try {
-    const res = await getMerchantOrdersApi({
+    const params: {
+      page: number
+      size: number
+      status?: string
+      dateStart?: string
+      dateEnd?: string
+    } = {
       page: page.value, size: size.value,
       status: activeTab.value || undefined,
-    })
+    }
+    if (mode.value === 'today') {
+      // 今日订单：0 点之后（dateStart = dateEnd = 今天）
+      params.dateStart = todayStr()
+      params.dateEnd = todayStr()
+    } else if (dateRange.value?.[0]) {
+      params.dateStart = dateRange.value[0]
+      params.dateEnd = dateRange.value[1] || dateRange.value[0]
+    }
+    const res = await getMerchantOrdersApi(params)
     orders.value = res.data.list || []
     total.value = res.data.total || 0
   } catch { if (!silent) ElMessage.error('获取订单列表失败') }
@@ -60,34 +89,77 @@ const fetchStats = async () => {
   try {
     const res = await getMerchantOrderStatsApi()
     stats.value = res.data || {}
-    // 新订单通知：待接单数比上一轮多 → 提示商家
-    const paid = stats.value.PAID || 0
-    if (prevPaidCount !== null && paid > prevPaidCount) {
-      ElNotification({
-        title: '您有新的订单',
-        message: `新增 ${paid - prevPaidCount} 单待接单，请及时处理`,
-        type: 'warning',
-        position: 'bottom-right',
-        duration: 6000,
-      })
-    }
-    prevPaidCount = paid
   } catch { /* 统计失败不阻塞 */ }
 }
 
-/** 15 秒轮询（美团商家端同为轮询模式） */
-let pollTimer: number | null = null
-const POLL_INTERVAL = 15_000
+// ---- WebSocket 实时推送（新订单通知，替代轮询） ----
+const ws = ref<WebSocket | null>(null)
+const wsConnected = ref(false)
+let reconnectTimer: number | null = null
+let heartbeatTimer: number | null = null
 
-const startPolling = () => {
-  stopPolling()
-  pollTimer = window.setInterval(() => {
-    fetchOrders(true)
-    fetchStats()
-  }, POLL_INTERVAL)
+/** 新订单提示音（WebAudio 双音，无需音频资源文件） */
+const playDing = () => {
+  try {
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext
+    const ctx = new Ctx()
+    const playTone = (freq: number, start: number, dur: number) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain); gain.connect(ctx.destination)
+      osc.type = 'sine'; osc.frequency.value = freq
+      gain.gain.setValueAtTime(0.25, ctx.currentTime + start)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + dur)
+      osc.start(ctx.currentTime + start); osc.stop(ctx.currentTime + start + dur)
+    }
+    playTone(880, 0, 0.18)
+    playTone(1174, 0.18, 0.25)
+  } catch { /* 浏览器不支持音频则静默 */ }
 }
-const stopPolling = () => {
-  if (pollTimer !== null) { clearInterval(pollTimer); pollTimer = null }
+
+const connectWs = () => {
+  const token = localStorage.getItem('token')
+  if (!token) return
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+  const socket = new WebSocket(`${proto}://${location.host}/ws/merchant?token=${encodeURIComponent(token)}`)
+  ws.value = socket
+
+  socket.onopen = () => {
+    wsConnected.value = true
+    socket.send(JSON.stringify({ type: 'PING' }))
+  }
+  socket.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data)
+      if (msg.type === 'NEW_ORDER') {
+        playDing()
+        ElNotification({
+          title: '您有新的订单',
+          message: `订单 ${shortNo(msg.data.orderNo)} · ${formatMoney(msg.data.totalAmount)}，请及时接单`,
+          type: 'warning',
+          position: 'bottom-right',
+          duration: 8000,
+        })
+        // 今日订单页直接刷新列表；其他页刷新统计角标
+        fetchStats()
+        if (mode.value === 'today') fetchOrders(true)
+      }
+    } catch { /* 非 JSON 帧忽略 */ }
+  }
+  socket.onclose = () => {
+    wsConnected.value = false
+    scheduleReconnect()
+  }
+  socket.onerror = () => { socket.close() }
+}
+
+/** 断线 5 秒后自动重连 */
+const scheduleReconnect = () => {
+  if (reconnectTimer !== null) return
+  reconnectTimer = window.setTimeout(() => {
+    reconnectTimer = null
+    connectWs()
+  }, 5000)
 }
 
 // ---- tab 切换 ----
@@ -196,8 +268,31 @@ const operatorText = (o: string) => {
   return map[o] || o
 }
 
-onMounted(() => { fetchOrders(); fetchStats(); startPolling() })
-onUnmounted(stopPolling)
+onMounted(() => {
+  fetchOrders()
+  fetchStats()
+  connectWs()
+  // 心跳保活：30 秒 PING（服务端回 PONG）
+  heartbeatTimer = window.setInterval(() => {
+    if (ws.value?.readyState === WebSocket.OPEN) {
+      ws.value.send(JSON.stringify({ type: 'PING' }))
+    }
+  }, 30_000)
+})
+
+onUnmounted(() => {
+  if (heartbeatTimer !== null) clearInterval(heartbeatTimer)
+  if (reconnectTimer !== null) clearTimeout(reconnectTimer)
+  ws.value?.close()
+})
+
+// 今日订单 ⇄ 全部订单切换（同一组件复用）：重置筛选并重新拉取
+watch(() => route.path, () => {
+  page.value = 1
+  dateRange.value = []
+  fetchOrders()
+  fetchStats()
+})
 </script>
 
 <template>
@@ -205,10 +300,30 @@ onUnmounted(stopPolling)
     <!-- ====== 顶栏 ====== -->
     <div class="page-card top-bar fade-in">
       <div class="top-title">
-        <h2><el-icon><Document /></el-icon>订单管理</h2>
-        <span class="poll-hint"><el-icon class="spin-icon"><Refresh /></el-icon> 每 15 秒自动刷新</span>
+        <h2><el-icon><Document /></el-icon>{{ pageTitle }}</h2>
+        <span class="ws-hint" :class="wsConnected ? 'ws-on' : 'ws-off'">
+          <span class="ws-dot" />
+          {{ wsConnected ? '实时接单中（WebSocket）' : '连接断开，自动重连中…' }}
+        </span>
       </div>
       <el-button :icon="Refresh" circle plain @click="refreshAll" title="立即刷新" />
+    </div>
+
+    <!-- ====== 时间范围（仅全部订单，可选） ====== -->
+    <div v-if="mode === 'all'" class="page-card date-bar fade-in">
+      <span class="date-label"><el-icon><Calendar /></el-icon>下单时间</span>
+      <el-date-picker
+        v-model="dateRange"
+        type="daterange"
+        value-format="YYYY-MM-DD"
+        range-separator="至"
+        start-placeholder="开始日期"
+        end-placeholder="结束日期"
+        :clearable="true"
+        style="width: 280px"
+        @change="page = 1; fetchOrders()"
+      />
+      <span class="date-tip">不选时间范围则查询全部历史订单（含当天边界）</span>
     </div>
 
     <!-- ====== 状态 Tab（美团风：下划线 + 角标） ====== -->
@@ -409,12 +524,32 @@ onUnmounted(stopPolling)
   display: flex; align-items: center; gap: 8px;
 }
 .top-title h2 .el-icon { color: var(--primary); }
-.poll-hint {
-  font-size: 12px; color: var(--text-secondary);
-  display: flex; align-items: center; gap: 4px;
+/* ---- 实时连接状态 ---- */
+.ws-hint {
+  font-size: 12px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 10px;
+  border-radius: 20px;
 }
-.spin-icon { animation: spin 3s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.ws-dot { width: 8px; height: 8px; border-radius: 50%; }
+.ws-on { color: var(--success); background: var(--success-bg); }
+.ws-on .ws-dot { background: var(--success); box-shadow: 0 0 0 3px rgba(82, 196, 26, 0.15); }
+.ws-off { color: var(--danger); background: var(--danger-bg); }
+.ws-off .ws-dot { background: var(--danger); animation: blink 1.2s ease-in-out infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ---- 时间范围栏 ---- */
+.date-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px; margin-bottom: 12px;
+}
+.date-label {
+  font-size: 13px; color: var(--text-regular); font-weight: 600;
+  display: flex; align-items: center; gap: 6px;
+  flex-shrink: 0;
+}
+.date-label .el-icon { color: var(--primary); }
+.date-tip { font-size: 12px; color: var(--text-secondary); }
 
 /* ---- Tab 栏（美团风） ---- */
 .tab-bar {
