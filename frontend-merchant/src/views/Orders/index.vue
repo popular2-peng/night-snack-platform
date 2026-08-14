@@ -86,8 +86,13 @@ const fetchOrders = async (silent = false) => {
 }
 
 const fetchStats = async () => {
+  // 全部订单页不展示角标，无需拉统计；今日订单页按当天范围统计
+  if (mode.value !== 'today') {
+    stats.value = {}
+    return
+  }
   try {
-    const res = await getMerchantOrderStatsApi()
+    const res = await getMerchantOrderStatsApi({ dateStart: todayStr(), dateEnd: todayStr() })
     stats.value = res.data || {}
   } catch { /* 统计失败不阻塞 */ }
 }
@@ -140,9 +145,13 @@ const connectWs = () => {
           position: 'bottom-right',
           duration: 8000,
         })
-        // 今日订单页直接刷新列表；其他页刷新统计角标
-        fetchStats()
-        if (mode.value === 'today') fetchOrders(true)
+        // 今日订单页刷新列表 + 当日角标；全部订单页只刷新列表
+        if (mode.value === 'today') {
+          fetchStats()
+          fetchOrders(true)
+        } else {
+          fetchOrders(true)
+        }
       }
     } catch { /* 非 JSON 帧忽略 */ }
   }
@@ -334,8 +343,12 @@ watch(() => route.path, () => {
         @click="switchTab(tab.key)"
       >
         <span class="tab-label">{{ tab.label }}</span>
-        <span v-if="tab.key && (stats[tab.key] || 0) > 0" class="tab-badge"
-          :class="{ 'badge-alert': tab.key === 'PAID' }">{{ stats[tab.key] }}</span>
+        <!-- 角标仅在今日订单页展示（当日各状态数量），全部订单页不显示数字 -->
+        <span
+          v-if="mode === 'today' && tab.key && (stats[tab.key] || 0) > 0"
+          class="tab-badge"
+          :class="{ 'badge-alert': tab.key === 'PAID' }"
+        >{{ stats[tab.key] }}</span>
       </div>
     </div>
 

@@ -21,8 +21,9 @@ public interface OrderService {
     PageVO<OrderListVO> getMerchantOrders(Long merchantId, Long userId, int page, int size,
                                           String status, String dateStart, String dateEnd);
 
-    /** 商家订单状态分布统计（tab 角标）：status → 数量 */
-    java.util.Map<String, Long> getMerchantOrderStats(Long merchantId, Long userId);
+    /** 商家订单状态分布统计（tab 角标）：status → 数量；可选下单日期范围（含边界当天） */
+    java.util.Map<String, Long> getMerchantOrderStats(Long merchantId, Long userId,
+                                                      String dateStart, String dateEnd);
 
     /** 管理员查询全部订单列表（支持订单号/用户名/商家名关键词、状态、支付渠道、下单日期范围筛选） */
     PageVO<AdminOrderVO> getAdminOrders(int page, int size, String keyword, String status,

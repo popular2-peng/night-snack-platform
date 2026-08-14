@@ -54,10 +54,19 @@ public interface OrderMapper extends BaseMapper<Order> {
 
     /**
      * 单商家订单状态分布统计（商家端订单管理 tab 角标用）
-     * 返回每行含 status, cnt
+     *
+     * <p>支持可选下单日期范围（含边界当天）：今日订单角标 = dateStart=dateEnd=今天；
+     * 不传日期则统计全部历史订单。返回每行含 status, cnt。
      */
-    @Select("SELECT status, COUNT(*) AS cnt FROM `order` " +
-            "WHERE merchant_id = #{merchantId} GROUP BY status")
-    List<Map<String, Object>> selectStatusStats(@Param("merchantId") Long merchantId);
+    @Select("<script>" +
+            "SELECT status, COUNT(*) AS cnt FROM `order` " +
+            "WHERE merchant_id = #{merchantId} " +
+            "<if test='dateStart != null and dateStart != \"\"'> AND created_at &gt;= #{dateStart} </if>" +
+            "<if test='dateEnd != null and dateEnd != \"\"'> AND created_at &lt; DATE_ADD(#{dateEnd}, INTERVAL 1 DAY) </if>" +
+            "GROUP BY status" +
+            "</script>")
+    List<Map<String, Object>> selectStatusStats(@Param("merchantId") Long merchantId,
+                                                @Param("dateStart") String dateStart,
+                                                @Param("dateEnd") String dateEnd);
 
 }

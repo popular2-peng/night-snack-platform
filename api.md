@@ -954,10 +954,15 @@ GET /api/merchant/order?page=1&size=20&status={status}&dateStart={date}&dateEnd=
 #### 订单状态分布统计
 
 ```
-GET /api/merchant/order/stats
+GET /api/merchant/order/stats?dateStart={date}&dateEnd={date}
 ```
 
-**响应 data：** `Map<String, Long>`（状态码 → 数量，如 `{"PAID": 2, "COOKING": 1, "COMPLETED": 8}`，用于订单页 tab 角标）
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `dateStart` | string | 否 | 统计起始日期（`yyyy-MM-dd`，含当天）。**今日订单角标 = dateStart=dateEnd=今天** |
+| `dateEnd` | string | 否 | 统计截止日期（`yyyy-MM-dd`，含当天）。不传则统计全部历史订单 |
+
+**响应 data：** `Map<String, Long>`（状态码 → 数量，如 `{"PAID": 2, "COOKING": 1, "COMPLETED": 8}`，用于订单页 tab 角标；全部订单页不展示角标）
 
 ---
 

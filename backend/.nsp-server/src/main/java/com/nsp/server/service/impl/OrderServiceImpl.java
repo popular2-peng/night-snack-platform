@@ -266,13 +266,14 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public Map<String, Long> getMerchantOrderStats(Long merchantId, Long userId) {
+    public Map<String, Long> getMerchantOrderStats(Long merchantId, Long userId,
+                                                   String dateStart, String dateEnd) {
         Merchant merchant = merchantMapper.selectById(merchantId);
         if (merchant == null || !merchant.getId().equals(userId)) {
             throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, MessageConst.NOT_MERCHANT_ORDER_VIEW_MSG);
         }
         Map<String, Long> stats = new HashMap<>();
-        for (Map<String, Object> row : orderMapper.selectStatusStats(merchantId)) {
+        for (Map<String, Object> row : orderMapper.selectStatusStats(merchantId, dateStart, dateEnd)) {
             Object statusObj = row.get("status");
             Object cntObj = row.get("cnt");
             if (statusObj != null && cntObj != null) {

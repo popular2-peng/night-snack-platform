@@ -38,11 +38,12 @@ public class OrderController {
         return Result.ok(orderService.getMerchantOrders(merchantId, merchantId, page, size, status, dateStart, dateEnd));
     }
 
-    @Operation(summary = "订单状态分布统计（tab 角标：status → 数量）")
+    @Operation(summary = "订单状态分布统计（tab 角标：status → 数量，可选下单日期范围，含边界当天）")
     @GetMapping("/stats")
-    public Result<java.util.Map<String, Long>> stats() {
+    public Result<java.util.Map<String, Long>> stats(@RequestParam(required = false) String dateStart,
+                                                     @RequestParam(required = false) String dateEnd) {
         Long merchantId = MerchantContext.currentMerchantId();
-        return Result.ok(orderService.getMerchantOrderStats(merchantId, merchantId));
+        return Result.ok(orderService.getMerchantOrderStats(merchantId, merchantId, dateStart, dateEnd));
     }
 
     @Operation(summary = "订单详情")

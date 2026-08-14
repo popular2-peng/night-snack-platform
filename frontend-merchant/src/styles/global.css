@@ -97,6 +97,27 @@ body {
   color: var(--text-primary);
 }
 
+/* === 侧栏折叠态子菜单弹出层（深色主题） === */
+.sidebar-popper.el-popper {
+  background: var(--sidebar-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+.sidebar-popper .el-menu--popup {
+  background: transparent;
+}
+.sidebar-popper .el-menu-item {
+  color: var(--sidebar-text);
+  height: 40px;
+  line-height: 40px;
+}
+.sidebar-popper .el-menu-item:hover,
+.sidebar-popper .el-menu-item.is-active {
+  background: var(--sidebar-hover);
+  color: #fff;
+}
+
 /* === 占位符 === */
 .placeholder-page {
   display: flex;

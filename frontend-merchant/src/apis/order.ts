@@ -49,9 +49,9 @@ export const getMerchantOrdersApi = (params: {
   return request.get<{ total: number; list: MerchantOrderListVO[] }>('/merchant/order', { params })
 }
 
-/** 订单状态分布统计（tab 角标：状态码 → 数量） */
-export const getMerchantOrderStatsApi = () => {
-  return request.get<Record<string, number>>('/merchant/order/stats')
+/** 订单状态分布统计（tab 角标：状态码 → 数量；可选日期范围，今日角标 = 传今天） */
+export const getMerchantOrderStatsApi = (params?: { dateStart?: string; dateEnd?: string }) => {
+  return request.get<Record<string, number>>('/merchant/order/stats', { params })
 }
 
 /** 订单详情 */
