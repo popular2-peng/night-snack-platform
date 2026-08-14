@@ -491,11 +491,11 @@ POST /api/user/address
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `receiver` | string | 是 | 收货人 |
-| `phone` | string | 是 | 收货电话 |
+| `phone` | string | 是 | 收货电话（`^1[3-9]\d{9}$`，格式错误返回 `1100`） |
 | `detail` | string | 是 | 详细地址 |
-| `lat` | number | 是 | 纬度 |
-| `lng` | number | 是 | 经度 |
-| `isDefault` | boolean | 否 | 是否默认 |
+| `lat` | number | 否 | 纬度（移动端暂不支持地图选点；为空时下单距离校验按 0 处理，MVP 降级） |
+| `lng` | number | 否 | 经度（同 lat） |
+| `isDefault` | boolean | 否 | 是否设为默认地址（设默认时自动取消原默认，互斥） |
 
 **可能错误码：** `2102`
 
