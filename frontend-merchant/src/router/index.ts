@@ -45,8 +45,8 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'products',
         name: 'Products',
-        component: () => import('@/views/PlaceholderPage.vue'),
-        meta: { title: '商品管理', placeholder: true },
+        component: () => import('@/views/Products/index.vue'),
+        meta: { title: '商品管理' },
       },
       {
         path: 'shop',
