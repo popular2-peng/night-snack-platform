@@ -11,6 +11,7 @@ import com.nsp.pojo.dto.ProductSpecDTO;
 import com.nsp.pojo.entity.Category;
 import com.nsp.pojo.entity.Product;
 import com.nsp.pojo.entity.ProductSpec;
+import com.nsp.pojo.vo.PageVO;
 import com.nsp.pojo.vo.ProductVO;
 import com.nsp.pojo.vo.SpecVO;
 import com.nsp.server.mapper.CategoryMapper;
@@ -43,16 +44,26 @@ public class ProductServiceImpl implements ProductService {
     private final MerchantMapper merchantMapper;
 
     @Override
-    public List<ProductVO> listByMerchant(Long merchantId, Long categoryId, int page, int size) {
+    public PageVO<ProductVO> listByMerchant(Long merchantId, Long categoryId, int page, int size,
+                                            String keyword, String status) {
         LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<Product>()
                 .eq(Product::getMerchantId, merchantId);
         if (categoryId != null) {
             wrapper.eq(Product::getCategoryId, categoryId);
         }
+        // 名称模糊搜索（管理页/用户端共用）
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.like(Product::getName, keyword.trim());
+        }
+        // 状态筛选：ON/OFF（非法值忽略）
+        if (status != null && !status.isBlank() && ("ON".equals(status) || "OFF".equals(status))) {
+            wrapper.eq(Product::getStatus, status);
+        }
         wrapper.orderByDesc(Product::getUpdatedAt);
 
         Page<Product> result = productMapper.selectPage(new Page<>(page, size), wrapper);
-        return result.getRecords().stream().map(this::toVO).toList();
+        List<ProductVO> list = result.getRecords().stream().map(this::toVO).toList();
+        return new PageVO<>(result.getTotal(), list);
     }
 
     @Override
@@ -101,6 +112,20 @@ public class ProductServiceImpl implements ProductService {
         update.setStatus(status);
         productMapper.updateById(update);
         log.info("更新商品状态: productId={}, status={}", id, status);
+    }
+
+    @Override
+    @Transactional
+    public void deleteProduct(Long id, Long merchantId) {
+        Product product = findOwnProduct(id, merchantId);
+        // 仅停售状态可删除（防止误删在售商品，与品类删除规则一致）
+        if (!"OFF".equals(product.getStatus())) {
+            throw new BizException(ErrorCode.PRODUCT_MUST_OFF_FIRST, MessageConst.PRODUCT_MUST_OFF_FIRST_MSG);
+        }
+        // 级联删除规格（软删商品，规格物理删除）
+        productSpecMapper.delete(new LambdaQueryWrapper<ProductSpec>().eq(ProductSpec::getProductId, id));
+        productMapper.deleteById(id);
+        log.info("删除商品: productId={}, merchantId={}, name={}", id, merchantId, product.getName());
     }
 
     @Override

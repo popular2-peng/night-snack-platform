@@ -57,6 +57,7 @@ public final class ErrorCode {
     public static final int PRODUCT_OFF_SHELF      = 3102; // 商品已下架
     public static final int SPEC_NOT_FOUND         = 3103; // 规格不存在
     public static final int STOCK_INSUFFICIENT     = 3104; // 库存不足
+    public static final int PRODUCT_MUST_OFF_FIRST = 3105; // 商品在售，请先停售再删除
     public static final int CATEGORY_NOT_FOUND     = 3201; // 品类不存在
     public static final int NOT_MERCHANT_OWNER     = 3301; // 非本店商家，无权操作
 

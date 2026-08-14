@@ -3,6 +3,7 @@ package com.nsp.server.controller.merchant;
 import com.nsp.common.result.Result;
 import com.nsp.pojo.dto.ProductDTO;
 import com.nsp.pojo.dto.ProductSpecDTO;
+import com.nsp.pojo.vo.PageVO;
 import com.nsp.pojo.vo.ProductVO;
 import com.nsp.server.annotation.RequireRole;
 import com.nsp.server.security.MerchantContext;
@@ -13,8 +14,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * 商品管理接口（商家后台 + 用户浏览）
@@ -30,14 +29,16 @@ public class ProductController {
 
     private final ProductService productService;
 
-    @Operation(summary = "商品列表（用户端也可调用）")
+    @Operation(summary = "商品列表（用户端也可调用，分页返回，支持名称搜索/状态筛选）")
     @GetMapping("/list")
     @RequireRole({"USER", "MERCHANT", "ADMIN"})
-    public Result<List<ProductVO>> list(@RequestParam Long merchantId,
-                                         @RequestParam(required = false) Long categoryId,
-                                         @RequestParam(defaultValue = "1") int page,
-                                         @RequestParam(defaultValue = "20") int size) {
-        return Result.ok(productService.listByMerchant(merchantId, categoryId, page, size));
+    public Result<PageVO<ProductVO>> list(@RequestParam Long merchantId,
+                                           @RequestParam(required = false) Long categoryId,
+                                           @RequestParam(defaultValue = "1") int page,
+                                           @RequestParam(defaultValue = "20") int size,
+                                           @RequestParam(required = false) String keyword,
+                                           @RequestParam(required = false) String status) {
+        return Result.ok(productService.listByMerchant(merchantId, categoryId, page, size, keyword, status));
     }
 
     @Operation(summary = "商品详情")
@@ -68,6 +69,14 @@ public class ProductController {
     public Result<Void> updateStatus(@PathVariable Long id,
                                      @RequestParam String status) {
         productService.updateStatus(id, MerchantContext.currentMerchantId(), status);
+        return Result.ok();
+    }
+
+    @Operation(summary = "删除商品（仅停售状态可删，软删 + 级联删除规格）")
+    @DeleteMapping("/{id}")
+    @RequireRole("MERCHANT")
+    public Result<Void> remove(@PathVariable Long id) {
+        productService.deleteProduct(id, MerchantContext.currentMerchantId());
         return Result.ok();
     }
 
