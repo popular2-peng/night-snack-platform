@@ -1,61 +1,142 @@
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import {
+  listCategoriesApi,
+  listMerchantsApi,
+  listProductsApi,
+  type CategoryVO,
+  type HomeMerchant,
+  type ProductVO,
+} from '@/apis/home'
+import { listAddressesApi, type AddressVO } from '@/apis/address'
+import { extractDistrict } from '@/utils/district'
+import HomeHeader from '@/components/home/HomeHeader.vue'
+import CategorySlider from '@/components/home/CategorySlider.vue'
+import MerchantList from '@/components/home/MerchantList.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+
+/** 默认地址区县 */
+const district = ref('')
+/** 分类列表 */
+const categories = ref<CategoryVO[]>([])
+/** 商家列表（含在售商品预览） */
+const merchants = ref<HomeMerchant[]>([])
+/** 商家列表加载中 */
+const loading = ref(false)
+/** 搜索关键词 */
+const keyword = ref('')
+
+/** 默认坐标（北京中心，MVP 无定位能力时的兜底） */
+const DEFAULT_LAT = 39.909
+const DEFAULT_LNG = 116.397
+
+/** 默认收货地址 */
+const defaultAddress = ref<AddressVO | null>(null)
+
+/** 拉取默认地址并提取区县（未登录 / 无地址则留空） */
+const fetchAddress = async () => {
+  if (!authStore.isLoggedIn) return
+  try {
+    const res = await listAddressesApi()
+    const addrs = res.data || []
+    defaultAddress.value = addrs.find((a) => a.isDefault) || addrs[0] || null
+    district.value = extractDistrict(defaultAddress.value?.detail)
+  } catch {
+    /* 未登录或无地址，忽略 */
+  }
+}
+
+/** 拉取分类（匿名公开） */
+const fetchCategories = async () => {
+  try {
+    const res = await listCategoriesApi()
+    categories.value = res.data || []
+  } catch {
+    /* 拦截器已提示 */
+  }
+}
+
+/** 拉取附近商家，并为每个商家并发拉取前 3 个在售商品 */
+const fetchMerchants = async () => {
+  loading.value = true
+  try {
+    const lat = Number(defaultAddress.value?.lat ?? DEFAULT_LAT)
+    const lng = Number(defaultAddress.value?.lng ?? DEFAULT_LNG)
+    const res = await listMerchantsApi({ lat, lng, page: 1, size: 20 })
+    const list = res.data?.list || []
+
+    const withProducts = await Promise.all(
+      list.map(async (m): Promise<HomeMerchant> => {
+        let products: ProductVO[] = []
+        try {
+          const pr = await listProductsApi(m.id, { page: 1, size: 3 })
+          products = pr.data?.list || []
+        } catch {
+          /* 单个商家商品失败不影响整体 */
+        }
+        return { ...m, products }
+      }),
+    )
+    merchants.value = withProducts
+  } catch {
+    /* 拦截器已提示 */
+  } finally {
+    loading.value = false
+  }
+}
+
+/** 搜索过滤：按店铺名 / 在售商品名 */
+const filteredMerchants = computed(() => {
+  if (!keyword.value) return merchants.value
+  const kw = keyword.value.toLowerCase()
+  return merchants.value.filter(
+    (m) =>
+      m.name.toLowerCase().includes(kw) ||
+      m.products.some((p) => p.name.toLowerCase().includes(kw)),
+  )
+})
+
+const onSearch = (kw: string) => {
+  keyword.value = kw
+}
+const onGoAddress = () => router.push('/address')
+const onSelectCategory = (c: CategoryVO) => {
+  // MVP：分类筛选商家需后端配合，暂仅记录
+  void c
+}
+const onMerchantClick = (m: HomeMerchant) => {
+  // TODO: 跳转商家详情页（后续实现）
+  void m
+}
+
+onMounted(async () => {
+  fetchCategories()
+  await fetchAddress()
+  await fetchMerchants()
+})
 </script>
 
 <template>
   <div class="home-page">
-    <!-- 顶部问候（游客无需登录即可浏览首页） -->
-    <div class="home-header">
-      <div class="greet-wrap">
-        <p class="greeting">晚上好，{{ authStore.username || '欢迎光临' }}</p>
-        <p class="greeting-sub">今晚想吃点什么？</p>
-      </div>
-      <van-button
-        v-if="!authStore.isLoggedIn"
-        size="small"
-        round
-        plain
-        color="#fff"
-        class="login-entry"
-        @click="router.push('/login')"
-      >
-        登录
-      </van-button>
-    </div>
+    <HomeHeader :district="district" @search="onSearch" @go-address="onGoAddress" />
 
-    <div class="placeholder-page">
-      <span class="placeholder-icon">🏪</span>
-      <span class="placeholder-title">附近美食</span>
-      <span class="placeholder-desc">商家列表、品类导航建设中，敬请期待</span>
-    </div>
+    <CategorySlider :categories="categories" @select="onSelectCategory" />
+
+    <MerchantList
+      :merchants="filteredMerchants"
+      :loading="loading"
+      @click="onMerchantClick"
+    />
   </div>
 </template>
 
 <style scoped>
-.home-header {
-  padding: 24px 20px 20px;
-  background: linear-gradient(135deg, #F59A23 0%, #E07F0E 100%);
-  border-radius: 0 0 24px 24px;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.greeting {
-  font-size: 20px;
-  font-weight: 700;
-  margin: 0 0 4px;
-}
-.greeting-sub {
-  font-size: 13px;
-  margin: 0;
-  opacity: 0.85;
-}
-.login-entry {
-  flex-shrink: 0;
+.home-page {
+  min-height: 100vh;
+  background: #f6f7f9;
 }
 </style>
