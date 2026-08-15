@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -58,6 +59,13 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/user/login",
                                 "/api/user/register"
+                        ).permitAll()
+
+                        // 用户端浏览接口（商家/商品/分类，匿名公开）
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/user/categories",
+                                "/api/user/merchants",
+                                "/api/user/merchants/**"
                         ).permitAll()
 
                         // 商家端：登录 + 入驻申请（注册）+ 注册页品类下拉 + 注册页 OSS 签名（匿名直传店铺 LOGO）

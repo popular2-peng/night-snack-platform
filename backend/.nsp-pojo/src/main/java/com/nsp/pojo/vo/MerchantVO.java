@@ -42,4 +42,7 @@ public class MerchantVO {
     /** 店铺公告 */
     private String notice;
 
+    /** 店铺平均评分 */
+    private BigDecimal avgRating;
+
 }
