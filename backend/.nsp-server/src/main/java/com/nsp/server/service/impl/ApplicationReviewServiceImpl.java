@@ -74,23 +74,25 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         Page<MerchantApplication> result = merchantApplicationMapper.selectPage(
                 new Page<>(page, size), wrapper);
 
-        List<AdminApplicationVO> list = result.getRecords().stream().map(this::toVO).toList();
+        List<AdminApplicationVO> list = result.getRecords().stream().map(a -> toVO(a, true)).toList();
         return new PageVO<>(result.getTotal(), list);
     }
 
     @Override
     public AdminApplicationVO getApplicationDetail(Long id) {
-        return toVO(findById(id));
+        return toVO(findById(id), false);
     }
 
-    /** 申请 → VO（补充申请人用户名/脱敏手机号/品类名/完整地址） */
-    private AdminApplicationVO toVO(MerchantApplication a) {
+    /** 申请 → VO（补充申请人用户名/手机号/品类名/完整地址）；maskPhone=true 列表脱敏，false 详情明文 */
+    private AdminApplicationVO toVO(MerchantApplication a, boolean maskPhone) {
         AdminApplicationVO vo = new AdminApplicationVO();
         BeanUtil.copyProperties(a, vo);
 
         User applicant = userMapper.selectById(a.getApplicantUserId());
         vo.setApplicantUsername(applicant != null ? applicant.getUsername() : "未知");
-        vo.setPhone(applicant != null ? PhoneMaskUtil.mask(applicant.getPhone()) : "");
+        vo.setPhone(applicant != null
+                ? (maskPhone ? PhoneMaskUtil.mask(applicant.getPhone()) : applicant.getPhone())
+                : "");
 
         if (a.getCategoryId() != null) {
             PlatformCategory c = platformCategoryMapper.selectById(a.getCategoryId());

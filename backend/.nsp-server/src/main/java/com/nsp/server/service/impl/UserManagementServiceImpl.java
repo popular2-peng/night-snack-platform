@@ -115,7 +115,7 @@ public class UserManagementServiceImpl implements UserManagementService {
         User user = findById(id);
         UserDetailVO vo = new UserDetailVO();
         BeanUtil.copyProperties(user, vo);
-        vo.setPhone(PhoneMaskUtil.mask(user.getPhone()));
+        vo.setPhone(user.getPhone());
 
         // 从 order 表获取真实订单统计
         List<Map<String, Object>> stats = orderMapper.selectUserOrderStats(List.of(id));

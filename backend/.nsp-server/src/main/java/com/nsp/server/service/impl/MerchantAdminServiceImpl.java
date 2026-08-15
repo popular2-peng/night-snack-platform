@@ -380,7 +380,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
                 .id(m.getId())
                 .username(m.getUsername())
                 .name(m.getName())
-                .phone(PhoneMaskUtil.mask(m.getPhone()))
+                .phone(m.getPhone())
                 .address(m.getAddress())
                 .lat(m.getLat())
                 .lng(m.getLng())
