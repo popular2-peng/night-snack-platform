@@ -69,24 +69,6 @@ public class UserManagementController {
         return Result.ok();
     }
 
-    // ── 兼容旧前端：disable / enable 委托到新 ban / unban ──
-
-    @Operation(summary = "封禁用户（旧版兼容，无原因+永久）", deprecated = true)
-    @PutMapping("/users/{id}/disable")
-    public Result<Void> disableUser(@PathVariable Long id) {
-        BanUserDTO dto = new BanUserDTO();
-        dto.setReason("管理员操作");
-        userManagementService.banUser(id, 0L, dto);
-        return Result.ok();
-    }
-
-    @Operation(summary = "解封用户（旧版兼容）", deprecated = true)
-    @PutMapping("/users/{id}/enable")
-    public Result<Void> enableUser(@PathVariable Long id) {
-        userManagementService.unbanUser(id, 0L);
-        return Result.ok();
-    }
-
     @Operation(summary = "删除用户（物理删除 + 级联清理订单/地址，启用账号不可删除）")
     @DeleteMapping("/users/{id}")
     public Result<Void> deleteUser(
