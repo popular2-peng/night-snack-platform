@@ -1,22 +1,22 @@
 # ============================================================
-# 夜宵外卖平台 — 开发环境启动脚本（Windows / PowerShell）
-# 用法：
+# Night Snack Platform - dev startup script (Windows / PowerShell)
+# Usage:
 #   cd backend
 #   .\run-dev.ps1
-# 说明：
-#   1. 若存在 backend\.env，自动加载其中的环境变量（.env 已 gitignore）
-#   2. 启动 Spring Boot（dev profile，端口 8080），Ctrl+C 停止
+# Notes:
+#   1. Loads backend\.env if present (.env is gitignored, never commit it)
+#   2. Starts Spring Boot (dev profile, port 8080). Ctrl+C to stop.
 # ============================================================
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-# --- 1. 加载 .env（若存在） ---
+# --- 1. Load .env (if present) ---
 if (Test-Path ".env") {
-    Write-Host "[run-dev] 从 .env 加载环境变量..." -ForegroundColor Cyan
+    Write-Host "[run-dev] Loading environment variables from .env ..." -ForegroundColor Cyan
     Get-Content ".env" | ForEach-Object {
         $line = $_.Trim()
-        # 跳过空行和注释行
+        # skip blank lines and comment lines
         if ($line -and -not $line.StartsWith("#") -and $line.Contains("=")) {
             $name, $value = $line -split "=", 2
             $name  = $name.Trim()
@@ -27,8 +27,8 @@ if (Test-Path ".env") {
         }
     }
 } else {
-    Write-Host "[run-dev] 未找到 .env（可复制 .env.example 为 .env 注入真实密钥）" -ForegroundColor Yellow
+    Write-Host "[run-dev] .env not found (copy .env.example to .env and fill real keys)" -ForegroundColor Yellow
 }
 
-# --- 2. 启动 Spring Boot ---
+# --- 2. Start Spring Boot ---
 mvn -pl .nsp-server spring-boot:run
