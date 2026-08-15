@@ -25,7 +25,7 @@ public class UserController {
 
     @Operation(summary = "获取当前用户信息")
     @GetMapping("/info")
-    @RequireRole({"USER", "MERCHANT", "ADMIN"})
+    @RequireRole("USER")
     public Result<UserVO> getInfo(@AuthenticationPrincipal Long userId) {
         UserVO vo = userService.getUserById(userId);
         return Result.ok(vo);
