@@ -3,7 +3,7 @@ import UserTable from './components/UserTable.vue'
 </script>
 
 <template>
-  <div class="fade-in">
+  <div class="fade-in list-page">
     <div class="page-header">
       <h2>用户管理</h2>
 

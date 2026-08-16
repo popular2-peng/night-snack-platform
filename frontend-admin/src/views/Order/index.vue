@@ -3,7 +3,7 @@ import OrderTable from './components/OrderTable.vue'
 </script>
 
 <template>
-  <div class="fade-in">
+  <div class="fade-in list-page">
     <div class="page-header">
       <h2>订单管理</h2>
 

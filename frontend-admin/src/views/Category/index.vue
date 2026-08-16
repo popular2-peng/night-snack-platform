@@ -213,7 +213,7 @@ onMounted(() => { fetchCategories(); fetchStats() })
 </script>
 
 <template>
-  <div class="page-card">
+  <div class="page-card list-page">
 
     <!-- ====== 统计条（公共组件） ====== -->
     <StatsStrip :items="[
@@ -253,7 +253,8 @@ onMounted(() => { fetchCategories(); fetchStats() })
     </SearchFilterBar>
 
     <!-- ====== 表格 ====== -->
-    <el-table :data="categories" stripe v-loading="loading" style="width: 100%"
+    <div class="table-scroll">
+    <el-table :data="categories" stripe v-loading="loading" height="100%" style="width: 100%"
       @selection-change="(rows: CategoryItem[]) => selectedIds = rows.map(r => r.id)">
       <el-table-column type="selection" width="42" fixed="left" />
       <el-table-column type="index" label="编号" width="60" align="center" />
@@ -304,6 +305,7 @@ onMounted(() => { fetchCategories(); fetchStats() })
         </template>
       </el-table-column>
     </el-table>
+    </div>
 
     <!-- 分页 -->
     <div class="pagination-wrap">

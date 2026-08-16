@@ -216,7 +216,8 @@ onMounted(() => { refreshAll(); fetchCategories() })
     </SearchFilterBar>
 
     <!-- ====== 表格 ====== -->
-    <el-table :data="merchants" stripe v-loading="loading" style="width: 100%"
+    <div class="table-scroll">
+    <el-table :data="merchants" stripe v-loading="loading" height="100%" style="width: 100%"
       @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="42" fixed="left" />
       <el-table-column type="index" label="编号" width="56" align="center" />
@@ -280,6 +281,7 @@ onMounted(() => { refreshAll(); fetchCategories() })
         </template>
       </el-table-column>
     </el-table>
+    </div>
 
     <!-- 分页 -->
     <div class="pagination-wrap">

@@ -3,7 +3,7 @@ import ApplicationTable from './components/ApplicationTable.vue'
 </script>
 
 <template>
-  <div class="fade-in">
+  <div class="fade-in list-page">
     <div class="page-header">
       <h2>商家入驻审核</h2>
 

@@ -182,7 +182,8 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
     </SearchFilterBar>
 
     <!-- ====== 表格 ====== -->
-    <el-table :data="apps" stripe v-loading="loading" style="width: 100%"
+    <div class="table-scroll">
+    <el-table :data="apps" stripe v-loading="loading" height="100%" style="width: 100%"
       @selection-change="(rows: AppItem[]) => selectedIds = rows.map(r => r.id)">
       <el-table-column type="selection" width="42" fixed="left" />
       <el-table-column type="index" label="编号" width="56" align="center" />
@@ -219,6 +220,7 @@ onMounted(() => { fetchStats(); fetchApps(); fetchCategories() })
         </template>
       </el-table-column>
     </el-table>
+    </div>
 
     <!-- 分页 -->
     <div class="pagination-wrap">
