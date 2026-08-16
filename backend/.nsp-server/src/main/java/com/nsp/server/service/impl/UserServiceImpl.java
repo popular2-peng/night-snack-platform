@@ -55,6 +55,8 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         user.setPhone(dto.getPhone());
         user.setStatus("ACTIVE");
+        // 注册即登录：写入首次登录时间，保证管理端「最后登录」有值
+        user.setLastLoginAt(LocalDateTime.now());
         userMapper.insert(user);
 
         log.info("新用户注册: userId={}, username={}", user.getId(), user.getUsername());
