@@ -284,6 +284,56 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public MerchantDashboardVO getMerchantDashboard(Long merchantId, Long userId) {
+        Merchant merchant = merchantMapper.selectById(merchantId);
+        if (merchant == null || !merchant.getId().equals(userId)) {
+            throw new BizException(ErrorCode.NOT_MERCHANT_OWNER, MessageConst.NOT_MERCHANT_ORDER_VIEW_MSG);
+        }
+
+        // 今日订单数 + 今日营业额（复用 mapper：营收排除已取消/已退款）
+        Map<String, Object> today = orderMapper.selectTodayStats(merchantId);
+        long todayOrders = 0L;
+        BigDecimal todayRevenue = BigDecimal.ZERO;
+        if (today != null && !today.isEmpty()) {
+            todayOrders = ((Number) today.get("order_count")).longValue();
+            Object rev = today.get("revenue");
+            if (rev != null) todayRevenue = new BigDecimal(rev.toString());
+        }
+
+        // 待接单数：当前 status=PAID（全量，需商家及时处理）
+        Long pendingAccept = orderMapper.selectCount(
+                new LambdaQueryWrapper<Order>().eq(Order::getMerchantId, merchantId)
+                        .eq(Order::getStatus, OrderStatus.PAID));
+
+        // 在售商品数：status=ON
+        Long onSaleProducts = productMapper.selectCount(
+                new LambdaQueryWrapper<Product>().eq(Product::getMerchantId, merchantId)
+                        .eq(Product::getStatus, "ON"));
+
+        // 今日订单状态分布
+        Map<String, Long> statusStats = new HashMap<>();
+        String todayStr = LocalDate.now().toString();
+        for (Map<String, Object> row : orderMapper.selectStatusStats(merchantId, todayStr, todayStr)) {
+            Object s = row.get("status");
+            Object c = row.get("cnt");
+            if (s != null && c != null) {
+                statusStats.put(s.toString(), Long.parseLong(c.toString()));
+            }
+        }
+
+        return MerchantDashboardVO.builder()
+                .shopName(merchant.getName())
+                .shopStatus(merchant.getStatus())
+                .todayOrders(todayOrders)
+                .todayRevenue(todayRevenue)
+                .pendingAccept(pendingAccept)
+                .onSaleProducts(onSaleProducts)
+                .orderStatusStats(statusStats)
+                .updatedAt(LocalDateTime.now())
+                .build();
+    }
+
+    @Override
     public PageVO<AdminOrderVO> getAdminOrders(int page, int size, String keyword,
                                                String status, String payChannel,
                                                String dateStart, String dateEnd) {
