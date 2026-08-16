@@ -1,264 +1,145 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { getDashboardStats, getOrderStatusDistribution, getRecentOrders } from '@/apis/admin'
-import { useAuthStore } from '@/stores/auth'
-import StatCard from '@/components/StatCard.vue'
-import { User, Shop, Document, Clock } from '@element-plus/icons-vue'
-import VChart from 'vue-echarts'
-import { use } from 'echarts/core'
-import { PieChart, BarChart } from 'echarts/charts'
-import { TitleComponent, TooltipComponent, LegendComponent } from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import type { Component } from 'vue'
+import { Document, Coin, User, Shop } from '@element-plus/icons-vue'
+import type { DashboardStats } from '@/apis/admin'
 
-// 按需注册 ECharts 组件
-use([PieChart, BarChart, TitleComponent, TooltipComponent, LegendComponent, CanvasRenderer])
-
-interface Stats { totalUsers: number; totalMerchants: number; totalOrders: number; pendingApplications: number }
-interface OrderStat { status: string; label: string; count: number }
-interface RecentOrder { orderNo: string; username: string; merchantName: string; status: string; totalAmount: number; createdAt: string }
-
-const stats = ref<Stats>({ totalUsers: 0, totalMerchants: 0, totalOrders: 0, pendingApplications: 0 })
-const orderStats = ref<OrderStat[]>([])
-const recentOrders = ref<RecentOrder[]>([])
-const loading = ref(true)
-
-const authStore = useAuthStore()
-
-const today = computed(() => {
-  const d = new Date()
-  const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 ${weekDays[d.getDay()]}`
-})
-
-const STATUS_COLORS: Record<string, string> = {
-  'PENDING_PAY': '#909399',
-  'PAID': '#409EFF',
-  'ACCEPTED': '#E6A23C',
-  'COOKING': '#F56C6C',
-  'COMPLETED': '#67C23A',
-  'CANCELLED': '#F56C6C',
-  'REFUNDING': '#E6A23C',
-  'REFUNDED': '#909399',
+interface KpiCard {
+  title: string
+  value: string
+  change: number | null
+  color: string
+  icon: Component
+  link: string
 }
 
-type TagType = 'info' | 'success' | 'warning' | 'danger' | ''
+const props = defineProps<{ stats: DashboardStats }>()
+const router = useRouter()
 
-const STATUS_LABEL: Record<string, string> = {
-  'PENDING_PAY': '待支付',
-  'PAID': '已支付',
-  'ACCEPTED': '已接单',
-  'COOKING': '制作中',
-  'COMPLETED': '已完成',
-  'CANCELLED': '已取消',
-  'REFUNDING': '退款中',
-  'REFUNDED': '已退款',
+const formatMoney = (n: number) => '¥' + Number(n ?? 0).toFixed(2)
+
+const cards = computed<KpiCard[]>(() => [
+  { title: '今日订单', value: String(props.stats.todayOrders), change: props.stats.todayOrdersChange, color: '#409EFF', icon: Document, link: '/orders' },
+  { title: '今日营业额', value: formatMoney(props.stats.todayRevenue), change: props.stats.todayRevenueChange, color: '#67C23A', icon: Coin, link: '/orders' },
+  { title: '今日新增用户', value: String(props.stats.todayNewUsers), change: props.stats.todayNewUsersChange, color: '#E6A23C', icon: User, link: '/users' },
+  { title: '待审核商家', value: String(props.stats.pendingApplications), change: null, color: '#F56C6C', icon: Shop, link: '/applications' },
+])
+
+const go = (link: string) => router.push(link)
+
+const changeText = (c: number | null) => {
+  if (c == null) return ''
+  if (c > 0) return `↑ ${c.toFixed(0)}%`
+  if (c < 0) return `↓ ${Math.abs(c).toFixed(0)}%`
+  return '→ 持平'
 }
 
-const STATUS_TAG: Record<string, TagType> = {
-  'PENDING_PAY': 'info',
-  'PAID': '',
-  'ACCEPTED': 'warning',
-  'COOKING': 'danger',
-  'COMPLETED': 'success',
-  'CANCELLED': 'info',
-  'REFUNDING': 'warning',
-  'REFUNDED': 'info',
-}
-
-/** 格式化时间，去掉秒和 T */
-const formatTime = (iso: string) => {
-  if (!iso) return ''
-  return iso.replace('T', ' ').substring(0, 16)
-}
-
-/** 饼图配置 */
-const pieOption = computed(() => ({
-  tooltip: {
-    trigger: 'item' as const,
-    formatter: '{b}: {c} 单 ({d}%)',
-  },
-  legend: {
-    bottom: 0,
-    formatter: (name: string) => {
-      const item = orderStats.value.find(s => s.label === name)
-      if (item) {
-        const total = orderStats.value.reduce((sum, s) => sum + s.count, 0)
-        const pct = total > 0 ? ((item.count / total) * 100).toFixed(1) : '0'
-        return `${name}  ${item.count}单  ${pct}%`
-      }
-      return name
-    },
-    textStyle: { fontSize: 12 },
-  },
-  series: [{
-    name: '订单状态',
-    type: 'pie' as const,
-    radius: ['45%', '75%'],
-    center: ['50%', '48%'],
-    avoidLabelOverlap: true,
-    itemStyle: {
-      borderRadius: 6,
-      borderColor: '#fff',
-      borderWidth: 2,
-    },
-    label: {
-      show: true,
-      position: 'outside' as const,
-      formatter: '{d}%',
-      fontSize: 12,
-      lineHeight: 16,
-    },
-    labelLine: {
-      length: 16,
-      length2: 28,
-      smooth: true,
-    },
-    emphasis: {
-      label: { fontSize: 16, fontWeight: 'bold' },
-      scaleSize: 12,
-    },
-    data: orderStats.value.map(s => ({
-      name: s.label,
-      value: s.count,
-      itemStyle: { color: STATUS_COLORS[s.status] || '#909399' },
-    })),
-  }],
-}))
-
-onMounted(async () => {
-  try {
-    const [sRes, oRes, rRes] = await Promise.all([
-      getDashboardStats(),
-      getOrderStatusDistribution(),
-      getRecentOrders(10),
-    ])
-    stats.value = sRes.data
-    orderStats.value = oRes.data || []
-    recentOrders.value = rRes.data || []
-  } finally {
-    loading.value = false
-  }
-})
-
-/** 格式化金额 */
-const formatMoney = (n: number) => {
-  return '¥' + Number(n).toFixed(2)
+const changeClass = (c: number | null) => {
+  if (c == null) return 'change-none'
+  if (c > 0) return 'change-up'
+  if (c < 0) return 'change-down'
+  return 'change-flat'
 }
 </script>
 
 <template>
-  <!-- 欢迎横幅 -->
-  <div class="welcome-banner fade-in">
-    <div class="welcome-text">
-      <h3>👋 欢迎回来，{{ authStore.username }}</h3>
-      <p>祝你工作愉快！以下是平台运营数据概览</p>
-    </div>
-    <div class="welcome-date">
-      <strong>{{ today }}</strong>
-    </div>
-  </div>
-
-  <!-- 核心统计卡片 -->
-  <el-row :gutter="20" v-loading="loading" element-loading-text="加载中...">
-    <el-col :xs="24" :sm="12" :lg="6" style="margin-bottom: 20px">
-      <StatCard title="总用户数" :value="stats.totalUsers" color="#409EFF" :icon="User" />
-    </el-col>
-    <el-col :xs="24" :sm="12" :lg="6" style="margin-bottom: 20px">
-      <StatCard title="总商家数" :value="stats.totalMerchants" color="#67C23A" :icon="Shop" />
-    </el-col>
-    <el-col :xs="24" :sm="12" :lg="6" style="margin-bottom: 20px">
-      <StatCard title="总订单数" :value="stats.totalOrders" color="#E6A23C" :icon="Document" />
-    </el-col>
-    <el-col :xs="24" :sm="12" :lg="6" style="margin-bottom: 20px">
-      <StatCard title="待审核入驻" :value="stats.pendingApplications" color="#F56C6C" :icon="Clock" />
-    </el-col>
-  </el-row>
-
-  <!-- 图表 + 最新订单 -->
-  <el-row :gutter="20" style="margin-top: 8px">
-    <!-- 订单状态分布饼图 -->
-    <el-col :xs="24" :lg="12" style="margin-bottom: 20px">
-      <el-card shadow="hover" v-loading="loading" class="chart-card">
-        <template #header>
-          <div class="card-title">
-            <span class="card-title-icon" style="background:#EEF3FD;color:#5B8DEF;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M2 12h20"/></svg>
-            </span>
-            订单状态分布
+  <el-row :gutter="20">
+    <el-col v-for="c in cards" :key="c.title" :xs="24" :sm="12" :lg="6" style="margin-bottom: 20px">
+      <el-card shadow="hover" class="kpi-card" @click="go(c.link)">
+        <div class="kpi-body">
+          <div class="kpi-icon" :style="{ background: c.color + '18', color: c.color }">
+            <el-icon :size="22"><component :is="c.icon" /></el-icon>
           </div>
-        </template>
-        <v-chart :option="pieOption" style="height: 360px" autoresize />
-      </el-card>
-    </el-col>
-
-    <!-- 最新订单 -->
-    <el-col :xs="24" :lg="12" style="margin-bottom: 20px">
-      <el-card shadow="hover" v-loading="loading" class="table-card">
-        <template #header>
-          <div class="card-title">
-            <span class="card-title-icon" style="background:#F0FAF0;color:#52C41A;">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
-            </span>
-            最新订单
+          <div class="kpi-info">
+            <div class="kpi-value">{{ c.value }}</div>
+            <div class="kpi-title">{{ c.title }}</div>
           </div>
-        </template>
-        <el-table :data="recentOrders" stripe size="small" height="360" class="compact-table" style="width: 100%">
-          <el-table-column prop="orderNo" label="订单号" min-width="120" show-overflow-tooltip />
-          <el-table-column prop="username" label="用户" min-width="60" />
-          <el-table-column prop="merchantName" label="商家" min-width="80" show-overflow-tooltip />
-          <el-table-column label="状态" min-width="70" align="center">
-            <template #default="{ row }">
-              <el-tag :type="STATUS_TAG[row.status] || 'info'" size="small" disable-transitions>
-                {{ STATUS_LABEL[row.status] || row.status }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="totalAmount" label="金额" min-width="75" align="right">
-            <template #default="{ row }">
-              <span class="money-cell">{{ formatMoney(row.totalAmount) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="时间" min-width="115">
-            <template #default="{ row }">
-              <span class="time-cell">{{ formatTime(row.createdAt) }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
+        </div>
+        <div class="kpi-footer">
+          <span class="kpi-change" :class="changeClass(c.change)">{{ changeText(c.change) }}</span>
+          <span class="kpi-link">查看详情 →</span>
+        </div>
+        <div class="kpi-border" :style="{ background: c.color }" />
       </el-card>
     </el-col>
   </el-row>
 </template>
 
 <style scoped>
-.card-title-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: inline-flex;
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--border-light);
+}
+.kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+.kpi-card :deep(.el-card__body) {
+  padding: 20px 20px 16px;
+}
+.kpi-border {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+.kpi-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.kpi-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-.money-cell {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+.kpi-info {
+  flex: 1;
+  min-width: 0;
+}
+.kpi-value {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
   color: var(--text-primary);
-}
-.time-cell {
-  font-size: 12px;
-  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.compact-table :deep(.el-table__header th) {
-  padding: 10px 0;
+.kpi-title {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-weight: 500;
 }
-.compact-table :deep(.el-table__body td) {
-  padding: 8px 0;
+.kpi-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-light);
 }
-/* 小屏时表格可横向滚动 */
-@media (max-width: 768px) {
-  .compact-table {
-    overflow-x: auto;
-  }
+.kpi-change {
+  font-size: 12px;
+  font-weight: 600;
+}
+.change-up { color: #52C41A; }
+.change-down { color: #F56C6C; }
+.change-flat { color: #909399; }
+.change-none { visibility: hidden; }
+.kpi-link {
+  font-size: 12px;
+  color: var(--primary);
+  font-weight: 500;
 }
 </style>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import {
-  listAdminOrders, getAdminOrderDetail, getDashboardStats, getOrderStatusDistribution,
+  listAdminOrders, getAdminOrderDetail, getOrderStatusDistribution,
   batchDeleteOrders, refundOrder, batchRefundOrders,
 } from '@/apis/admin'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -147,12 +147,10 @@ const fetchOrders = async () => {
 
 const fetchStats = async () => {
   try {
-    const [dashboardRes, distRes] = await Promise.all([
-      getDashboardStats(), getOrderStatusDistribution(),
-    ])
-    stats.value.total = dashboardRes.data.totalOrders || 0
+    const distRes = await getOrderStatusDistribution()
     const dist = distRes.data || []
     const countOf = (s: string) => dist.find((i: any) => i.status === s)?.count || 0
+    stats.value.total = dist.reduce((sum: number, i: any) => sum + i.count, 0)
     stats.value.pending = countOf('PENDING_PAY')
     stats.value.paid = countOf('PAID') + countOf('ACCEPTED')
     stats.value.cooking = countOf('COOKING')

@@ -1,13 +1,38 @@
 import request from './request'
 
-// 首页统计卡片
+// ---- 首页仪表盘 ----
+export interface DashboardStats {
+  todayOrders: number
+  todayOrdersChange: number | null
+  todayRevenue: number
+  todayRevenueChange: number | null
+  todayNewUsers: number
+  todayNewUsersChange: number | null
+  pendingApplications: number
+  refundingOrders: number
+  updatedAt: string
+}
+export interface TrendPoint { date: string; count: number }
+
+// 首页核心统计
 export const getDashboardStats = () => {
-  return request.get('/admin/dashboard/stats')
+  return request.get<DashboardStats>('/admin/dashboard/stats')
 }
 
-// 订单状态分布
-export const getOrderStatusDistribution = () => {
-  return request.get('/admin/dashboard/order-stats')
+// 近 N 日注册用户趋势
+export const getUserTrend = (days = 7) => {
+  return request.get<TrendPoint[]>('/admin/dashboard/user-trend', { params: { days } })
+}
+
+// 近 N 日商家入驻趋势
+export const getApplicationTrend = (days = 7) => {
+  return request.get<TrendPoint[]>('/admin/dashboard/application-trend', { params: { days } })
+}
+
+// 订单状态分布（date 为空时全量，否则只统计该日）
+export interface OrderStatusDistItem { status: string; label: string; count: number }
+export const getOrderStatusDistribution = (date?: string) => {
+  return request.get<OrderStatusDistItem[]>('/admin/dashboard/order-stats', { params: date ? { date } : {} })
 }
 
 // 最新订单
