@@ -24,6 +24,15 @@ public interface MerchantService {
     PageVO<MerchantVO> listNearby(java.math.BigDecimal lat, java.math.BigDecimal lng, int page, int size);
 
     /**
+     * 全部营业中商家列表（分页，无坐标排序，按入驻时间倒序）
+     *
+     * @param page 页码（从 1 开始）
+     * @param size 每页条数
+     * @return 分页商家列表（不含距离）
+     */
+    PageVO<MerchantVO> listAll(int page, int size);
+
+    /**
      * 查询商家详情
      */
     MerchantVO getById(Long id);

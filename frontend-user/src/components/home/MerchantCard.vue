@@ -111,15 +111,23 @@ const ratingText = (rating: number | null) => (rating != null ? Number(rating).t
   font-weight: 600;
 }
 
-/* 下：在售商品 */
+/* 下：在售商品（固定小图，可左右滑动查看更多） */
 .products {
   display: flex;
   gap: 8px;
   margin-top: 10px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 4px;
+}
+.products::-webkit-scrollbar {
+  display: none;
 }
 .product {
-  flex: 1;
-  min-width: 0;
+  flex-shrink: 0;
+  width: 76px;
   display: flex;
   flex-direction: column;
   align-items: center;

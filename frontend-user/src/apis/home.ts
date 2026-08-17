@@ -62,12 +62,10 @@ export interface HomeMerchant extends MerchantVO {
 /** 平台启用品类（分类导航，匿名公开） */
 export const listCategoriesApi = () => request.get<CategoryVO[]>('/user/categories')
 
-/** 附近商家列表（按距离排序） */
+/** 商家列表（全部营业中商家，分页） */
 export const listMerchantsApi = (params: {
-  lat: number
-  lng: number
-  page: number
-  size: number
+  page?: number
+  size?: number
 }) => request.get<PageVO<MerchantVO>>('/user/merchants', { params })
 
 /** 商家在售商品列表 */

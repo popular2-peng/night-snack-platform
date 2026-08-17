@@ -3,6 +3,7 @@ package com.nsp.server.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nsp.common.constant.ErrorCode;
 import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
@@ -79,6 +80,17 @@ public class MerchantServiceImpl implements MerchantService {
         }
         List<MerchantVO> pageList = sorted.subList(offset, Math.min(offset + size, total));
         return new PageVO<>((long) total, pageList);
+    }
+
+    @Override
+    public PageVO<MerchantVO> listAll(int page, int size) {
+        Page<Merchant> result = merchantMapper.selectPage(
+                new Page<>(page, size),
+                new LambdaQueryWrapper<Merchant>()
+                        .eq(Merchant::getStatus, "OPEN")
+                        .orderByDesc(Merchant::getId));
+        List<MerchantVO> list = result.getRecords().stream().map(this::toVO).toList();
+        return new PageVO<>(result.getTotal(), list);
     }
 
     @Override

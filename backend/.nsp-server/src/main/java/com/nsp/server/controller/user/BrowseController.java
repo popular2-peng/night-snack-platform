@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -44,14 +43,12 @@ public class BrowseController {
         return Result.ok(platformCategoryService.listAllEnabled());
     }
 
-    @Operation(summary = "附近商家列表（按距离排序分页）")
+    @Operation(summary = "商家列表（全部营业中商家，分页）")
     @GetMapping("/merchants")
     public Result<PageVO<MerchantVO>> listMerchants(
-            @Parameter(description = "纬度") @RequestParam BigDecimal lat,
-            @Parameter(description = "经度") @RequestParam BigDecimal lng,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "20") int size) {
-        return Result.ok(merchantService.listNearby(lat, lng, page, size));
+        return Result.ok(merchantService.listAll(page, size));
     }
 
     @Operation(summary = "商家详情")

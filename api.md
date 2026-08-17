@@ -724,18 +724,17 @@ GET /api/user/categories
 
 ---
 
-#### 附近商家列表
+#### 商家列表
 
 ```
-GET /api/user/merchants?lat=39.99632&lng=116.48090&page=1&size=20
+GET /api/user/merchants?page=1&size=20
 ```
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `lat` / `lng` | number | 是 | 用户坐标 |
 | `page` / `size` | int | 否 | 分页，默认 1/20 |
 
-> 按距离排序（近→远），百度地图 API + Haversine 降级；响应为分页结构 `PageVO`（`{ total, list }`，list 内每项含 `distance` 米）。
+> 返回**全部营业中（`OPEN`）商家**（不再按距离排序/过滤），按入驻时间倒序；响应为分页结构 `PageVO`（`{ total, list }`）。
 
 **响应 data：** `PageVO<MerchantVO>`
 
@@ -2293,7 +2292,7 @@ PAID / ACCEPTED / COOKING ──(管理员退款)──→ REFUNDING ──(退�
 | 26 | POST | `/api/user/pay` | 发起支付 | USER |
 | 27 | GET | `/api/user/pay/{orderNo}/status` | 支付状态查询 | USER |
 | 28 | GET | `/api/user/categories` | 分类列表（平台启用品类，匿名） | 匿名 |
-| 29 | GET | `/api/user/merchants` | 附近商家列表（按距离分页，匿名） | 匿名 |
+| 29 | GET | `/api/user/merchants` | 商家列表（全部营业中，分页，匿名） | 匿名 |
 | 30 | GET | `/api/user/merchants/{id}` | 商家详情（匿名） | 匿名 |
 | 31 | GET | `/api/user/merchants/{id}/products` | 商家在售商品列表（仅上架，匿名） | 匿名 |
 | 32 | GET | `/api/user/merchants/{merchantId}/products/{productId}` | 商品详情（仅上架，匿名） | 匿名 |

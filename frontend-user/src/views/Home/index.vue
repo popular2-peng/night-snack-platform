@@ -30,10 +30,6 @@ const loading = ref(false)
 /** 搜索关键词 */
 const keyword = ref('')
 
-/** 默认坐标（北京中心，MVP 无定位能力时的兜底） */
-const DEFAULT_LAT = 39.909
-const DEFAULT_LNG = 116.397
-
 /** 默认收货地址 */
 const defaultAddress = ref<AddressVO | null>(null)
 
@@ -64,16 +60,14 @@ const fetchCategories = async () => {
 const fetchMerchants = async () => {
   loading.value = true
   try {
-    const lat = Number(defaultAddress.value?.lat ?? DEFAULT_LAT)
-    const lng = Number(defaultAddress.value?.lng ?? DEFAULT_LNG)
-    const res = await listMerchantsApi({ lat, lng, page: 1, size: 20 })
+    const res = await listMerchantsApi({ page: 1, size: 20 })
     const list = res.data?.list || []
 
     const withProducts = await Promise.all(
       list.map(async (m): Promise<HomeMerchant> => {
         let products: ProductVO[] = []
         try {
-          const pr = await listProductsApi(m.id, { page: 1, size: 3 })
+          const pr = await listProductsApi(m.id, { page: 1, size: 6 })
           products = pr.data?.list || []
         } catch {
           /* 单个商家商品失败不影响整体 */
