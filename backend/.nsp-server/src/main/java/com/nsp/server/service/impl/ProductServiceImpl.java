@@ -14,6 +14,7 @@ import com.nsp.pojo.entity.ProductSpec;
 import com.nsp.pojo.vo.PageVO;
 import com.nsp.pojo.vo.ProductVO;
 import com.nsp.pojo.vo.SpecVO;
+import com.nsp.server.cache.MerchantProductsCache;
 import com.nsp.server.mapper.CategoryMapper;
 import com.nsp.server.mapper.MerchantMapper;
 import com.nsp.server.mapper.ProductMapper;
@@ -42,6 +43,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductSpecMapper productSpecMapper;
     private final CategoryMapper categoryMapper;
     private final MerchantMapper merchantMapper;
+    private final MerchantProductsCache merchantProductsCache;
 
     @Override
     public PageVO<ProductVO> listByMerchant(Long merchantId, Long categoryId, int page, int size,
@@ -103,6 +105,7 @@ public class ProductServiceImpl implements ProductService {
         BeanUtil.copyProperties(dto, product);
         product.setStatus("ON"); // 新建默认上架
         productMapper.insert(product);
+        merchantProductsCache.evict(merchantId);
 
         log.info("新增商品: productId={}, merchantId={}, name={}", product.getId(), merchantId, dto.getName());
         return toVO(product);
@@ -114,6 +117,7 @@ public class ProductServiceImpl implements ProductService {
         Product product = findOwnProduct(id, merchantId);
         BeanUtil.copyProperties(dto, product, "id", "merchantId");
         productMapper.updateById(product);
+        merchantProductsCache.evict(merchantId);
         log.info("更新商品: productId={}, name={}", id, dto.getName());
         return toVO(product);
     }
@@ -125,6 +129,7 @@ public class ProductServiceImpl implements ProductService {
         update.setId(id);
         update.setStatus(status);
         productMapper.updateById(update);
+        merchantProductsCache.evict(merchantId);
         log.info("更新商品状态: productId={}, status={}", id, status);
     }
 
@@ -139,6 +144,7 @@ public class ProductServiceImpl implements ProductService {
         // 级联删除规格（软删商品，规格物理删除）
         productSpecMapper.delete(new LambdaQueryWrapper<ProductSpec>().eq(ProductSpec::getProductId, id));
         productMapper.deleteById(id);
+        merchantProductsCache.evict(merchantId);
         log.info("删除商品: productId={}, merchantId={}, name={}", id, merchantId, product.getName());
     }
 
@@ -150,6 +156,7 @@ public class ProductServiceImpl implements ProductService {
         spec.setProductId(productId);
         BeanUtil.copyProperties(dto, spec);
         productSpecMapper.insert(spec);
+        merchantProductsCache.evict(merchantId);
         log.info("新增规格: specId={}, productId={}, name={}, stock={}", spec.getId(), productId, dto.getName(), dto.getStock());
     }
 
@@ -162,6 +169,7 @@ public class ProductServiceImpl implements ProductService {
         // 校验规格所属商品归该商家所有
         findOwnProduct(spec.getProductId(), merchantId);
         productSpecMapper.deleteById(specId);
+        merchantProductsCache.evict(merchantId);
         log.info("删除规格: specId={}", specId);
     }
 

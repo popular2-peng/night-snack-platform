@@ -21,6 +21,7 @@ import com.nsp.server.mapper.MerchantApplicationMapper;
 import com.nsp.server.mapper.MerchantMapper;
 import com.nsp.server.mapper.PlatformCategoryMapper;
 import com.nsp.server.mapper.UserMapper;
+import com.nsp.server.cache.HomeMerchantListCache;
 import com.nsp.server.security.JwtTokenProvider;
 import com.nsp.server.service.MapService;
 import com.nsp.server.service.MerchantService;
@@ -52,6 +53,7 @@ public class MerchantServiceImpl implements MerchantService {
     private final PlatformCategoryMapper platformCategoryMapper;
     private final MapService mapService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final HomeMerchantListCache homeMerchantListCache;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -84,13 +86,30 @@ public class MerchantServiceImpl implements MerchantService {
 
     @Override
     public PageVO<MerchantVO> listAll(int page, int size) {
-        Page<Merchant> result = merchantMapper.selectPage(
-                new Page<>(page, size),
+        // Cache Aside：先读缓存，未命中回源 MySQL 并写入缓存
+        List<MerchantVO> all = homeMerchantListCache.get();
+        if (all == null) {
+            all = loadOpenMerchants();
+            homeMerchantListCache.put(all);
+        }
+
+        // 内存分页（商家规模小，全量缓存 + 内存分页可接受）
+        int total = all.size();
+        int offset = (page - 1) * size;
+        if (offset >= total) {
+            return new PageVO<>((long) total, List.of());
+        }
+        List<MerchantVO> pageList = all.subList(offset, Math.min(offset + size, total));
+        return new PageVO<>((long) total, pageList);
+    }
+
+    /** 查询全部营业中商家（缓存回源用，按入驻时间倒序） */
+    private List<MerchantVO> loadOpenMerchants() {
+        return merchantMapper.selectList(
                 new LambdaQueryWrapper<Merchant>()
                         .eq(Merchant::getStatus, "OPEN")
-                        .orderByDesc(Merchant::getId));
-        List<MerchantVO> list = result.getRecords().stream().map(this::toVO).toList();
-        return new PageVO<>(result.getTotal(), list);
+                        .orderByDesc(Merchant::getId))
+                .stream().map(this::toVO).toList();
     }
 
     @Override
@@ -117,6 +136,8 @@ public class MerchantServiceImpl implements MerchantService {
         update.setId(merchantId);
         update.setStatus(status.toUpperCase());
         merchantMapper.updateById(update);
+        // 营业状态变更会影响首页商家列表，清除缓存
+        homeMerchantListCache.evict();
         log.info("商家状态更新: merchantId={}, status={}", merchantId, status);
     }
 

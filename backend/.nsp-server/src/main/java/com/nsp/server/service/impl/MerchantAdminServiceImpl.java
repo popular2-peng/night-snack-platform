@@ -35,6 +35,7 @@ import com.nsp.server.mapper.PaymentRecordMapper;
 import com.nsp.server.mapper.PlatformCategoryMapper;
 import com.nsp.server.mapper.ProductMapper;
 import com.nsp.server.mapper.ProductSpecMapper;
+import com.nsp.server.cache.HomeMerchantListCache;
 import com.nsp.server.service.MerchantAdminService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -56,6 +57,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
     private static final Logger log = LoggerFactory.getLogger(MerchantAdminServiceImpl.class);
 
     private final MerchantMapper merchantMapper;
+    private final HomeMerchantListCache homeMerchantListCache;
     private final PlatformCategoryMapper platformCategoryMapper;
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
@@ -139,6 +141,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
         Merchant merchant = findById(id);
         merchant.setStatus("SUSPENDED");
         merchantMapper.updateById(merchant);
+        homeMerchantListCache.evict();
         log.info("管理员封禁商家: merchantId={}", id);
     }
 
@@ -149,6 +152,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
         Merchant merchant = findById(id);
         merchant.setStatus("OPEN");
         merchantMapper.updateById(merchant);
+        homeMerchantListCache.evict();
         log.info("管理员解封商家: merchantId={}", id);
     }
 
@@ -189,6 +193,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
         m.setStatus("CLOSED");
         m.setUpdatedAt(LocalDateTime.now());
         merchantMapper.updateById(m);
+        homeMerchantListCache.evict();
         log.info("商家暂停营业: merchantId={}, operatorId={}", id, operatorId);
     }
 
@@ -203,6 +208,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
         m.setStatus("OPEN");
         m.setUpdatedAt(LocalDateTime.now());
         merchantMapper.updateById(m);
+        homeMerchantListCache.evict();
         log.info("商家恢复营业: merchantId={}, operatorId={}", id, operatorId);
     }
 
@@ -220,6 +226,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
         m.setBannedBy(operatorId);
         m.setUpdatedAt(LocalDateTime.now());
         merchantMapper.updateById(m);
+        homeMerchantListCache.evict();
         log.info("商家被封禁: merchantId={}, reason={}, operatorId={}", id, dto.getReason(), operatorId);
     }
 
@@ -237,6 +244,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
         m.setBannedBy(null);
         m.setUpdatedAt(LocalDateTime.now());
         merchantMapper.updateById(m);
+        homeMerchantListCache.evict();
         log.info("商家解封: merchantId={}, operatorId={}", id, operatorId);
     }
 
@@ -249,6 +257,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
             throw new BizException(ErrorCode.MERCHANT_MUST_BANNED, MessageConst.MERCHANT_MUST_BANNED_MSG);
         }
         cascadeDeleteMerchant(id);
+        homeMerchantListCache.evict();
         log.info("删除商家: merchantId={}, operatorId={}", id, operatorId);
     }
 

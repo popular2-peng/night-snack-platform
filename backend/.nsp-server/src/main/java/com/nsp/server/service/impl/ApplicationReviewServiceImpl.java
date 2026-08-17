@@ -21,6 +21,7 @@ import com.nsp.server.mapper.MerchantApplicationMapper;
 import com.nsp.server.mapper.PlatformCategoryMapper;
 import com.nsp.server.mapper.MerchantMapper;
 import com.nsp.server.mapper.UserMapper;
+import com.nsp.server.cache.HomeMerchantListCache;
 import com.nsp.server.service.ApplicationReviewService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -42,6 +43,7 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
     private static final Logger log = LoggerFactory.getLogger(ApplicationReviewServiceImpl.class);
 
     private final MerchantApplicationMapper merchantApplicationMapper;
+    private final HomeMerchantListCache homeMerchantListCache;
     private final MerchantMapper merchantMapper;
     private final UserMapper userMapper;
     private final PlatformCategoryMapper platformCategoryMapper;
@@ -151,6 +153,8 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         merchant.setCreatedAt(LocalDateTime.now());
         merchant.setUpdatedAt(LocalDateTime.now());
         merchantMapper.insert(merchant);
+        // 新商家入驻会影响首页商家列表，清除缓存
+        homeMerchantListCache.evict();
 
         // 4. 更新申请状态
         app.setStatus("APPROVED");
@@ -219,6 +223,8 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
         merchant.setCreatedAt(LocalDateTime.now());
         merchant.setUpdatedAt(LocalDateTime.now());
         merchantMapper.insert(merchant);
+        // 新商家入驻会影响首页商家列表，清除缓存
+        homeMerchantListCache.evict();
 
         // 4. 更新申请状态
         app.setStatus("APPROVED");
