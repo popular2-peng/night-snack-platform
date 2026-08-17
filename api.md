@@ -27,7 +27,7 @@
 
 ### 1.2 鉴权
 
-除登录/注册/支付回调/OSS 回调外，所有接口需在 Header 中携带 Token：
+除登录/注册/支付回调/OSS 回调/**用户端匿名浏览**（`/api/user/merchants`、`/api/user/categories`，见 4.6）外，所有接口需在 Header 中携带 Token：
 
 ```
 Authorization: Bearer <jwt>
@@ -710,16 +710,32 @@ GET /api/user/pay/{orderNo}/status
 
 ---
 
-### 4.6 公共浏览
+### 4.6 公共浏览（匿名，无需登录）
 
-#### 商家列表
+> 用户端首页浏览接口专放 `controller/user/BrowseController`（`/api/user/**`），**匿名可访问**，供未登录用户浏览商家/商品/分类；只读，不涉及任何写操作。
+
+#### 分类列表（平台启用品类）
 
 ```
-GET /api/merchant/list?lat=39.99632&lng=116.48090&page=1&size=20
+GET /api/user/categories
 ```
+
+**响应 data：** `List<CategoryVO>`（仅 `ENABLED` 平台品类，按 sortOrder 升序）
+
+---
+
+#### 附近商家列表
+
+```
+GET /api/user/merchants?lat=39.99632&lng=116.48090&page=1&size=20
+```
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `lat` / `lng` | number | 是 | 用户坐标 |
+| `page` / `size` | int | 否 | 分页，默认 1/20 |
 
 > 按距离排序（近→远），百度地图 API + Haversine 降级；响应为分页结构 `PageVO`（`{ total, list }`，list 内每项含 `distance` 米）。
-> `page`/`size` 默认 1/20，不传亦可（兼容旧调用）。
 
 **响应 data：** `PageVO<MerchantVO>`
 
@@ -728,50 +744,95 @@ GET /api/merchant/list?lat=39.99632&lng=116.48090&page=1&size=20
 #### 商家详情
 
 ```
-GET /api/merchant/{id}
+GET /api/user/merchants/{id}
 ```
 
 **可能错误码：** `3001`
 
 ---
 
-#### 商品列表
+#### 商家在售商品列表
 
 ```
-GET /api/merchant/product/list?merchantId={merchantId}&categoryId={categoryId}&page=1&size=20&keyword={name}&status={status}
+GET /api/user/merchants/{id}/products?page=1&size=20
 ```
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `merchantId` | long | 是 | 商家 ID（用户端浏览指定商家；商家管理页传自己的 ID） |
-| `categoryId` | long | 否 | 所属品类筛选 |
+| `id` | long | 是 | 商家 ID（路径参数） |
 | `page` / `size` | int | 否 | 分页，默认 1/20 |
-| `keyword` | string | 否 | 商品名称模糊搜索 |
-| `status` | string | 否 | 状态筛选：`ON`(在售) / `OFF`(停售)，非法值忽略 |
 
-**响应 data：** `PageVO<ProductVO>`（`{ total, list }`，list 每项含 `specs` 规格列表）
+> 仅返回**上架（`ON`）商品**，用户端点菜页使用。
+
+**响应 data：** `PageVO<ProductVO>`（每项含 `specs` 规格列表）
+
+**可能错误码：** `3001`
 
 ---
 
 #### 商品详情
 
 ```
-GET /api/merchant/product/{id}
+GET /api/user/merchants/{merchantId}/products/{productId}
 ```
 
-**可能错误码：** `3101`
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `merchantId` | long | 商家 ID（路径参数） |
+| `productId` | long | 商品 ID（路径参数） |
 
----
+> 服务端校验商品**属于该商家且为上架状态**（不属于该商家统一按不存在处理，不泄露他店商品；已下架返回 `3102`）。
+
+**可能错误码：** `3101`, `3102`
 
 ## 五、商家端接口（`/api/merchant/*`）
 
 > 鉴权：Header `Authorization: Bearer <token>`  
 > 权限：`MERCHANT`
 >
-> **商家身份由 JWT 解析**：商家登录时 JWT 的 `sub` 即 `merchant.id`，本节所有接口**不再接收 `merchantId` 参数**（从源头杜绝越权传参）。归属校验仍在服务层（`3301` 非本店商家）作为纵深防御保留。
-> 例外：`GET /api/merchant/product/list`、`GET /api/merchant/list`、`GET /api/merchant/{id}` 为多角色浏览接口，保留 `merchantId` 查询参数（用户端浏览商家商品时需显式指定商家）。
+> **商家身份由 JWT 解析**：商家登录时 JWT 的 `sub` 即 `merchant.id`，本节写操作接口**不接收 `merchantId` 参数**（从源头杜绝越权传参）。归属校验仍在服务层（`3301` 非本店商家）作为纵深防御保留。
+> 例外：`GET /api/merchant/product/list` 保留 `merchantId` 查询参数（商家后台列表筛选用），但接口本身仅 `MERCHANT` 角色可调。
+> 用户端浏览（商家列表/详情、在售商品、商品详情、分类）已迁移至匿名接口 `/api/user/merchants/**`（见 4.6）。
 
-### 5.1 店铺管理
+### 5.1 工作台
+
+#### 工作台首页统计
+
+```
+GET /api/merchant/dashboard
+```
+
+> 商家首页工作台聚合接口：一次返回经营概况，商家身份由 JWT 解析。
+
+**响应 data：** `MerchantDashboardVO`
+
+```json
+{
+  "shopName": "深夜食堂",
+  "shopStatus": "OPEN",
+  "todayOrders": 12,
+  "todayRevenue": 890.50,
+  "pendingAccept": 2,
+  "onSaleProducts": 14,
+  "orderStatusStats": { "PAID": 2, "COOKING": 3, "COMPLETED": 7 },
+  "updatedAt": "2026-08-17T00:06:43"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `shopName` | string | 店铺名称 |
+| `shopStatus` | string | 营业状态：`OPEN` / `CLOSED` / `PENDING` / `SUSPENDED` |
+| `todayOrders` | long | 今日订单数（今日 00:00 起） |
+| `todayRevenue` | number | 今日营业额（今日订单实付金额合计，排除已取消/已退款） |
+| `pendingAccept` | long | 待接单数（当前 `PAID` 状态订单数，全量） |
+| `onSaleProducts` | long | 在售商品数（`ON` 状态） |
+| `orderStatusStats` | map | 今日订单状态分布（状态码 → 数量） |
+| `updatedAt` | string | 统计时间（ISO-8601） |
+
+---
+
+### 5.2 店铺管理
 
 #### 获取店铺信息（当前登录商家）
 
@@ -824,7 +885,7 @@ PUT /api/merchant/shop/status?status={status}
 
 ---
 
-### 5.2 品类管理
+### 5.3 品类管理
 
 #### 品类列表（当前登录商家）
 
@@ -867,7 +928,39 @@ DELETE /api/merchant/category/{id}
 
 ---
 
-### 5.3 商品管理
+### 5.4 商品管理
+
+#### 商品列表（商家后台）
+
+```
+GET /api/merchant/product/list?merchantId={merchantId}&categoryId={categoryId}&page=1&size=20&keyword={name}&status={status}
+```
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `merchantId` | long | 是 | 商家 ID（商家管理页传自己的 ID） |
+| `categoryId` | long | 否 | 所属品类筛选 |
+| `page` / `size` | int | 否 | 分页，默认 1/20 |
+| `keyword` | string | 否 | 商品名称模糊搜索 |
+| `status` | string | 否 | 状态筛选：`ON`(在售) / `OFF`(停售)，非法值忽略 |
+
+> 仅 `MERCHANT` 角色可调用（商家后台商品管理页使用；用户端浏览走 4.6 的匿名接口）。
+
+**响应 data：** `PageVO<ProductVO>`（`{ total, list }`，list 每项含 `specs` 规格列表）
+
+---
+
+#### 商品详情（商家后台）
+
+```
+GET /api/merchant/product/{id}
+```
+
+> 仅 `MERCHANT` 角色可调用（含停售商品；用户端浏览走 4.6 的匿名接口，仅返回上架商品）。
+
+**可能错误码：** `3101`
+
+---
 
 #### 新增商品（归属当前登录商家）
 
@@ -954,7 +1047,7 @@ DELETE /api/merchant/product/spec/{specId}
 
 ---
 
-### 5.4 订单管理
+### 5.5 订单管理
 
 #### 店铺订单列表（当前登录商家）
 
@@ -1047,7 +1140,7 @@ PUT /api/merchant/order/{id}/reject?reason={reason}
 
 ---
 
-### 5.5 WebSocket 实时推送（新订单通知）
+### 5.6 WebSocket 实时推送（新订单通知）
 
 ```
 ws://localhost:8080/ws/merchant?token=<accessToken>
@@ -1096,20 +1189,76 @@ GET /api/admin/dashboard/stats
 
 ```json
 {
-  "totalOrders": 156,
+  "todayOrders": 23,
+  "todayOrdersChange": 15.0,
+  "todayRevenue": 1024.50,
+  "todayRevenueChange": -8.33,
+  "todayNewUsers": 6,
+  "todayNewUsersChange": null,
   "pendingApplications": 3,
-  "totalMerchants": 8,
-  "totalUsers": 13
+  "refundingOrders": 1,
+  "updatedAt": "2026-08-17T00:06:43"
 }
 ```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `todayOrders` | long | 今日订单数（今日 00:00 起） |
+| `todayOrdersChange` | double/null | 今日订单较昨日变化百分比（昨日为 0 时为 `null`） |
+| `todayRevenue` | number | 今日营业额（今日订单实付金额合计） |
+| `todayRevenueChange` | double/null | 今日营业额较昨日变化百分比 |
+| `todayNewUsers` | long | 今日新增用户数 |
+| `todayNewUsersChange` | double/null | 今日新增用户较昨日变化百分比 |
+| `pendingApplications` | long | 待审核商家入驻申请数 |
+| `refundingOrders` | long | 退款中订单数 |
+| `updatedAt` | string | 统计时间（ISO-8601） |
+
+---
+
+#### 注册用户趋势
+
+```
+GET /api/admin/dashboard/user-trend?days=7
+```
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `days` | int | 否 | 7 | 统计近 N 日，范围 1-90 |
+
+**响应 data：** `List<TrendPointVO>`（每日新增用户数，`date` 为 `MM-dd`，`count` 为当日数量）
+
+```json
+[
+  { "date": "08-11", "count": 4 },
+  { "date": "08-12", "count": 1 }
+]
+```
+
+---
+
+#### 商家入驻趋势
+
+```
+GET /api/admin/dashboard/application-trend?days=7
+```
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `days` | int | 否 | 7 | 统计近 N 日，范围 1-90 |
+
+**响应 data：** `List<TrendPointVO>`（每日商家入驻申请数，`date` 为 `MM-dd`，`count` 为当日数量）
 
 ---
 
 #### 订单状态分布
 
 ```
-GET /api/admin/dashboard/order-stats
+GET /api/admin/dashboard/order-stats?date={date}
 ```
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `date` | string | 否 | 统计日期（`yyyy-MM-dd`）。不传统计**全量**订单；传当天日期只统计该日订单（首页「今日订单状态分布」每次请求都携带当天日期） |
 
 **响应 data：** `List<OrderStatusStatVO>`
 
@@ -1281,6 +1430,39 @@ POST /api/admin/application/{id}/reject
 
 ---
 
+#### 批量通过入驻申请
+
+```
+POST /api/admin/merchant-application/batch-approve
+```
+
+**请求体：** `{ "ids": [1, 2, 3] }`（最多 100 条，见 1.5 批量契约）
+
+> 仅 `PENDING` 状态可通过；已审核的**自动跳过**。通过后创建商家（默认营业中，配送半径 5000，商家自行调整）。
+
+**响应 data：** `BatchResultVO`
+
+---
+
+#### 批量拒绝入驻申请
+
+```
+POST /api/admin/merchant-application/batch-reject
+```
+
+**请求体：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `ids` | array | 是 | 申请 ID 列表（≤100） |
+| `rejectReason` | string | 是 | 统一拒绝原因（10-200 字，将展示给商家） |
+
+> 仅 `PENDING` 状态可拒绝；已审核的**自动跳过**。
+
+**响应 data：** `BatchResultVO`
+
+---
+
 ### 6.3 用户管理
 
 > 操作接口（封禁/解封/重置密码）均记录操作日志，写入 `user_operation_log` 表。
@@ -1364,30 +1546,6 @@ PUT /api/admin/users/{id}/unban
 
 ---
 
-#### 封禁用户（旧版兼容）
-
-```
-PUT /api/admin/users/{id}/disable
-```
-
-> `deprecated` — 委托给 ban（原因固定为「管理员操作」，永久封禁），供旧前端使用。
-
-**可能错误码：** `2003`, `2303`
-
----
-
-#### 解封用户（旧版兼容）
-
-```
-PUT /api/admin/users/{id}/enable
-```
-
-> `deprecated` — 委托给 unban。
-
-**可能错误码：** `2003`, `2304`
-
----
-
 #### 操作日志列表
 
 ```
@@ -1397,6 +1555,46 @@ GET /api/admin/users/{id}/logs
 **响应 data：** `List<Map<String, Object>>`（操作类型、操作人、时间、备注等）
 
 **可能错误码：** `2003`
+
+---
+
+#### 删除用户（仅封禁账号可删）
+
+```
+DELETE /api/admin/users/{id}
+```
+
+> **物理删除**并级联删除该用户的订单（含明细/状态日志/支付记录）与收货地址；**启用（ACTIVE）账号不可删除**，返回 `2306`（先封禁再删）。
+
+**可能错误码：** `2003`, `2306`
+
+---
+
+#### 批量启用用户
+
+```
+POST /api/admin/users/batch-unban
+```
+
+**请求体：** `{ "ids": [...] }`（≤100）
+
+> 已封禁的启用；未封禁/已删除的**自动跳过**并汇总原因。
+
+**响应 data：** `BatchResultVO`
+
+---
+
+#### 批量删除用户
+
+```
+POST /api/admin/users/batch-delete
+```
+
+**请求体：** `{ "ids": [...] }`（≤100）
+
+> 仅封禁账号可物理删除（级联订单/地址）；启用账号**自动跳过**（原因：启用账号不可删除）。
+
+**响应 data：** `BatchResultVO`
 
 ---
 
@@ -1558,15 +1756,30 @@ PUT /api/admin/merchant/{id}/unban
 
 ---
 
-#### 删除商家（软删）
+#### 删除商家（仅封禁可删）
 
 ```
 DELETE /api/admin/merchant/{id}
 ```
 
-> 软删除，数据不可恢复。计入操作日志。
+> **仅 `SUSPENDED`（已封禁）商家可删除**，在售/营业中商家返回 `2307`（请先封禁再删）。
+> 级联**物理删除**：订单（含明细/状态日志/支付记录）、商品（含规格）、品类、品类关联等；**不删除**入驻申请记录。计入操作日志。
 
-**可能错误码：** `3001`
+**可能错误码：** `3001`, `2307`
+
+---
+
+#### 批量删除商家
+
+```
+POST /api/admin/merchant/batch-delete
+```
+
+**请求体：** `{ "ids": [...] }`（≤100）
+
+> 仅封禁商家可删（级联订单/商品/品类）；未封禁的**自动跳过**并汇总原因。
+
+**响应 data：** `BatchResultVO`
 
 ---
 
@@ -1605,10 +1818,10 @@ GET /api/admin/merchant/{id}/logs
 
 > 平台级商家分类基础数据，管理员可 CRUD + 排序 + 启用/停用。
 
-#### 品类列表（分页+搜索+状态筛选）
+#### 品类列表（分页+搜索+状态+日期范围筛选）
 
 ```
-GET /api/admin/category?page=1&size=20&keyword={keyword}&status={status}
+GET /api/admin/category?page=1&size=20&keyword={keyword}&status={status}&dateStart={date}&dateEnd={date}
 ```
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
@@ -1617,6 +1830,8 @@ GET /api/admin/category?page=1&size=20&keyword={keyword}&status={status}
 | `size` | int | 否 | 20 | 每页条数 |
 | `keyword` | string | 否 | - | 搜索品类名（模糊匹配） |
 | `status` | string | 否 | - | 状态筛选：`ENABLED` / `DISABLED` |
+| `dateStart` | string | 否 | - | 创建起始日期（`yyyy-MM-dd`，含当天） |
+| `dateEnd` | string | 否 | - | 创建截止日期（`yyyy-MM-dd`，含当天） |
 
 **响应 data：** `PageVO<CategoryVO>`
 
@@ -1890,6 +2105,20 @@ POST /api/admin/orders/batch-refund
 
 **响应 data：** `BatchResultVO`（`successCount` / `skippedCount` / `skippedReasons` / `message`）
 
+---
+
+#### 批量删除订单
+
+```
+POST /api/admin/orders/batch-delete
+```
+
+**请求体：** `{ "ids": [...] }`（≤100）
+
+> 级联删除订单明细/状态日志/支付记录；不存在的订单**跳过**并汇总原因。
+
+**响应 data：** `BatchResultVO`
+
 **订单状态码表（`status` 与筛选共用）：**
 
 | 状态码 | 中文 | 说明 |
@@ -1912,7 +2141,7 @@ POST /api/admin/orders/batch-refund
 ### 7.1 获取 OSS 上传签名
 
 ```
-GET /api/upload/sign?bizType={bizType}&targetId={targetId}&fileName={fileName}
+GET /api/upload/sign?bizType={bizType}&targetId={targetId}&fileName={fileName}&userId={userId}
 ```
 
 | 参数 | 类型 | 必填 | 说明 |
@@ -1920,6 +2149,7 @@ GET /api/upload/sign?bizType={bizType}&targetId={targetId}&fileName={fileName}
 | `bizType` | string | 是 | 业务类型：`AVATAR` / `SHOP_LOGO` / `PRODUCT_IMAGE` |
 | `targetId` | long | 否 | 关联业务对象 ID |
 | `fileName` | string | 是 | 原始文件名（用于校验扩展名） |
+| `userId` | long | 否 | 用户 ID（登录用户可携带，用于限流与目录归属；匿名场景不传） |
 
 **响应 data：**
 
@@ -2062,86 +2292,90 @@ PAID / ACCEPTED / COOKING ──(管理员退款)──→ REFUNDING ──(退�
 | 25 | POST | `/api/user/order/{id}/cancel` | 取消订单 | USER |
 | 26 | POST | `/api/user/pay` | 发起支付 | USER |
 | 27 | GET | `/api/user/pay/{orderNo}/status` | 支付状态查询 | USER |
-| 28 | GET | `/api/merchant/list` | 浏览商家列表（分页） | 登录 |
-| 29 | GET | `/api/merchant/{id}` | 商家详情 | 登录 |
-| 30 | GET | `/api/merchant/shop` | 获取店铺信息（JWT 解析商家） | MERCHANT |
-| 31 | PUT | `/api/merchant/shop` | 更新店铺信息（部分更新） | MERCHANT |
-| 32 | PUT | `/api/merchant/shop/status` | 更新营业状态 | MERCHANT |
-| 33 | GET | `/api/merchant/category` | 品类列表（JWT 解析商家） | MERCHANT |
-| 34 | POST | `/api/merchant/category` | 新增品类 | MERCHANT |
-| 35 | PUT | `/api/merchant/category/{id}` | 更新品类 | MERCHANT |
-| 36 | DELETE | `/api/merchant/category/{id}` | 删除品类 | MERCHANT |
-| 37 | GET | `/api/merchant/product/list` | 商品列表（保留 merchantId 参数） | 登录 |
-| 38 | GET | `/api/merchant/product/{id}` | 商品详情 | 登录 |
-| 39 | POST | `/api/merchant/product` | 新增商品 | MERCHANT |
-| 40 | PUT | `/api/merchant/product/{id}` | 更新商品 | MERCHANT |
-| 41 | PUT | `/api/merchant/product/{id}/status` | 上架/下架 | MERCHANT |
-| 42 | POST | `/api/merchant/product/{productId}/spec` | 添加规格 | MERCHANT |
-| 43 | DELETE | `/api/merchant/product/spec/{specId}` | 删除规格 | MERCHANT |
-| 44 | DELETE | `/api/merchant/product/{id}` | 删除商品（停售才可删，级联删规格） | MERCHANT |
-| 45 | GET | `/api/merchant/order` | 店铺订单列表（JWT 解析商家，支持状态/日期筛选） | MERCHANT |
-| 46 | GET | `/api/merchant/order/stats` | 订单状态分布统计（tab 角标） | MERCHANT |
-| 47 | WS | `/ws/merchant?token=` | 新订单实时推送（WebSocket，见 5.5） | MERCHANT |
-| 48 | GET | `/api/merchant/order/{id}` | 订单详情 | MERCHANT |
-| 49 | PUT | `/api/merchant/order/{id}/accept` | 接单 | MERCHANT |
-| 50 | PUT | `/api/merchant/order/{id}/cooking` | 开始制作 | MERCHANT |
-| 51 | PUT | `/api/merchant/order/{id}/complete` | 完成制作 | MERCHANT |
-| 52 | PUT | `/api/merchant/order/{id}/reject` | 拒单（自动退款） | MERCHANT |
-| 53 | GET | `/api/admin/dashboard/stats` | 核心统计卡片 | ADMIN |
-| 54 | GET | `/api/admin/dashboard/order-stats` | 订单状态分布 | ADMIN |
-| 55 | GET | `/api/admin/dashboard/recent-orders` | 最新订单 | ADMIN |
-| 56 | GET | `/api/admin/merchant-application/pending` | 入驻申请列表 | ADMIN |
-| 57 | GET | `/api/admin/merchant-application/{id}/detail` | 申请详情 | ADMIN |
-| 58 | PUT | `/api/admin/merchant-application/{id}/approve` | 通过申请(V1) | ADMIN |
-| 59 | PUT | `/api/admin/merchant-application/{id}/reject` | 拒绝申请(V1) | ADMIN |
-| 60 | POST | `/api/admin/application/{id}/approve` | 通过申请(V2) | ADMIN |
-| 61 | POST | `/api/admin/application/{id}/reject` | 拒绝申请(V2) | ADMIN |
-| 62 | GET | `/api/admin/users` | 用户列表 | ADMIN |
-| 63 | GET | `/api/admin/users/{id}/detail` | 用户详情 | ADMIN |
-| 64 | PUT | `/api/admin/users/{id}/ban` | 封禁用户（推荐） | ADMIN |
-| 65 | PUT | `/api/admin/users/{id}/unban` | 解封用户（推荐） | ADMIN |
-| 66 | PUT | `/api/admin/users/{id}/disable` | 封禁用户（旧版兼容） | ADMIN |
-| 67 | PUT | `/api/admin/users/{id}/enable` | 解封用户（旧版兼容） | ADMIN |
-| 68 | GET | `/api/admin/users/{id}/logs` | 用户操作日志 | ADMIN |
-| 69 | DELETE | `/api/admin/users/{id}` | 删除用户（物理删+级联） | ADMIN |
-| 70 | POST | `/api/admin/users/batch-unban` | 批量启用用户 | ADMIN |
-| 71 | POST | `/api/admin/users/batch-delete` | 批量删除用户（物理删+级联） | ADMIN |
-| 72 | GET | `/api/admin/merchants` | 商家列表(V1) | ADMIN |
-| 73 | PUT | `/api/admin/merchants/{id}/suspend` | 封禁商家(V1) | ADMIN |
-| 74 | PUT | `/api/admin/merchants/{id}/activate` | 解封商家(V1) | ADMIN |
-| 75 | GET | `/api/admin/merchant/stats` | 商家统计概览 | ADMIN |
-| 76 | GET | `/api/admin/merchant/{id}/detail` | 商家详情(V2) | ADMIN |
-| 77 | PUT | `/api/admin/merchant/{id}/pause` | 暂停营业 | ADMIN |
-| 78 | PUT | `/api/admin/merchant/{id}/resume` | 恢复营业 | ADMIN |
-| 79 | PUT | `/api/admin/merchant/{id}/ban` | 封禁商家(V2) | ADMIN |
-| 80 | PUT | `/api/admin/merchant/{id}/unban` | 解封商家(V2) | ADMIN |
-| 81 | DELETE | `/api/admin/merchant/{id}` | 删除商家 | ADMIN |
-| 82 | POST | `/api/admin/merchant/batch-delete` | 批量删除商家（级联商品等） | ADMIN |
-| 83 | GET | `/api/admin/merchant/{id}/logs` | 商家操作日志 | ADMIN |
-| 84 | GET | `/api/admin/category` | 品类列表 | ADMIN |
-| 85 | GET | `/api/admin/category/all` | 全部启用品类 | ADMIN |
-| 86 | GET | `/api/admin/category/stats` | 品类统计 | ADMIN |
-| 87 | GET | `/api/admin/category/{id}` | 品类详情 | ADMIN |
-| 88 | POST | `/api/admin/category` | 新增品类 | ADMIN |
-| 89 | PUT | `/api/admin/category/{id}` | 修改品类 | ADMIN |
-| 90 | PUT | `/api/admin/category/{id}/enable` | 启用品类 | ADMIN |
-| 91 | PUT | `/api/admin/category/{id}/disable` | 停用品类 | ADMIN |
-| 92 | DELETE | `/api/admin/category/{id}` | 删除品类 | ADMIN |
-| 93 | POST | `/api/admin/category/reorder` | 批量排序 | ADMIN |
-| 94 | POST | `/api/admin/category/batch-enable` | 批量启用品类 | ADMIN |
-| 95 | POST | `/api/admin/category/batch-disable` | 批量停用品类 | ADMIN |
-| 96 | POST | `/api/admin/category/batch-delete` | 批量删除品类 | ADMIN |
-| 97 | GET | `/api/admin/orders` | 订单列表 | ADMIN |
-| 98 | GET | `/api/admin/orders/{id}` | 订单详情 | ADMIN |
-| 99 | POST | `/api/admin/orders/{id}/refund` | 订单退款 | ADMIN |
-| 100 | POST | `/api/admin/orders/batch-refund` | 批量退款 | ADMIN |
-| 101 | POST | `/api/admin/orders/batch-delete` | 批量删除订单 | ADMIN |
-| 102 | POST | `/api/admin/merchant-application/batch-approve` | 批量通过入驻申请 | ADMIN |
-| 103 | POST | `/api/admin/merchant-application/batch-reject` | 批量拒绝入驻申请 | ADMIN |
-| 104 | GET | `/api/upload/sign` | OSS 上传签名 | 登录 |
-| 105 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
-| 106 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
-| 107 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
+| 28 | GET | `/api/user/categories` | 分类列表（平台启用品类，匿名） | 匿名 |
+| 29 | GET | `/api/user/merchants` | 附近商家列表（按距离分页，匿名） | 匿名 |
+| 30 | GET | `/api/user/merchants/{id}` | 商家详情（匿名） | 匿名 |
+| 31 | GET | `/api/user/merchants/{id}/products` | 商家在售商品列表（仅上架，匿名） | 匿名 |
+| 32 | GET | `/api/user/merchants/{merchantId}/products/{productId}` | 商品详情（仅上架，匿名） | 匿名 |
+| 33 | GET | `/api/merchant/shop` | 获取店铺信息（JWT 解析商家） | MERCHANT |
+| 34 | PUT | `/api/merchant/shop` | 更新店铺信息（部分更新） | MERCHANT |
+| 35 | PUT | `/api/merchant/shop/status` | 更新营业状态 | MERCHANT |
+| 36 | GET | `/api/merchant/category` | 品类列表（JWT 解析商家） | MERCHANT |
+| 37 | POST | `/api/merchant/category` | 新增品类 | MERCHANT |
+| 38 | PUT | `/api/merchant/category/{id}` | 更新品类 | MERCHANT |
+| 39 | DELETE | `/api/merchant/category/{id}` | 删除品类 | MERCHANT |
+| 40 | GET | `/api/merchant/product/list` | 商品列表（商家后台，merchantId 筛选） | MERCHANT |
+| 41 | GET | `/api/merchant/product/{id}` | 商品详情（商家后台） | MERCHANT |
+| 42 | POST | `/api/merchant/product` | 新增商品 | MERCHANT |
+| 43 | PUT | `/api/merchant/product/{id}` | 更新商品 | MERCHANT |
+| 44 | PUT | `/api/merchant/product/{id}/status` | 上架/下架 | MERCHANT |
+| 45 | POST | `/api/merchant/product/{productId}/spec` | 添加规格 | MERCHANT |
+| 46 | DELETE | `/api/merchant/product/spec/{specId}` | 删除规格 | MERCHANT |
+| 47 | DELETE | `/api/merchant/product/{id}` | 删除商品（停售才可删，级联删规格） | MERCHANT |
+| 48 | GET | `/api/merchant/order` | 店铺订单列表（JWT 解析商家，支持状态/日期筛选） | MERCHANT |
+| 49 | GET | `/api/merchant/order/stats` | 订单状态分布统计（tab 角标） | MERCHANT |
+| 50 | WS | `/ws/merchant?token=` | 新订单实时推送（WebSocket，见 5.6） | MERCHANT |
+| 51 | GET | `/api/merchant/order/{id}` | 订单详情 | MERCHANT |
+| 52 | PUT | `/api/merchant/order/{id}/accept` | 接单 | MERCHANT |
+| 53 | PUT | `/api/merchant/order/{id}/cooking` | 开始制作 | MERCHANT |
+| 54 | PUT | `/api/merchant/order/{id}/complete` | 完成制作 | MERCHANT |
+| 55 | PUT | `/api/merchant/order/{id}/reject` | 拒单（自动退款） | MERCHANT |
+| 56 | GET | `/api/admin/dashboard/stats` | 核心统计卡片 | ADMIN |
+| 57 | GET | `/api/admin/dashboard/order-stats` | 订单状态分布（可选 date） | ADMIN |
+| 58 | GET | `/api/admin/dashboard/recent-orders` | 最新订单 | ADMIN |
+| 59 | GET | `/api/admin/merchant-application/pending` | 入驻申请列表 | ADMIN |
+| 60 | GET | `/api/admin/merchant-application/{id}/detail` | 申请详情 | ADMIN |
+| 61 | PUT | `/api/admin/merchant-application/{id}/approve` | 通过申请(V1) | ADMIN |
+| 62 | PUT | `/api/admin/merchant-application/{id}/reject` | 拒绝申请(V1) | ADMIN |
+| 63 | POST | `/api/admin/application/{id}/approve` | 通过申请(V2) | ADMIN |
+| 64 | POST | `/api/admin/application/{id}/reject` | 拒绝申请(V2) | ADMIN |
+| 65 | GET | `/api/admin/users` | 用户列表 | ADMIN |
+| 66 | GET | `/api/admin/users/{id}/detail` | 用户详情 | ADMIN |
+| 67 | PUT | `/api/admin/users/{id}/ban` | 封禁用户（推荐） | ADMIN |
+| 68 | PUT | `/api/admin/users/{id}/unban` | 解封用户（推荐） | ADMIN |
+| 69 | GET | `/api/admin/users/{id}/logs` | 用户操作日志 | ADMIN |
+| 70 | DELETE | `/api/admin/users/{id}` | 删除用户（物理删+级联，仅封禁账号可删 2306） | ADMIN |
+| 71 | POST | `/api/admin/users/batch-unban` | 批量启用用户 | ADMIN |
+| 72 | POST | `/api/admin/users/batch-delete` | 批量删除用户（仅封禁账号可删，启用跳过） | ADMIN |
+| 73 | GET | `/api/admin/merchants` | 商家列表(V1) | ADMIN |
+| 74 | PUT | `/api/admin/merchants/{id}/suspend` | 封禁商家(V1) | ADMIN |
+| 75 | PUT | `/api/admin/merchants/{id}/activate` | 解封商家(V1) | ADMIN |
+| 76 | GET | `/api/admin/merchant/stats` | 商家统计概览 | ADMIN |
+| 77 | GET | `/api/admin/merchant/{id}/detail` | 商家详情(V2) | ADMIN |
+| 78 | PUT | `/api/admin/merchant/{id}/pause` | 暂停营业 | ADMIN |
+| 79 | PUT | `/api/admin/merchant/{id}/resume` | 恢复营业 | ADMIN |
+| 80 | PUT | `/api/admin/merchant/{id}/ban` | 封禁商家(V2) | ADMIN |
+| 81 | PUT | `/api/admin/merchant/{id}/unban` | 解封商家(V2) | ADMIN |
+| 82 | DELETE | `/api/admin/merchant/{id}` | 删除商家（仅封禁可删 2307，级联物理删） | ADMIN |
+| 83 | POST | `/api/admin/merchant/batch-delete` | 批量删除商家（未封禁自动跳过） | ADMIN |
+| 84 | GET | `/api/admin/merchant/{id}/logs` | 商家操作日志 | ADMIN |
+| 85 | GET | `/api/admin/category` | 品类列表（支持日期范围筛选） | ADMIN |
+| 86 | GET | `/api/admin/category/all` | 全部启用品类 | ADMIN |
+| 87 | GET | `/api/admin/category/stats` | 品类统计 | ADMIN |
+| 88 | GET | `/api/admin/category/{id}` | 品类详情 | ADMIN |
+| 89 | POST | `/api/admin/category` | 新增品类 | ADMIN |
+| 90 | PUT | `/api/admin/category/{id}` | 修改品类 | ADMIN |
+| 91 | PUT | `/api/admin/category/{id}/enable` | 启用品类 | ADMIN |
+| 92 | PUT | `/api/admin/category/{id}/disable` | 停用品类 | ADMIN |
+| 93 | DELETE | `/api/admin/category/{id}` | 删除品类 | ADMIN |
+| 94 | POST | `/api/admin/category/reorder` | 批量排序 | ADMIN |
+| 95 | POST | `/api/admin/category/batch-enable` | 批量启用品类 | ADMIN |
+| 96 | POST | `/api/admin/category/batch-disable` | 批量停用品类 | ADMIN |
+| 97 | POST | `/api/admin/category/batch-delete` | 批量删除品类 | ADMIN |
+| 98 | GET | `/api/admin/orders` | 订单列表 | ADMIN |
+| 99 | GET | `/api/admin/orders/{id}` | 订单详情 | ADMIN |
+| 100 | POST | `/api/admin/orders/{id}/refund` | 订单退款 | ADMIN |
+| 101 | POST | `/api/admin/orders/batch-refund` | 批量退款 | ADMIN |
+| 102 | POST | `/api/admin/orders/batch-delete` | 批量删除订单 | ADMIN |
+| 103 | POST | `/api/admin/merchant-application/batch-approve` | 批量通过入驻申请 | ADMIN |
+| 104 | POST | `/api/admin/merchant-application/batch-reject` | 批量拒绝入驻申请 | ADMIN |
+| 105 | GET | `/api/upload/sign` | OSS 上传签名 | 登录 |
+| 106 | POST | `/api/upload/bind` | 绑定上传文件 | 登录 |
+| 107 | GET | `/api/upload/url` | 获取文件访问 URL | 登录 |
+| 108 | POST | `/api/upload/callback` | OSS 上传回调 | 匿名 |
+| 109 | GET | `/api/merchant/dashboard` | 商家工作台统计（见 5.1） | MERCHANT |
+| 110 | GET | `/api/admin/dashboard/user-trend` | 注册用户趋势（近 N 日） | ADMIN |
+| 111 | GET | `/api/admin/dashboard/application-trend` | 商家入驻趋势（近 N 日） | ADMIN |
 
 ---
 

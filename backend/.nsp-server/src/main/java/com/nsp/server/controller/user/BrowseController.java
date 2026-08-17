@@ -69,4 +69,11 @@ public class BrowseController {
         return Result.ok(productService.listByMerchant(id, null, page, size, null, "ON"));
     }
 
+    @Operation(summary = "商品详情（仅上架商品，属于指定商家）")
+    @GetMapping("/merchants/{merchantId}/products/{productId}")
+    public Result<ProductVO> getProduct(@PathVariable Long merchantId,
+                                        @PathVariable Long productId) {
+        return Result.ok(productService.getForBrowse(merchantId, productId));
+    }
+
 }

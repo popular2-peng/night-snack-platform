@@ -16,10 +16,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 商品管理接口（商家后台 + 用户浏览）
+ * 商品管理接口（商家后台）
  *
- * <p>写操作（增删改/上下架/规格）的商家身份由 JWT 解析（sub = merchant.id），不再接收前端传 merchantId；
- * 浏览接口（list / 详情）保留 merchantId Query 参数 —— 用户端浏览商家商品时需显式指定商家。
+ * <p>写操作（增删改/上下架/规格）与商品浏览（列表 / 详情）的商家身份均由 JWT 解析（sub = merchant.id），
+ * 不再接收前端传 merchantId 作为权限依据；用户端浏览商品见 {@code /api/user/merchants/**}（BrowseController）。
  */
 @Tag(name = "商品管理", description = "商品 CRUD、上架/下架、规格管理")
 @RestController
@@ -29,9 +29,9 @@ public class ProductController {
 
     private final ProductService productService;
 
-    @Operation(summary = "商品列表（用户端也可调用，分页返回，支持名称搜索/状态筛选）")
+    @Operation(summary = "商品列表（商家后台，分页返回，支持名称搜索/状态筛选）")
     @GetMapping("/list")
-    @RequireRole({"USER", "MERCHANT", "ADMIN"})
+    @RequireRole("MERCHANT")
     public Result<PageVO<ProductVO>> list(@RequestParam Long merchantId,
                                            @RequestParam(required = false) Long categoryId,
                                            @RequestParam(defaultValue = "1") int page,
@@ -41,9 +41,9 @@ public class ProductController {
         return Result.ok(productService.listByMerchant(merchantId, categoryId, page, size, keyword, status));
     }
 
-    @Operation(summary = "商品详情")
+    @Operation(summary = "商品详情（商家后台）")
     @GetMapping("/{id}")
-    @RequireRole({"USER", "MERCHANT", "ADMIN"})
+    @RequireRole("MERCHANT")
     public Result<ProductVO> getById(@PathVariable Long id) {
         return Result.ok(productService.getById(id));
     }

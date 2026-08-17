@@ -15,6 +15,9 @@ public interface ProductService {
 
     ProductVO getById(Long id);
 
+    /** 用户端浏览商品详情：校验商品属于指定商家且为上架状态 */
+    ProductVO getForBrowse(Long merchantId, Long productId);
+
     ProductVO create(Long merchantId, ProductDTO dto);
 
     ProductVO update(Long id, Long merchantId, ProductDTO dto);

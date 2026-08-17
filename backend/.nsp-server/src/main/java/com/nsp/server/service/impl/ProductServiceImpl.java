@@ -76,6 +76,20 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public ProductVO getForBrowse(Long merchantId, Long productId) {
+        Product product = productMapper.selectById(productId);
+        // 商品不存在或不属于该商家，统一按「不存在」处理（避免泄露他店商品）
+        if (product == null || !product.getMerchantId().equals(merchantId)) {
+            throw new BizException(ErrorCode.PRODUCT_NOT_FOUND, MessageConst.PRODUCT_NOT_FOUND_MSG);
+        }
+        if (!"ON".equals(product.getStatus())) {
+            throw new BizException(ErrorCode.PRODUCT_OFF_SHELF,
+                    String.format(MessageConst.PRODUCT_OFF_SHELF_MSG, product.getName()));
+        }
+        return toVO(product);
+    }
+
+    @Override
     @Transactional
     public ProductVO create(Long merchantId, ProductDTO dto) {
         // 校验品类属于该商家

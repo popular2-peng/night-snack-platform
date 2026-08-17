@@ -42,6 +42,8 @@ export interface ProductVO {
   description: string
   categoryId: number
   categoryName: string
+  /** 规格列表（商品详情接口返回） */
+  specs?: { id?: number; name: string; priceDelta: number; stock: number }[]
 }
 
 /** 分页响应 */
@@ -73,3 +75,7 @@ export const listProductsApi = (
   merchantId: number,
   params: { page?: number; size?: number } = {},
 ) => request.get<PageVO<ProductVO>>(`/user/merchants/${merchantId}/products`, { params })
+
+/** 商品详情（仅上架商品，属于指定商家） */
+export const getProductDetailApi = (merchantId: number, productId: number) =>
+  request.get<ProductVO>(`/user/merchants/${merchantId}/products/${productId}`)
