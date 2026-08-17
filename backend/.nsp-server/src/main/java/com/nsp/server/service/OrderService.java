@@ -15,8 +15,11 @@ public interface OrderService {
     /** 用户下单 */
     OrderVO createOrder(Long userId, OrderCreateDTO dto);
 
-    /** 用户查询自己的订单列表 */
-    PageVO<OrderListVO> getUserOrders(Long userId, int page, int size);
+    /** 用户查询自己的订单列表（支持状态筛选与关键词搜索，排除用户已删除） */
+    PageVO<OrderListVO> getUserOrders(Long userId, int page, int size, String status, String keyword);
+
+    /** 用户删除订单（软删：user_deleted=1，用户端列表不再显示） */
+    void deleteUserOrder(Long orderId, Long userId);
 
     /** 商家查询自己店铺的订单列表（支持状态筛选与下单日期范围，非法状态值忽略） */
     PageVO<OrderListVO> getMerchantOrders(Long merchantId, Long userId, int page, int size,

@@ -44,6 +44,9 @@ public class Order {
     /** 支付时间 */
     private LocalDateTime payTime;
 
+    /** 用户删除标记：0-未删除 1-已删除（用户端列表不再显示） */
+    private Integer userDeleted;
+
     /** 创建时间 */
     private LocalDateTime createdAt;
 

@@ -2,6 +2,7 @@ package com.nsp.server.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -221,14 +222,66 @@ public class OrderServiceImpl implements OrderService {
     // ──────────────────────────────────────
 
     @Override
-    public PageVO<OrderListVO> getUserOrders(Long userId, int page, int size) {
-        Page<Order> result = orderMapper.selectPage(
-                new Page<>(page, size),
-                new LambdaQueryWrapper<Order>()
-                        .eq(Order::getUserId, userId)
-                        .orderByDesc(Order::getId));
+    public PageVO<OrderListVO> getUserOrders(Long userId, int page, int size,
+                                             String status, String keyword) {
+        LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<Order>()
+                .eq(Order::getUserId, userId)
+                // 排除用户已删除的订单（软删，对用户不可见）
+                .eq(Order::getUserDeleted, 0)
+                .orderByDesc(Order::getId);
 
+        // 状态筛选：支持逗号分隔多状态（如 "REFUNDING,REFUNDED"），非法值忽略
+        if (status != null && !status.isBlank()) {
+            List<OrderStatus> statuses = Arrays.stream(status.split(","))
+                    .map(String::trim)
+                    .map(OrderStatus::fromCode)
+                    .filter(Objects::nonNull)
+                    .toList();
+            if (!statuses.isEmpty()) {
+                wrapper.in(Order::getStatus, statuses);
+            }
+        }
+
+        // 关键词搜索：商家名 / 商品名（参数化查询，避免 SQL 注入）
+        if (keyword != null && !keyword.isBlank()) {
+            String kw = keyword.trim();
+            List<Long> merchantIds = merchantMapper.selectList(
+                    new LambdaQueryWrapper<Merchant>().like(Merchant::getName, kw))
+                    .stream().map(Merchant::getId).toList();
+            List<Long> orderIds = orderItemMapper.selectList(
+                    new LambdaQueryWrapper<OrderItem>().like(OrderItem::getNameSnapshot, kw))
+                    .stream().map(OrderItem::getOrderId).distinct().toList();
+
+            wrapper.and(w -> {
+                boolean hasMerchant = !merchantIds.isEmpty();
+                boolean hasOrder = !orderIds.isEmpty();
+                if (hasMerchant && hasOrder) {
+                    w.in(Order::getMerchantId, merchantIds).or().in(Order::getId, orderIds);
+                } else if (hasMerchant) {
+                    w.in(Order::getMerchantId, merchantIds);
+                } else if (hasOrder) {
+                    w.in(Order::getId, orderIds);
+                } else {
+                    w.eq(Order::getId, -1L); // 关键词无任何匹配 → 空结果
+                }
+            });
+        }
+
+        Page<Order> result = orderMapper.selectPage(new Page<>(page, size), wrapper);
         return toPageVO(result);
+    }
+
+    @Override
+    public void deleteUserOrder(Long orderId, Long userId) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null || !order.getUserId().equals(userId)) {
+            throw new BizException(ErrorCode.ORDER_NOT_FOUND, MessageConst.ORDER_NOT_FOUND_MSG);
+        }
+        orderMapper.update(null, new LambdaUpdateWrapper<Order>()
+                .eq(Order::getId, orderId)
+                .set(Order::getUserDeleted, 1)
+                .setSql("updated_at = updated_at"));
+        log.info("用户删除订单(软删): orderId={}, userId={}", orderId, userId);
     }
 
     @Override

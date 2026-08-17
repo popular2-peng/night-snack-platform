@@ -641,10 +641,18 @@ POST /api/user/order
 #### 我的订单列表
 
 ```
-GET /api/user/order?page=1&size=20
+GET /api/user/order?page=1&size=20&status={status}&keyword={keyword}
 ```
 
-**响应 data：** `PageVO<OrderListVO>`
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `page` / `size` | int | 否 | 分页，默认 1/20 |
+| `status` | string | 否 | 状态筛选：单个状态码，或逗号分隔多状态（如 `REFUNDING,REFUNDED` 表示退款中/已退款），非法值忽略 |
+| `keyword` | string | 否 | 关键词搜索：匹配商家名 / 商品名 |
+
+> 自动排除用户已删除的订单（`user_deleted=1`，删除后对用户不可见）。
+
+**响应 data：** `PageVO<OrderListVO>`（含 `items` 商品明细、`merchantName`、`totalAmount`、`createdAt`）
 
 ---
 
@@ -667,6 +675,18 @@ POST /api/user/order/{id}/cancel
 > 仅 `PENDING_PAY` 状态可取消，取消后释放预扣库存。
 
 **可能错误码：** `4001`, `4002`
+
+---
+
+#### 删除订单（软删）
+
+```
+POST /api/user/order/{id}/delete
+```
+
+> 用户删除订单：数据库 `user_deleted` 置 1，订单列表对其**不再显示**（不影响商家端/管理端与后续退款流程）。仅限订单所属用户本人操作，他人订单按 `4001` 处理。
+
+**可能错误码：** `4001`
 
 ---
 
@@ -2286,7 +2306,7 @@ PAID / ACCEPTED / COOKING ──(管理员退款)──→ REFUNDING ──(退�
 | 20 | DELETE | `/api/user/cart/{specId}` | 移除购物车商品 | USER |
 | 21 | DELETE | `/api/user/cart` | 清空购物车 | USER |
 | 22 | POST | `/api/user/order` | 创建订单（clientToken 幂等） | USER |
-| 23 | GET | `/api/user/order` | 我的订单列表 | USER |
+| 23 | GET | `/api/user/order` | 我的订单列表（状态筛选+搜索，排除已删除） | USER |
 | 24 | GET | `/api/user/order/{id}` | 订单详情 | USER |
 | 25 | POST | `/api/user/order/{id}/cancel` | 取消订单 | USER |
 | 26 | POST | `/api/user/pay` | 发起支付 | USER |
@@ -2375,6 +2395,7 @@ PAID / ACCEPTED / COOKING ──(管理员退款)──→ REFUNDING ──(退�
 | 109 | GET | `/api/merchant/dashboard` | 商家工作台统计（见 5.1） | MERCHANT |
 | 110 | GET | `/api/admin/dashboard/user-trend` | 注册用户趋势（近 N 日） | ADMIN |
 | 111 | GET | `/api/admin/dashboard/application-trend` | 商家入驻趋势（近 N 日） | ADMIN |
+| 112 | POST | `/api/user/order/{id}/delete` | 删除订单（软删，用户端不再显示） | USER |
 
 ---
 

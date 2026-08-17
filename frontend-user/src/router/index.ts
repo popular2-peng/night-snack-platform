@@ -27,8 +27,8 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'orders',
         name: 'Orders',
-        component: () => import('@/views/PlaceholderPage.vue'),
-        meta: { title: '订单', tabbar: true, placeholder: true, requiresAuth: true },
+        component: () => import('@/views/Orders/index.vue'),
+        meta: { title: '订单', tabbar: true, requiresAuth: true },
       },
       {
         path: 'profile',

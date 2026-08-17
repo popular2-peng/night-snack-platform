@@ -33,13 +33,24 @@ public class OrderController {
         return Result.ok(orderService.createOrder(userId, dto));
     }
 
-    @Operation(summary = "我的订单列表")
+    @Operation(summary = "我的订单列表（支持状态筛选与关键词搜索，排除已删除）")
     @GetMapping
     @RequireRole("USER")
     public Result<PageVO<OrderListVO>> list(@AuthenticationPrincipal Long userId,
                                              @RequestParam(defaultValue = "1") int page,
-                                             @RequestParam(defaultValue = "20") int size) {
-        return Result.ok(orderService.getUserOrders(userId, page, size));
+                                             @RequestParam(defaultValue = "20") int size,
+                                             @RequestParam(required = false) String status,
+                                             @RequestParam(required = false) String keyword) {
+        return Result.ok(orderService.getUserOrders(userId, page, size, status, keyword));
+    }
+
+    @Operation(summary = "删除订单（软删，用户端不再显示）")
+    @PostMapping("/{id}/delete")
+    @RequireRole("USER")
+    public Result<Void> delete(@PathVariable Long id,
+                               @AuthenticationPrincipal Long userId) {
+        orderService.deleteUserOrder(id, userId);
+        return Result.ok();
     }
 
     @Operation(summary = "订单详情")
