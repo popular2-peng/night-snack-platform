@@ -61,11 +61,12 @@ public class SecurityConfig {
                                 "/api/user/register"
                         ).permitAll()
 
-                        // 用户端浏览接口（商家/商品/分类，匿名公开）
+                        // 用户端浏览接口（商家/商品/分类/搜索，匿名公开）
                         .requestMatchers(HttpMethod.GET,
                                 "/api/user/categories",
                                 "/api/user/merchants",
-                                "/api/user/merchants/**"
+                                "/api/user/merchants/**",
+                                "/api/user/search/**"
                         ).permitAll()
 
                         // 商家端：登录 + 入驻申请（注册）+ 注册页品类下拉 + 注册页 OSS 签名（匿名直传店铺 LOGO）

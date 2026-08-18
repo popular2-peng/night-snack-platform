@@ -85,7 +85,7 @@ public class MerchantServiceImpl implements MerchantService {
     }
 
     @Override
-    public PageVO<MerchantVO> listAll(int page, int size, Long categoryId) {
+    public PageVO<MerchantVO> listAll(int page, int size, Long categoryId, String keyword) {
         // Cache Aside：先读缓存，未命中回源 MySQL 并写入缓存
         List<MerchantVO> all = homeMerchantListCache.get();
         if (all == null) {
@@ -97,6 +97,14 @@ public class MerchantServiceImpl implements MerchantService {
         if (categoryId != null) {
             all = all.stream()
                     .filter(m -> categoryId.equals(m.getCategoryId()))
+                    .toList();
+        }
+
+        // 店铺名关键词搜索（搜索页使用，服务端过滤而非前端过滤）
+        if (keyword != null && !keyword.isBlank()) {
+            String kw = keyword.trim().toLowerCase();
+            all = all.stream()
+                    .filter(m -> m.getName() != null && m.getName().toLowerCase().contains(kw))
                     .toList();
         }
 

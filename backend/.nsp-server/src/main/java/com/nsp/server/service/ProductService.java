@@ -18,6 +18,16 @@ public interface ProductService {
     /** 用户端浏览商品详情：校验商品属于指定商家且为上架状态 */
     ProductVO getForBrowse(Long merchantId, Long productId);
 
+    /**
+     * 商品搜索（跨商家）：按商品名模糊搜索，仅返回上架商品，
+     * 且所属商家必须为营业中（搜索页使用）。
+     *
+     * @param keyword 商品名关键词（模糊匹配）
+     * @param page    页码
+     * @param size    每页条数
+     */
+    PageVO<ProductVO> searchOnSale(String keyword, int page, int size);
+
     ProductVO create(Long merchantId, ProductDTO dto);
 
     ProductVO update(Long id, Long merchantId, ProductDTO dto);

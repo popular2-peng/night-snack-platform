@@ -24,6 +24,12 @@ public class ProductVO {
     /** 所属品类名称 */
     private String categoryName;
 
+    /** 所属商家 ID（商品搜索时前端跳转商家详情用） */
+    private Long merchantId;
+
+    /** 所属商家名称（商品搜索结果展示） */
+    private String merchantName;
+
     /** 商品规格列表 */
     private List<SpecVO> specs;
 

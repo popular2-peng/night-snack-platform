@@ -9,6 +9,7 @@ import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.ProductDTO;
 import com.nsp.pojo.dto.ProductSpecDTO;
 import com.nsp.pojo.entity.Category;
+import com.nsp.pojo.entity.Merchant;
 import com.nsp.pojo.entity.Product;
 import com.nsp.pojo.entity.ProductSpec;
 import com.nsp.pojo.vo.PageVO;
@@ -75,6 +76,22 @@ public class ProductServiceImpl implements ProductService {
             throw new BizException(ErrorCode.PRODUCT_NOT_FOUND, MessageConst.PRODUCT_NOT_FOUND_MSG);
         }
         return toVO(product);
+    }
+
+    @Override
+    public PageVO<ProductVO> searchOnSale(String keyword, int page, int size) {
+        LambdaQueryWrapper<Product> wrapper = new LambdaQueryWrapper<Product>()
+                .eq(Product::getStatus, "ON")
+                // 仅营业中商家（搜索页语义：打烊商家的商品不可见）
+                .inSql(Product::getMerchantId, "SELECT id FROM merchant WHERE status = 'OPEN'")
+                .orderByDesc(Product::getUpdatedAt);
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.like(Product::getName, keyword.trim());
+        }
+
+        Page<Product> result = productMapper.selectPage(new Page<>(page, size), wrapper);
+        List<ProductVO> list = result.getRecords().stream().map(this::toVO).toList();
+        return new PageVO<>(result.getTotal(), list);
     }
 
     @Override
@@ -196,6 +213,12 @@ public class ProductServiceImpl implements ProductService {
         Category category = categoryMapper.selectById(product.getCategoryId());
         if (category != null) {
             vo.setCategoryName(category.getName());
+        }
+
+        // 所属商家名称（商品搜索结果展示）
+        Merchant merchant = merchantMapper.selectById(product.getMerchantId());
+        if (merchant != null) {
+            vo.setMerchantName(merchant.getName());
         }
 
         // 规格列表

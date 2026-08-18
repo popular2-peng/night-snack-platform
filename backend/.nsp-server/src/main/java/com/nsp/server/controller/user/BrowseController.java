@@ -46,13 +46,23 @@ public class BrowseController {
         return Result.ok(platformCategoryService.listAllEnabled());
     }
 
-    @Operation(summary = "商家列表（全部营业中商家，分页，可选按主营品类筛选）")
+    @Operation(summary = "商家列表（全部营业中商家，分页，可选按主营品类筛选与店铺名关键词搜索）")
     @GetMapping("/merchants")
     public Result<PageVO<MerchantVO>> listMerchants(
             @Parameter(description = "主营品类 ID，不传为全部") @RequestParam(required = false) Long categoryId,
+            @Parameter(description = "店铺名关键词（模糊匹配）") @RequestParam(required = false) String keyword,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "20") int size) {
-        return Result.ok(merchantService.listAll(page, size, categoryId));
+        return Result.ok(merchantService.listAll(page, size, categoryId, keyword));
+    }
+
+    @Operation(summary = "商品搜索（跨商家：按商品名模糊搜索，仅上架且所属商家营业中）")
+    @GetMapping("/search/products")
+    public Result<PageVO<ProductVO>> searchProducts(
+            @Parameter(description = "商品名关键词") @RequestParam String keyword,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每页条数") @RequestParam(defaultValue = "20") int size) {
+        return Result.ok(productService.searchOnSale(keyword, page, size));
     }
 
     @Operation(summary = "商家详情")
