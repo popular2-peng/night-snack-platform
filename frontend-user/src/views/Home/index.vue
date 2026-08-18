@@ -116,13 +116,16 @@ onMounted(async () => {
 
 <template>
   <div class="home-page">
-    <HomeHeader :district="district" @go-address="onGoAddress" />
+    <!-- 顶部（头部 + 分类滑条）吸顶 -->
+    <div class="home-top">
+      <HomeHeader :district="district" @go-address="onGoAddress" />
 
-    <CategorySlider
-      :categories="categories"
-      :active-id="selectedCategoryId ?? 0"
-      @select="onSelectCategory"
-    />
+      <CategorySlider
+        :categories="categories"
+        :active-id="selectedCategoryId ?? 0"
+        @select="onSelectCategory"
+      />
+    </div>
 
     <MerchantList
       :merchants="merchants"
@@ -137,5 +140,10 @@ onMounted(async () => {
 .home-page {
   min-height: 100vh;
   background: #f6f7f9;
+}
+.home-top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 </style>
