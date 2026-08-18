@@ -49,6 +49,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '搜索' },
       },
       {
+        path: 'merchant/:id',
+        name: 'Merchant',
+        component: () => import('@/views/Merchant/index.vue'),
+        meta: { title: '商家' },
+      },
+      {
         path: 'address/edit',
         name: 'AddressEdit',
         component: () => import('@/views/Address/edit.vue'),

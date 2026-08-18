@@ -103,8 +103,7 @@ const onSelectCategory = (c: CategoryVO) => {
   fetchMerchants()
 }
 const onMerchantClick = (m: HomeMerchant) => {
-  // TODO: 跳转商家详情页（后续实现）
-  void m
+  router.push(`/merchant/${m.id}`)
 }
 
 onMounted(async () => {

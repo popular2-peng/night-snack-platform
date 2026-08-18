@@ -82,6 +82,10 @@ export const listMerchantsApi = (params: {
 export const searchProductsApi = (params: { keyword: string; page?: number; size?: number }) =>
   request.get<PageVO<ProductVO>>('/user/search/products', { params })
 
+/** 商家详情（匿名） */
+export const getMerchantDetailApi = (id: number) =>
+  request.get<MerchantVO>(`/user/merchants/${id}`)
+
 /** 商家在售商品列表 */
 export const listProductsApi = (
   merchantId: number,
