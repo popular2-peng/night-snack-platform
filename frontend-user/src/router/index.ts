@@ -43,6 +43,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '我的收货地址', requiresAuth: true },
       },
       {
+        path: 'search',
+        name: 'Search',
+        component: () => import('@/views/Search/index.vue'),
+        meta: { title: '搜索' },
+      },
+      {
         path: 'address/edit',
         name: 'AddressEdit',
         component: () => import('@/views/Address/edit.vue'),

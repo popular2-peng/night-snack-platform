@@ -44,6 +44,10 @@ export interface ProductVO {
   description: string
   categoryId: number
   categoryName: string
+  /** 所属商家 ID（商品搜索时跳转商家详情用） */
+  merchantId: number
+  /** 所属商家名称（商品搜索结果展示） */
+  merchantName: string
   /** 规格列表（商品详情接口返回） */
   specs?: { id?: number; name: string; priceDelta: number; stock: number }[]
 }
@@ -66,12 +70,17 @@ export interface HomeMerchant extends MerchantVO {
 /** 平台启用品类（分类导航，匿名公开） */
 export const listCategoriesApi = () => request.get<CategoryVO[]>('/user/categories')
 
-/** 商家列表（全部营业中商家，分页，可选按主营品类筛选） */
+/** 商家列表（全部营业中商家，分页，可选按主营品类筛选与店铺名关键词搜索） */
 export const listMerchantsApi = (params: {
   page?: number
   size?: number
   categoryId?: number
+  keyword?: string
 }) => request.get<PageVO<MerchantVO>>('/user/merchants', { params })
+
+/** 商品搜索（跨商家：按商品名模糊搜索，仅上架且所属商家营业中） */
+export const searchProductsApi = (params: { keyword: string; page?: number; size?: number }) =>
+  request.get<PageVO<ProductVO>>('/user/search/products', { params })
 
 /** 商家在售商品列表 */
 export const listProductsApi = (

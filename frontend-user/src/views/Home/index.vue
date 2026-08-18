@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -13,7 +13,8 @@ import { listAddressesApi, type AddressVO } from '@/apis/address'
 import { extractDistrict } from '@/utils/district'
 import HomeHeader from '@/components/home/HomeHeader.vue'
 import CategorySlider from '@/components/home/CategorySlider.vue'
-import MerchantList from '@/components/home/MerchantList.vue'
+// 商家列表（公共组件：首页与搜索页复用，含商品懒加载）
+import MerchantList from '@/components/MerchantList.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -22,12 +23,10 @@ const authStore = useAuthStore()
 const district = ref('')
 /** 分类列表 */
 const categories = ref<CategoryVO[]>([])
-/** 商家列表（含在售商品预览） */
+/** 商家列表（含在售商品预览，商品懒加载） */
 const merchants = ref<HomeMerchant[]>([])
 /** 商家列表加载中 */
 const loading = ref(false)
-/** 搜索关键词 */
-const keyword = ref('')
 /** 当前选中的主营品类 ID（null=全部） */
 const selectedCategoryId = ref<number | null>(null)
 
@@ -97,20 +96,6 @@ const loadProducts = async (m: HomeMerchant) => {
   }
 }
 
-/** 搜索过滤：按店铺名 / 在售商品名 */
-const filteredMerchants = computed(() => {
-  if (!keyword.value) return merchants.value
-  const kw = keyword.value.toLowerCase()
-  return merchants.value.filter(
-    (m) =>
-      m.name.toLowerCase().includes(kw) ||
-      m.products.some((p) => p.name.toLowerCase().includes(kw)),
-  )
-})
-
-const onSearch = (kw: string) => {
-  keyword.value = kw
-}
 const onGoAddress = () => router.push('/address')
 /** 点击分类：按主营品类筛选商家（id=0 为「全部」，清除筛选） */
 const onSelectCategory = (c: CategoryVO) => {
@@ -131,7 +116,7 @@ onMounted(async () => {
 
 <template>
   <div class="home-page">
-    <HomeHeader :district="district" @search="onSearch" @go-address="onGoAddress" />
+    <HomeHeader :district="district" @go-address="onGoAddress" />
 
     <CategorySlider
       :categories="categories"
@@ -140,7 +125,7 @@ onMounted(async () => {
     />
 
     <MerchantList
-      :merchants="filteredMerchants"
+      :merchants="merchants"
       :loading="loading"
       @click="onMerchantClick"
       @visible="loadProducts"

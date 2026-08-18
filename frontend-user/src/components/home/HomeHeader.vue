@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 defineProps<{
   /** 默认地址中的区县名（无地址时为空，不展示） */
@@ -7,15 +7,14 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  /** 搜索关键词变化（父组件做防抖） */
-  search: [keyword: string]
   /** 点击区县跳转地址页 */
   goAddress: []
 }>()
 
-const keyword = ref('')
+const router = useRouter()
 
-const onInput = () => emit('search', keyword.value.trim())
+/** 点击搜索框 → 跳搜索页（搜索走独立页面，重新发起接口请求） */
+const goSearch = () => router.push('/search')
 </script>
 
 <template>
@@ -27,13 +26,13 @@ const onInput = () => emit('search', keyword.value.trim())
       <van-icon name="arrow-down" size="10" />
     </div>
 
-    <!-- 右：搜索栏，占剩余全部 -->
+    <!-- 右：搜索栏（只读，点击进入搜索页） -->
     <van-search
-      v-model="keyword"
       class="search"
       placeholder="搜索店铺 / 美食"
       shape="round"
-      @update:model-value="onInput"
+      readonly
+      @click="goSearch"
     />
   </div>
 </template>
