@@ -18,7 +18,6 @@ public class MerchantVO {
     private String address;
     private BigDecimal lat;
     private BigDecimal lng;
-    private String avatarUrl;
     private String status;
 
     @JsonFormat(pattern = "HH:mm")

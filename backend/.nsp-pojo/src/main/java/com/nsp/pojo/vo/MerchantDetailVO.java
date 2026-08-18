@@ -16,8 +16,9 @@ import java.time.LocalTime;
 public class MerchantDetailVO {
 
     private Long id;
-    private String username;
     private String name;
+    /** 联系人姓名（店主） */
+    private String ownerName;
     /** 手机号（脱敏） */
     private String phone;
     private String address;

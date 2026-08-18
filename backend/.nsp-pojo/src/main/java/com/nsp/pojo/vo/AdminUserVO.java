@@ -12,18 +12,17 @@ import java.time.LocalDateTime;
 public class AdminUserVO {
 
     private Long id;
+    /** 用户名（后端生成，展示用） */
     private String username;
     /** 手机号（脱敏：138****0002） */
     private String phone;
     /** 头像 OSS URL */
     private String avatarUrl;
-    /** 性别：0-未知 1-男 2-女 */
-    private Integer gender;
     /** ACTIVE / DISABLED */
     private String status;
-    /** 历史总订单数 */
+    /** 历史总订单数（order 表实时统计） */
     private Integer totalOrders;
-    /** 历史总消费金额 */
+    /** 历史总消费金额（order 表实时统计） */
     private BigDecimal totalSpent;
 
     /** 最后登录时间（登录成功后实时更新） */

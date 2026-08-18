@@ -110,8 +110,7 @@ Token 有效期 2 小时，Refresh Token 有效期 7 天。
 
 | code | 说明 |
 |------|------|
-| `2001` | 用户名已存在 |
-| `2002` | 手机号已注册 |
+| `2001` | 手机号已注册（用户注册/商家入驻） |
 | `2003` | 用户不存在 |
 | `2004` | 密码错误 |
 | `2101` | 地址不存在 |
@@ -226,7 +225,7 @@ POST /api/user/register
 ```json
 {
   "userId": 1,
-  "username": "zhangsan",
+  "username": "普通用户a1b2c3d4",
   "role": "USER",
   "accessToken": "eyJ...",
   "refreshToken": "eyJ..."
@@ -236,12 +235,12 @@ POST /api/user/register
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `userId` | long | 用户 ID |
-| `username` | string | 用户名 |
+| `username` | string | 展示名（后端生成：`普通用户` + 8 位随机串，前端无需传入） |
 | `role` | string | `USER` |
 | `accessToken` | string | 访问令牌（有效期 2 小时） |
 | `refreshToken` | string | 刷新令牌（有效期 7 天） |
 
-**可能错误码：** `2002`
+**可能错误码：** `2001`
 
 ---
 
@@ -269,7 +268,7 @@ POST /api/user/login
 ```json
 {
   "userId": 1,
-  "username": "tester",
+  "username": "普通用户a1b2c3d4",
   "role": "USER",
   "accessToken": "eyJ...",
   "refreshToken": "eyJ..."
@@ -279,7 +278,7 @@ POST /api/user/login
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `userId` | long | 用户 ID |
-| `username` | string | 用户名 |
+| `username` | string | 展示名（注册时后端生成的 `普通用户` + 8 位随机串） |
 | `role` | string | `USER` |
 | `accessToken` | string | 访问令牌（有效期 2 小时） |
 | `refreshToken` | string | 刷新令牌（有效期 7 天） |
@@ -309,7 +308,25 @@ POST /api/merchant/login
 
 > 登录成功后，后端实时更新该商家 `last_login_at`（最后登录时间），管理端商家列表据此展示。
 
-**响应 data：** 同 3.2，`role` 固定为 `MERCHANT`
+**响应 data：** `LoginVO`，`role` 固定为 `MERCHANT`：
+
+```json
+{
+  "userId": 1,
+  "username": "深夜食堂",
+  "role": "MERCHANT",
+  "accessToken": "eyJ...",
+  "refreshToken": "eyJ..."
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `userId` | long | 商家 ID（即 JWT 的 sub，商家端接口据此识别身份） |
+| `username` | string | 展示名（店铺名称 `merchant.name`，商家端顶栏显示用） |
+| `role` | string | `MERCHANT` |
+| `accessToken` | string | 访问令牌（有效期 2 小时） |
+| `refreshToken` | string | 刷新令牌（有效期 7 天） |
 
 **可能错误码：** `2003`（该手机号未注册商家）, `2004`, `1002`, `3003`
 
@@ -330,7 +347,25 @@ POST /api/admin/login
 | `username` | string | 是 | 管理员用户名 |
 | `password` | string | 是 | 密码 |
 
-**响应 data：** 同 3.2，`role` 固定为 `ADMIN`
+**响应 data：** `LoginVO`，`role` 固定为 `ADMIN`：
+
+```json
+{
+  "userId": 1,
+  "username": "admin",
+  "role": "ADMIN",
+  "accessToken": "eyJ...",
+  "refreshToken": "eyJ..."
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `userId` | long | 管理员 ID |
+| `username` | string | 管理员用户名 |
+| `role` | string | `ADMIN` |
+| `accessToken` | string | 访问令牌（有效期 2 小时） |
+| `refreshToken` | string | 刷新令牌（有效期 7 天） |
 
 **可能错误码：** `2003`（管理员不存在）, `2004`, `1002`（管理员被封禁）
 
@@ -346,10 +381,9 @@ POST /api/merchant/register
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `username` | string | 是 | 登录账号（审核通过后即为商家登录账号；前端自动生成，如 `m` + 10 位随机） |
 | `password` | string | 是 | 登录密码（BCrypt 加密存储） |
-| `phone` | string | 是 | 联系人手机号（商家登录凭据） |
-| `ownerName` | string | 是 | 联系人姓名（申请人/店主，2-20 个中文字符，允许少数民族姓名间隔号 `·`，如"阿不都·热合曼"） |
+| `phone` | string | 是 | 联系人手机号（商家登录凭据，全局唯一：user/merchant 表均不可重复） |
+| `ownerName` | string | 是 | 联系人姓名（申请人/店主，2-20 个中文字符，允许少数民族姓名间隔号 `·`，如"阿不都·热合曼"；审核通过后写入商家表 `owner_name`） |
 | `shopName` | string | 是 | 店铺名称 |
 | `categoryId` | long | 是 | 主营品类 ID（`category` 表，须为 `ENABLED`） |
 | `province` | string | 是 | 所在省（如"广东省"） |
@@ -359,11 +393,11 @@ POST /api/merchant/register
 | `logoUrl` | string | 是 | 店铺 LOGO OSS URL（必传，JPG/PNG，OSS 直传成功后回传 URL；缺失返回 `1100`） |
 | `description` | string | 否 | 店铺介绍 |
 
-> - 密码规则同 3.1：6-20 位，必须同时包含字母和数字
-> - 提交后创建 `PENDING` 入驻申请 + 申请人账号；管理员审核通过后**直接复用本次填写的账号密码**创建商家，不生成默认密码。
+> - 密码规则（与用户注册一致）：6-20 位，必须同时包含字母和数字（可含 `!@#$%^&*()_+` 特殊字符），不满足返回 `1100`
+> - 系统无商家 username：登录仅用手机号 + 密码。提交后创建 `PENDING` 入驻申请 + 申请人账号（`user.username` 由后端生成 `普通用户`+随机串）；管理员审核通过后创建商家，**复用本次填写的密码**，联系人姓名写入商家表 `owner_name`。
 > - 地址坐标：后端调用百度地理编码接口（`geocoding/v3`）将「省+市+区县+详细地址」转换为 `lat/lng` 存入申请；AK 未配置或校验失败时坐标为空，申请仍可提交（审核通过创建商家时坐标待补充）。
 
-**可能错误码：** `2001`（账号已被占用）, `2002`（手机号已注册）, `8003`（主营品类不存在/已停用）
+**可能错误码：** `2001`（手机号已注册）, `8003`（主营品类不存在/已停用）
 
 ---
 
@@ -373,7 +407,48 @@ POST /api/merchant/register
 GET /api/merchant/category/all
 ```
 
-> 无需 Token。返回 `List<CategoryVO>`（仅 `status=ENABLED` 的品类，供注册/入驻表单下拉使用）。
+> 无需 Token。仅返回 `status=ENABLED` 的平台品类，按 `sortOrder` 升序，供注册/入驻表单下拉使用。
+
+**响应 data：** `List<CategoryVO>`
+
+```json
+[
+  {
+    "id": 1,
+    "name": "烧烤类",
+    "icon": "🍖",
+    "iconType": "EMOJI",
+    "sortOrder": 1,
+    "status": "ENABLED",
+    "remark": null,
+    "createdAt": "2026-07-01T10:00:00",
+    "updatedAt": "2026-07-01T10:00:00"
+  },
+  {
+    "id": 2,
+    "name": "小龙虾",
+    "icon": "🦞",
+    "iconType": "EMOJI",
+    "sortOrder": 2,
+    "status": "ENABLED",
+    "remark": null,
+    "createdAt": "2026-07-01T10:00:00",
+    "updatedAt": "2026-07-01T10:00:00"
+  }
+]
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | long | 品类 ID |
+| `name` | string | 品类名称（2-10 字） |
+| `icon` | string | 图标（Emoji 或 OSS URL） |
+| `iconType` | string | `EMOJI` / `OSS` |
+| `sortOrder` | int | 排序权重（值越小越靠前） |
+| `status` | string | `ENABLED` / `DISABLED` |
+| `remark` | string | 备注 |
+| `createdAt` | string | 创建时间（ISO-8601） |
+| `updatedAt` | string | 更新时间（ISO-8601） |
 
 ---
 
@@ -384,8 +459,30 @@ POST /api/pay/alipay/callback
 ```
 
 > 支付宝异步通知回调，由支付宝服务器发起，返回 `"success"` 或 `"fail"` 字符串（非 JSON）。
+> 流程：验签 → 幂等处理（同一 `out_trade_no` 只处理一次，查 `payment_record`）→ 更新订单为 `PAID` + 正式扣库存 → 返回 `"success"`。
 
-**可能错误码：** `5001`, `5003`
+**请求体（表单，支付宝官方格式）：**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `notify_type` | string | 通知类型（如 `trade_status_sync`） |
+| `trade_status` | string | 交易状态（`TRADE_SUCCESS` / `TRADE_FINISHED` 视为成功） |
+| `out_trade_no` | string | 商户订单号（本系统 `order_no`） |
+| `trade_no` | string | 支付宝交易流水号 |
+| `total_amount` | string | 支付金额（字符串） |
+| `sign` | string | 签名串 |
+| `sign_type` | string | 签名类型（`RSA2`） |
+| `app_id` / `seller_id` / `charset` / `timestamp` 等 | string | 支付宝固定通知字段 |
+
+**响应（纯文本，非 JSON）：**
+
+```
+success
+```
+
+- 验签失败 / 金额不一致 → 返回 `fail`（支付宝会重试通知，`notify_count` 累加）
+
+**可能错误码：** `5001`（验签失败）, `5003`（订单状态非法）
 
 ---
 
@@ -438,14 +535,14 @@ POST /api/auth/refresh
 GET /api/user/info
 ```
 
-> 权限：`USER` / `MERCHANT` / `ADMIN`（登录即可）
+> 权限：`USER`
 
 **响应 data：**
 
 ```json
 {
   "id": 1,
-  "username": "zhangsan",
+  "username": "普通用户a1b2c3d4",
   "phone": "13800138000",
   "role": "USER",
   "status": "ACTIVE",
@@ -468,12 +565,65 @@ GET /api/user/address
 
 **响应 data：** `AddressVO[]`
 
+```json
+[
+  {
+    "id": 1,
+    "receiver": "测试员",
+    "phone": "13800000003",
+    "detail": "朝阳区望京SOHO T1-1201",
+    "lat": 39.99632,
+    "lng": 116.4809,
+    "isDefault": true
+  },
+  {
+    "id": 2,
+    "receiver": "测试员公司",
+    "phone": "13800000003",
+    "detail": "海淀区中关村软件园A座",
+    "lat": 40.05063,
+    "lng": 116.29845,
+    "isDefault": false
+  }
+]
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | long | 地址 ID |
+| `receiver` | string | 收货人姓名 |
+| `phone` | string | 收货电话 |
+| `detail` | string | 详细地址 |
+| `lat` | number | 纬度（可空，地图选点未接入时为空） |
+| `lng` | number | 经度（可空） |
+| `isDefault` | boolean | 是否默认地址（同用户仅一个默认） |
+
 ---
 
 #### 获取单个地址
 
 ```
 GET /api/user/address/{id}
+```
+
+**路径参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `id` | long | 是 | 地址 ID（仅能查自己的地址，越权返回 `2101`） |
+
+**响应 data：** `AddressVO`
+
+```json
+{
+  "id": 1,
+  "receiver": "测试员",
+  "phone": "13800000003",
+  "detail": "朝阳区望京SOHO T1-1201",
+  "lat": 39.99632,
+  "lng": 116.4809,
+  "isDefault": true
+}
 ```
 
 **可能错误码：** `2101`
@@ -497,6 +647,20 @@ POST /api/user/address
 | `lng` | number | 否 | 经度（同 lat） |
 | `isDefault` | boolean | 否 | 是否设为默认地址（设默认时自动取消原默认，互斥） |
 
+**响应 data：** `AddressVO`（新建的地址，结构同地址列表项）
+
+```json
+{
+  "id": 12,
+  "receiver": "测试员",
+  "phone": "13800000003",
+  "detail": "朝阳区望京SOHO T1-1201",
+  "lat": 39.99632,
+  "lng": 116.4809,
+  "isDefault": true
+}
+```
+
 **可能错误码：** `2102`
 
 ---
@@ -507,7 +671,30 @@ POST /api/user/address
 PUT /api/user/address/{id}
 ```
 
-**请求体：** 同新增
+**请求体：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `receiver` | string | 是 | 收货人 |
+| `phone` | string | 是 | 收货电话（`^1[3-9]\d{9}$`，格式错误返回 `1100`） |
+| `detail` | string | 是 | 详细地址 |
+| `lat` | number | 否 | 纬度（移动端暂不支持地图选点；为空时下单距离校验按 0 处理，MVP 降级） |
+| `lng` | number | 否 | 经度（同 lat） |
+| `isDefault` | boolean | 否 | 是否设为默认地址（设默认时自动取消原默认，互斥） |
+
+**响应 data：** `AddressVO`（更新后的地址）
+
+```json
+{
+  "id": 1,
+  "receiver": "测试员",
+  "phone": "13800000003",
+  "detail": "朝阳区望京SOHO T1-1201（新）",
+  "lat": 39.99632,
+  "lng": 116.4809,
+  "isDefault": true
+}
+```
 
 **可能错误码：** `2101`
 
@@ -520,6 +707,12 @@ DELETE /api/user/address/{id}
 ```
 
 **可能错误码：** `2101`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -530,6 +723,12 @@ PUT /api/user/address/{id}/default
 ```
 
 **可能错误码：** `2101`
+
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
 
 ---
 
@@ -542,6 +741,48 @@ GET /api/user/cart
 ```
 
 **响应 data：** `CartVO`（含商品列表 + 总金额）
+
+```json
+{
+  "merchantId": 1,
+  "merchantName": "深夜食堂",
+  "totalPrice": 23.50,
+  "items": [
+    {
+      "specId": 1,
+      "productId": 1,
+      "productName": "羊肉串",
+      "specName": "小份(5串)",
+      "price": 4.00,
+      "quantity": 3,
+      "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg"
+    },
+    {
+      "specId": 12,
+      "productId": 7,
+      "productName": "冰镇酸梅汤",
+      "specName": "壶(1.5L)",
+      "price": 11.50,
+      "quantity": 1,
+      "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/yyy.jpg"
+    }
+  ]
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `merchantId` | long | 商家 ID（购物车只允许一个商家的商品） |
+| `merchantName` | string | 商家名称 |
+| `totalPrice` | number | 商品总金额（单价 × 数量合计） |
+| `items` | array | 购物车商品列表（`CartItemVO`） |
+| `items[].specId` | long | 规格 ID（Redis Hash 的 key） |
+| `items[].productId` | long | 商品 ID |
+| `items[].productName` | string | 商品名称 |
+| `items[].specName` | string | 规格名称 |
+| `items[].price` | number | 单价（商品价 + 规格加价） |
+| `items[].quantity` | int | 数量 |
+| `items[].imageUrl` | string | 商品图片 URL |
 
 ---
 
@@ -565,6 +806,12 @@ POST /api/user/cart?merchantId={merchantId}
 | `quantity` | int | 是 | 数量 |
 
 **可能错误码：** `2201`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -574,7 +821,20 @@ POST /api/user/cart?merchantId={merchantId}
 PUT /api/user/cart
 ```
 
-**请求体：** 同添加
+**请求体：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `specId` | long | 是 | 规格 ID |
+| `quantity` | int | 是 | 新数量（≥1，数量减少不会影响库存占用） |
+
+**可能错误码：** `2201`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -584,12 +844,24 @@ PUT /api/user/cart
 DELETE /api/user/cart/{specId}
 ```
 
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 ---
 
 #### 清空购物车
 
 ```
 DELETE /api/user/cart
+```
+
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
 ```
 
 ---
@@ -634,6 +906,30 @@ POST /api/user/order
 > - 首个请求仍在处理中时重复提交 → `4006`「订单创建中，请勿重复提交」
 > - 下单在**库存预扣（Lua）之前**完成幂等拦截，并发重复请求不会二次扣库存
 
+**响应 data：** `OrderVO`（新创建的订单，结构见 4.4 订单详情，含 `items` / `statusLogs`）
+
+```json
+{
+  "id": 29,
+  "orderNo": "NSP20260819000001",
+  "userId": 1,
+  "merchantId": 1,
+  "merchantName": "深夜食堂",
+  "status": "PENDING_PAY",
+  "totalAmount": 23.50,
+  "addressSnapshot": "{\"receiver\":\"测试员\",\"phone\":\"13800000003\",\"detail\":\"朝阳区望京SOHO T1-1201\"}",
+  "payChannel": null,
+  "payTime": null,
+  "items": [
+    { "productId": 1, "specId": 1, "nameSnapshot": "羊肉串-小份(5串)", "priceSnapshot": 4.00, "quantity": 3, "imageUrl": null },
+    { "productId": 7, "specId": 12, "nameSnapshot": "冰镇酸梅汤-壶(1.5L)", "priceSnapshot": 11.50, "quantity": 1, "imageUrl": null }
+  ],
+  "statusLogs": [
+    { "fromStatus": null, "toStatus": "PENDING_PAY", "operator": "138****0003", "reason": "用户下单", "createdAt": "2026-08-19T00:10:00" }
+  ]
+}
+```
+
 **可能错误码：** `3001`, `3002`, `3101`, `3102`, `3103`, `3104`, `4003`, `4004`, `4006`
 
 ---
@@ -654,6 +950,56 @@ GET /api/user/order?page=1&size=20&status={status}&keyword={keyword}
 
 **响应 data：** `PageVO<OrderListVO>`（含 `items` 商品明细、`merchantName`、`totalAmount`、`createdAt`）
 
+```json
+{
+  "total": 28,
+  "list": [
+    {
+      "id": 1,
+      "orderNo": "NSP20260811000001",
+      "merchantName": "深夜食堂",
+      "status": "COMPLETED",
+      "totalAmount": 52.00,
+      "payChannel": "WECHAT_MOCK",
+      "createdAt": "2026-08-11T21:30:00",
+      "addressSnapshot": "{\"receiver\":\"测试员\",\"phone\":\"13800000003\",\"detail\":\"朝阳区望京SOHO T1-1201\"}",
+      "items": [
+        {
+          "productId": 2,
+          "specId": 4,
+          "nameSnapshot": "牛肉串-大份(10串)",
+          "priceSnapshot": 9.50,
+          "quantity": 4,
+          "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg"
+        },
+        {
+          "productId": 7,
+          "specId": 12,
+          "nameSnapshot": "冰镇酸梅汤-壶(1.5L)",
+          "priceSnapshot": 14.00,
+          "quantity": 1,
+          "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/yyy.jpg"
+        }
+      ]
+    }
+  ]
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `total` | long | 总记录数 |
+| `list[]` | object | `OrderListVO` |
+| `list[].id` | long | 订单 ID |
+| `list[].orderNo` | string | 订单号 |
+| `list[].merchantName` | string | 商家名称 |
+| `list[].status` | string | 订单状态码（见第八节状态机） |
+| `list[].totalAmount` | number | 实付总金额 |
+| `list[].payChannel` | string | 支付渠道（未支付为 null） |
+| `list[].createdAt` | string | 下单时间（ISO-8601） |
+| `list[].addressSnapshot` | string | 地址快照 JSON 字符串（`receiver` / `phone` / `detail`） |
+| `list[].items` | array | 商品明细（`OrderItemVO`：`productId` / `specId` / `nameSnapshot` / `priceSnapshot` / `quantity` / `imageUrl`） |
+
 ---
 
 #### 订单详情
@@ -661,6 +1007,54 @@ GET /api/user/order?page=1&size=20&status={status}&keyword={keyword}
 ```
 GET /api/user/order/{id}
 ```
+
+**路径参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `id` | long | 是 | 订单 ID（仅能查自己的订单，越权返回 `4001`） |
+
+**响应 data：** `OrderVO`（在 `OrderListVO` 基础上补充 `userId` / `merchantId` / `payTime` / `statusLogs`）
+
+```json
+{
+  "id": 1,
+  "orderNo": "NSP20260811000001",
+  "userId": 1,
+  "merchantId": 1,
+  "merchantName": "深夜食堂",
+  "status": "COMPLETED",
+  "totalAmount": 52.00,
+  "addressSnapshot": "{\"receiver\":\"测试员\",\"phone\":\"13800000003\",\"detail\":\"朝阳区望京SOHO T1-1201\"}",
+  "payChannel": "WECHAT_MOCK",
+  "payTime": "2026-08-11T21:31:05",
+  "items": [
+    {
+      "productId": 2,
+      "specId": 4,
+      "nameSnapshot": "牛肉串-大份(10串)",
+      "priceSnapshot": 9.50,
+      "quantity": 4,
+      "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg"
+    }
+  ],
+  "statusLogs": [
+    { "fromStatus": null, "toStatus": "PENDING_PAY", "operator": "138****0003", "reason": "用户下单", "createdAt": "2026-08-11T21:30:00" },
+    { "fromStatus": "PENDING_PAY", "toStatus": "PAID", "operator": "system", "reason": "微信支付回调", "createdAt": "2026-08-11T21:31:05" },
+    { "fromStatus": "PAID", "toStatus": "ACCEPTED", "operator": "深夜食堂", "reason": "商家接单", "createdAt": "2026-08-11T21:40:00" },
+    { "fromStatus": "ACCEPTED", "toStatus": "COOKING", "operator": "深夜食堂", "reason": "开始制作", "createdAt": "2026-08-11T21:45:00" },
+    { "fromStatus": "COOKING", "toStatus": "COMPLETED", "operator": "深夜食堂", "reason": "制作完成", "createdAt": "2026-08-11T22:10:00" }
+  ]
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` / `orderNo` / `merchantName` / `status` / `totalAmount` / `addressSnapshot` / `payChannel` / `items` | - | 同订单列表项 |
+| `userId` | long | 下单用户 ID |
+| `merchantId` | long | 商家 ID |
+| `payTime` | string | 支付时间（未支付为 null） |
+| `statusLogs` | array | 状态流转日志（`OrderStatusLogVO`：`fromStatus` / `toStatus` / `operator` / `reason` / `createdAt`，按时间升序） |
 
 **可能错误码：** `4001`
 
@@ -675,6 +1069,12 @@ POST /api/user/order/{id}/cancel
 > 仅 `PENDING_PAY` 状态可取消，取消后释放预扣库存。
 
 **可能错误码：** `4001`, `4002`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -687,6 +1087,12 @@ POST /api/user/order/{id}/delete
 > 用户删除订单：数据库 `user_deleted` 置 1，订单列表对其**不再显示**（不影响商家端/管理端与后续退款流程）。仅限订单所属用户本人操作，他人订单按 `4001` 处理。
 
 **可能错误码：** `4001`
+
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
 
 ---
 
@@ -726,6 +1132,32 @@ POST /api/user/pay
 GET /api/user/pay/{orderNo}/status
 ```
 
+**路径参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `orderNo` | string | 是 | 订单编号 |
+
+**响应 data：** `PayVO`
+
+```json
+{
+  "orderNo": "NSP20260811000001",
+  "channel": "ALIPAY",
+  "amount": 52.00,
+  "status": "PAID",
+  "qrCode": null
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `orderNo` | string | 订单编号 |
+| `channel` | string | 支付渠道 |
+| `amount` | number | 支付金额 |
+| `status` | string | 支付状态：`PENDING` / `SUCCESS` / `FAILED` / `REFUNDED`（订单侧则看订单状态） |
+| `qrCode` | string | 支付二维码（仅发起支付时返回） |
+
 **可能错误码：** `5001`
 
 ---
@@ -741,6 +1173,24 @@ GET /api/user/categories
 ```
 
 **响应 data：** `List<CategoryVO>`（仅 `ENABLED` 平台品类，按 sortOrder 升序）
+
+```json
+[
+  {
+    "id": 1,
+    "name": "烧烤类",
+    "icon": "🍖",
+    "iconType": "EMOJI",
+    "sortOrder": 1,
+    "status": "ENABLED",
+    "remark": null,
+    "createdAt": "2026-07-01T10:00:00",
+    "updatedAt": "2026-07-01T10:00:00"
+  }
+]
+```
+
+（字段说明同 3.6 平台启用品类）
 
 ---
 
@@ -760,6 +1210,51 @@ GET /api/user/merchants?categoryId={categoryId}&keyword={keyword}&page=1&size=20
 
 **响应 data：** `PageVO<MerchantVO>`
 
+```json
+{
+  "total": 9,
+  "list": [
+    {
+      "id": 1,
+      "name": "深夜食堂",
+      "phone": "138****0002",
+      "address": "朝阳区望京SOHO T1 B1-101",
+      "lat": 39.99632,
+      "lng": 116.4809,
+      "status": "OPEN",
+      "businessHoursStart": "18:00",
+      "businessHoursEnd": "03:00",
+      "deliveryRadius": 5000,
+      "distance": null,
+      "logoUrl": "https://picsum.photos/seed/bbq-night/400/400",
+      "description": "望京地区人气深夜食堂，主打烧烤+啤酒，现串现烤，凌晨不打烊！",
+      "notice": "本周五推出新品炭烤羊排，欢迎品尝！",
+      "avgRating": 4.8,
+      "categoryId": 1
+    }
+  ]
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `total` | long | 总记录数 |
+| `list[]` | object | `MerchantVO` |
+| `list[].id` | long | 商家 ID |
+| `list[].name` | string | 店铺名称 |
+| `list[].phone` | string | 联系电话（脱敏） |
+| `list[].address` | string | 店铺地址 |
+| `list[].lat` / `list[].lng` | number | 坐标 |
+| `list[].status` | string | `OPEN`（营业中）/ `CLOSED`（打烊） |
+| `list[].businessHoursStart` / `End` | string | 营业时间（HH:mm，End 可跨天） |
+| `list[].deliveryRadius` | int | 配送半径（米） |
+| `list[].distance` | int | 距离（米，仅按距离排序时填充，默认列表为 null） |
+| `list[].logoUrl` | string | 店铺 LOGO OSS URL |
+| `list[].description` | string | 店铺简介 |
+| `list[].notice` | string | 店铺公告 |
+| `list[].avgRating` | number | 评分（1 位小数） |
+| `list[].categoryId` | long | 主营品类 ID（平台品类） |
+
 ---
 
 #### 商品搜索（跨商家）
@@ -777,12 +1272,89 @@ GET /api/user/search/products?keyword={keyword}&page=1&size=20
 
 **响应 data：** `PageVO<ProductVO>`
 
+```json
+{
+  "total": 2,
+  "list": [
+    {
+      "id": 1,
+      "name": "羊肉串",
+      "price": 4.00,
+      "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg",
+      "status": "ON",
+      "description": "新鲜羊肉，现串现烤",
+      "categoryId": 1,
+      "categoryName": "烧烤类",
+      "merchantId": 1,
+      "merchantName": "深夜食堂",
+      "specs": null
+    },
+    {
+      "id": 2,
+      "name": "牛肉串",
+      "price": 5.00,
+      "imageUrl": null,
+      "status": "ON",
+      "description": "秘制腌料，外焦里嫩",
+      "categoryId": 1,
+      "categoryName": "烧烤类",
+      "merchantId": 1,
+      "merchantName": "深夜食堂",
+      "specs": null
+    }
+  ]
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `list[].id` | long | 商品 ID |
+| `list[].name` | string | 商品名称 |
+| `list[].price` | number | 基础价格 |
+| `list[].imageUrl` | string | 商品图片 URL |
+| `list[].status` | string | `ON`（上架）/ `OFF`（下架） |
+| `list[].description` | string | 商品描述 |
+| `list[].categoryId` | long | 商家内部品类 ID |
+| `list[].categoryName` | string | 品类名称 |
+| `list[].merchantId` | long | 所属商家 ID |
+| `list[].merchantName` | string | 所属商家名称 |
+| `list[].specs` | array | 规格列表（搜索接口为 null，商品列表/详情接口返回 `SpecVO`） |
+
 ---
 
 #### 商家详情
 
 ```
 GET /api/user/merchants/{id}
+```
+
+**路径参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `id` | long | 是 | 商家 ID |
+
+**响应 data：** `MerchantVO`（结构同商家列表项，含 `logoUrl` / `description` / `notice` / 营业时间 / 配送半径）
+
+```json
+{
+  "id": 1,
+  "name": "深夜食堂",
+  "phone": "138****0002",
+  "address": "朝阳区望京SOHO T1 B1-101",
+  "lat": 39.99632,
+  "lng": 116.4809,
+  "status": "OPEN",
+  "businessHoursStart": "18:00",
+  "businessHoursEnd": "03:00",
+  "deliveryRadius": 5000,
+  "distance": null,
+  "logoUrl": "https://picsum.photos/seed/bbq-night/400/400",
+  "description": "望京地区人气深夜食堂，主打烧烤+啤酒，现串现烤，凌晨不打烊！",
+  "notice": "本周五推出新品炭烤羊排，欢迎品尝！",
+  "avgRating": 4.8,
+  "categoryId": 1
+}
 ```
 
 **可能错误码：** `3001`
@@ -804,6 +1376,34 @@ GET /api/user/merchants/{id}/products?page=1&size=20
 
 **响应 data：** `PageVO<ProductVO>`（每项含 `specs` 规格列表）
 
+```json
+{
+  "total": 14,
+  "list": [
+    {
+      "id": 1,
+      "name": "羊肉串",
+      "price": 4.00,
+      "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg",
+      "status": "ON",
+      "description": "新鲜羊肉，现串现烤",
+      "categoryId": 1,
+      "categoryName": "烧烤类",
+      "merchantId": 1,
+      "merchantName": "深夜食堂",
+      "specs": [
+        { "id": 1, "name": "小份(5串)", "priceDelta": 0.00, "stock": 100 },
+        { "id": 2, "name": "大份(10串)", "priceDelta": 3.50, "stock": 80 }
+      ]
+    }
+  ]
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `list[].specs` | array | 规格列表（`SpecVO`：`id` / `name` / `priceDelta` 加价 / `stock` 库存） |
+
 **可能错误码：** `3001`
 
 ---
@@ -820,6 +1420,27 @@ GET /api/user/merchants/{merchantId}/products/{productId}
 | `productId` | long | 商品 ID（路径参数） |
 
 > 服务端校验商品**属于该商家且为上架状态**（不属于该商家统一按不存在处理，不泄露他店商品；已下架返回 `3102`）。
+
+**响应 data：** `ProductVO`（含 `specs` 规格列表）
+
+```json
+{
+  "id": 1,
+  "name": "羊肉串",
+  "price": 4.00,
+  "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg",
+  "status": "ON",
+  "description": "新鲜羊肉，现串现烤",
+  "categoryId": 1,
+  "categoryName": "烧烤类",
+  "merchantId": 1,
+  "merchantName": "深夜食堂",
+  "specs": [
+    { "id": 1, "name": "小份(5串)", "priceDelta": 0.00, "stock": 100 },
+    { "id": 2, "name": "大份(10串)", "priceDelta": 3.50, "stock": 80 }
+  ]
+}
+```
 
 **可能错误码：** `3101`, `3102`
 
@@ -878,7 +1499,46 @@ GET /api/merchant/dashboard
 GET /api/merchant/shop
 ```
 
-**响应 data：** `MerchantVO`（当前登录商家的完整店铺信息，含 `logoUrl` / `description` / `notice` / `businessHoursStart|End`（HH:mm）/ `deliveryRadius` / `address` / `lat` / `lng`）
+**响应 data：** `MerchantVO`（当前登录商家的完整店铺信息）
+
+```json
+{
+  "id": 1,
+  "name": "深夜食堂",
+  "phone": "13800000002",
+  "address": "朝阳区望京SOHO T1 B1-101",
+  "lat": 39.99632,
+  "lng": 116.4809,
+  "status": "OPEN",
+  "businessHoursStart": "18:00",
+  "businessHoursEnd": "03:00",
+  "deliveryRadius": 5000,
+  "distance": null,
+  "logoUrl": "https://picsum.photos/seed/bbq-night/400/400",
+  "description": "望京地区人气深夜食堂，主打烧烤+啤酒，现串现烤，凌晨不打烊！",
+  "notice": "本周五推出新品炭烤羊排，欢迎品尝！",
+  "avgRating": 4.8,
+  "categoryId": 1
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | long | 商家 ID |
+| `name` | string | 店铺名称 |
+| `phone` | string | 联系电话（明文，商家本人可见） |
+| `address` | string | 店铺地址 |
+| `lat` / `lng` | number | 坐标（百度地理编码） |
+| `status` | string | 营业状态：`OPEN` / `CLOSED` / `PENDING` / `SUSPENDED` |
+| `businessHoursStart` / `End` | string | 营业时间（HH:mm，End 可跨天） |
+| `deliveryRadius` | int | 配送半径（米） |
+| `logoUrl` | string | 店铺 LOGO OSS URL |
+| `description` | string | 店铺简介 |
+| `notice` | string | 店铺公告 |
+| `avgRating` | number | 评分 |
+| `categoryId` | long | 主营品类 ID |
+
+**可能错误码：** `3001`
 
 ---
 
@@ -903,7 +1563,28 @@ PUT /api/merchant/shop
 | `description` | string | 否 | ≤200 | 店铺简介 |
 | `notice` | string | 否 | ≤200 | 店铺公告 |
 
-**响应 data：** `MerchantVO`（更新后的完整店铺信息）
+**响应 data：** `MerchantVO`（更新后的完整店铺信息，结构同上）
+
+```json
+{
+  "id": 1,
+  "name": "深夜食堂（新）",
+  "phone": "13800000002",
+  "address": "朝阳区望京SOHO T1 B1-101",
+  "lat": 39.99632,
+  "lng": 116.4809,
+  "status": "OPEN",
+  "businessHoursStart": "17:00",
+  "businessHoursEnd": "03:00",
+  "deliveryRadius": 6000,
+  "distance": null,
+  "logoUrl": "https://picsum.photos/seed/bbq-night/400/400",
+  "description": "望京地区人气深夜食堂，主打烧烤+啤酒，现串现烤，凌晨不打烊！",
+  "notice": "本周五推出新品炭烤羊排，欢迎品尝！",
+  "avgRating": 4.8,
+  "categoryId": 1
+}
+```
 
 **可能错误码：** `3001`, `1100`
 
@@ -921,6 +1602,12 @@ PUT /api/merchant/shop/status?status={status}
 
 **可能错误码：** `3001`, `3301`
 
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 ---
 
 ### 5.3 品类管理
@@ -930,6 +1617,24 @@ PUT /api/merchant/shop/status?status={status}
 ```
 GET /api/merchant/category
 ```
+
+**响应 data：** `List<Category>`（当前登录商家的内部品类，按 `sort` 升序）
+
+```json
+[
+  { "id": 1, "merchantId": 1, "name": "烧烤类", "sort": 1, "createdAt": "2026-07-01T10:00:00" },
+  { "id": 2, "merchantId": 1, "name": "饮品类", "sort": 2, "createdAt": "2026-07-01T10:00:00" },
+  { "id": 3, "merchantId": 1, "name": "主食类", "sort": 3, "createdAt": "2026-07-01T10:00:00" }
+]
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | long | 品类 ID |
+| `merchantId` | long | 所属商家 ID |
+| `name` | string | 品类名称 |
+| `sort` | int | 排序序号（升序） |
+| `createdAt` | string | 创建时间（ISO-8601） |
 
 ---
 
@@ -944,6 +1649,12 @@ POST /api/merchant/category?name={name}&sort=0
 | `name` | string | 是 | - | 品类名称 |
 | `sort` | int | 否 | 0 | 排序 |
 
+**响应 data：** `Category`（新建的品类）
+
+```json
+{ "id": 5, "merchantId": 1, "name": "凉菜类", "sort": 4, "createdAt": "2026-08-19T00:10:00" }
+```
+
 ---
 
 #### 更新品类（仅限本店品类）
@@ -953,6 +1664,12 @@ PUT /api/merchant/category/{id}?name={name}&sort={sort}
 ```
 
 **可能错误码：** `3201`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -963,6 +1680,12 @@ DELETE /api/merchant/category/{id}
 ```
 
 **可能错误码：** `3201`
+
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
 
 ---
 
@@ -986,6 +1709,32 @@ GET /api/merchant/product/list?merchantId={merchantId}&categoryId={categoryId}&p
 
 **响应 data：** `PageVO<ProductVO>`（`{ total, list }`，list 每项含 `specs` 规格列表）
 
+```json
+{
+  "total": 14,
+  "list": [
+    {
+      "id": 1,
+      "name": "羊肉串",
+      "price": 4.00,
+      "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg",
+      "status": "ON",
+      "description": "新鲜羊肉，现串现烤",
+      "categoryId": 1,
+      "categoryName": "烧烤类",
+      "merchantId": 1,
+      "merchantName": "深夜食堂",
+      "specs": [
+        { "id": 1, "name": "小份(5串)", "priceDelta": 0.00, "stock": 100 },
+        { "id": 2, "name": "大份(10串)", "priceDelta": 3.50, "stock": 80 }
+      ]
+    }
+  ]
+}
+```
+
+（字段说明同 4.6 商品列表；`status` 含 `ON` / `OFF`，规格为完整列表）
+
 ---
 
 #### 商品详情（商家后台）
@@ -995,6 +1744,27 @@ GET /api/merchant/product/{id}
 ```
 
 > 仅 `MERCHANT` 角色可调用（含停售商品；用户端浏览走 4.6 的匿名接口，仅返回上架商品）。
+
+**响应 data：** `ProductVO`
+
+```json
+{
+  "id": 1,
+  "name": "羊肉串",
+  "price": 4.00,
+  "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg",
+  "status": "ON",
+  "description": "新鲜羊肉，现串现烤",
+  "categoryId": 1,
+  "categoryName": "烧烤类",
+  "merchantId": 1,
+  "merchantName": "深夜食堂",
+  "specs": [
+    { "id": 1, "name": "小份(5串)", "priceDelta": 0.00, "stock": 100 },
+    { "id": 2, "name": "大份(10串)", "priceDelta": 3.50, "stock": 80 }
+  ]
+}
+```
 
 **可能错误码：** `3101`
 
@@ -1015,7 +1785,30 @@ POST /api/merchant/product
 | `imageUrl` | string | 否 | 商品图片 OSS URL |
 | `description` | string | 否 | 商品描述 |
 | `categoryId` | long | 是 | 所属品类 ID |
-| `specs` | array | 否 | 规格列表 |
+| `specs` | array | 否 | 规格列表：`[{ "name": "大杯", "priceDelta": 2, "stock": 100 }]`（`ProductSpecDTO`） |
+
+**响应 data：** `ProductVO`（新建的商品，结构同商品详情）
+
+```json
+{
+  "id": 15,
+  "name": "烤羊排",
+  "price": 88.00,
+  "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg",
+  "status": "ON",
+  "description": "炭烤羊排，外焦里嫩",
+  "categoryId": 1,
+  "categoryName": "烧烤类",
+  "merchantId": 1,
+  "merchantName": "深夜食堂",
+  "specs": [
+    { "id": 89, "name": "小份", "priceDelta": 0.00, "stock": 50 },
+    { "id": 90, "name": "大份", "priceDelta": 40.00, "stock": 30 }
+  ]
+}
+```
+
+**可能错误码：** `3101`, `3201`（品类不属于本店）
 
 ---
 
@@ -1025,7 +1818,35 @@ POST /api/merchant/product
 PUT /api/merchant/product/{id}
 ```
 
-**请求体：** 同新增
+**请求体：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | string | 是 | 商品名称 |
+| `price` | number | 是 | 基础价格 |
+| `imageUrl` | string | 否 | 商品图片 OSS URL |
+| `description` | string | 否 | 商品描述 |
+| `categoryId` | long | 是 | 所属品类 ID |
+
+**响应 data：** `ProductVO`（更新后的商品）
+
+```json
+{
+  "id": 1,
+  "name": "羊肉串（新配方）",
+  "price": 5.00,
+  "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg",
+  "status": "ON",
+  "description": "新鲜羊肉，现串现烤",
+  "categoryId": 1,
+  "categoryName": "烧烤类",
+  "merchantId": 1,
+  "merchantName": "深夜食堂",
+  "specs": [
+    { "id": 1, "name": "小份(5串)", "priceDelta": 0.00, "stock": 100 }
+  ]
+}
+```
 
 **可能错误码：** `3101`
 
@@ -1042,6 +1863,12 @@ PUT /api/merchant/product/{id}/status?status={status}
 | `status` | string | `ON`(上架) / `OFF`(下架) |
 
 **可能错误码：** `3101`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1054,6 +1881,12 @@ DELETE /api/merchant/product/{id}
 > 软删除商品并**级联删除其规格**。前置条件：商品状态必须为 `OFF`（停售），在售商品删除返回 `3105`。
 
 **可能错误码：** `3101`, `3301`, `3105`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1072,6 +1905,12 @@ POST /api/merchant/product/{productId}/spec
 | `stock` | int | 是 | 库存数量 |
 
 **可能错误码：** `3101`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1082,6 +1921,12 @@ DELETE /api/merchant/product/spec/{specId}
 ```
 
 **可能错误码：** `3103`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1103,6 +1948,36 @@ GET /api/merchant/order?page=1&size=20&status={status}&dateStart={date}&dateEnd=
 
 **响应 data：** `PageVO<OrderListVO>`（含 `items` 商品明细与 `addressSnapshot` 地址快照，订单卡片可直接渲染）
 
+```json
+{
+  "total": 4,
+  "list": [
+    {
+      "id": 1,
+      "orderNo": "NSP20260811000001",
+      "merchantName": "深夜食堂",
+      "status": "COMPLETED",
+      "totalAmount": 52.00,
+      "payChannel": "WECHAT_MOCK",
+      "createdAt": "2026-08-11T21:30:00",
+      "addressSnapshot": "{\"receiver\":\"测试员\",\"phone\":\"13800000003\",\"detail\":\"朝阳区望京SOHO T1-1201\"}",
+      "items": [
+        {
+          "productId": 2,
+          "specId": 4,
+          "nameSnapshot": "牛肉串-大份(10串)",
+          "priceSnapshot": 9.50,
+          "quantity": 4,
+          "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg"
+        }
+      ]
+    }
+  ]
+}
+```
+
+（结构同 4.4 我的订单列表；`status` 为订单状态码，`createdAt` 下单时间）
+
 ---
 
 #### 订单状态分布统计
@@ -1116,7 +1991,20 @@ GET /api/merchant/order/stats?dateStart={date}&dateEnd={date}
 | `dateStart` | string | 否 | 统计起始日期（`yyyy-MM-dd`，含当天）。**今日订单角标 = dateStart=dateEnd=今天** |
 | `dateEnd` | string | 否 | 统计截止日期（`yyyy-MM-dd`，含当天）。不传则统计全部历史订单 |
 
-**响应 data：** `Map<String, Long>`（状态码 → 数量，如 `{"PAID": 2, "COOKING": 1, "COMPLETED": 8}`，用于订单页 tab 角标；全部订单页不展示角标）
+**响应 data：** `Map<String, Long>`（状态码 → 数量，用于订单页 tab 角标；全部订单页不展示角标）
+
+```json
+{
+  "PENDING_PAY": 1,
+  "PAID": 2,
+  "ACCEPTED": 1,
+  "COOKING": 3,
+  "COMPLETED": 8,
+  "REFUNDING": 0,
+  "REFUNDED": 1,
+  "CANCELLED": 2
+}
+```
 
 ---
 
@@ -1124,6 +2012,38 @@ GET /api/merchant/order/stats?dateStart={date}&dateEnd={date}
 
 ```
 GET /api/merchant/order/{id}
+```
+
+**路径参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `id` | long | 是 | 订单 ID（仅能查本店订单，越权返回 `4001`） |
+
+**响应 data：** `OrderVO`（结构同 4.4 订单详情：`items` 商品明细 + `addressSnapshot` 地址快照 + `statusLogs` 状态流转）
+
+```json
+{
+  "id": 1,
+  "orderNo": "NSP20260811000001",
+  "userId": 1,
+  "merchantId": 1,
+  "merchantName": "深夜食堂",
+  "status": "COOKING",
+  "totalAmount": 52.00,
+  "addressSnapshot": "{\"receiver\":\"测试员\",\"phone\":\"13800000003\",\"detail\":\"朝阳区望京SOHO T1-1201\"}",
+  "payChannel": "WECHAT_MOCK",
+  "payTime": "2026-08-11T21:31:05",
+  "items": [
+    { "productId": 2, "specId": 4, "nameSnapshot": "牛肉串-大份(10串)", "priceSnapshot": 9.50, "quantity": 4, "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg" }
+  ],
+  "statusLogs": [
+    { "fromStatus": null, "toStatus": "PENDING_PAY", "operator": "138****0003", "reason": "用户下单", "createdAt": "2026-08-11T21:30:00" },
+    { "fromStatus": "PENDING_PAY", "toStatus": "PAID", "operator": "system", "reason": "微信支付回调", "createdAt": "2026-08-11T21:31:05" },
+    { "fromStatus": "PAID", "toStatus": "ACCEPTED", "operator": "深夜食堂", "reason": "商家接单", "createdAt": "2026-08-11T21:40:00" },
+    { "fromStatus": "ACCEPTED", "toStatus": "COOKING", "operator": "深夜食堂", "reason": "开始制作", "createdAt": "2026-08-11T21:45:00" }
+  ]
+}
 ```
 
 **可能错误码：** `4001`
@@ -1139,6 +2059,12 @@ PUT /api/merchant/order/{id}/accept
 > 状态迁移：`PAID` → `ACCEPTED`
 
 **可能错误码：** `4001`, `4002`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1151,6 +2077,12 @@ PUT /api/merchant/order/{id}/cooking
 > 状态迁移：`ACCEPTED` → `COOKING`
 
 **可能错误码：** `4001`, `4002`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1163,6 +2095,12 @@ PUT /api/merchant/order/{id}/complete
 > 状态迁移：`COOKING` → `COMPLETED`
 
 **可能错误码：** `4001`, `4002`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1286,6 +2224,14 @@ GET /api/admin/dashboard/application-trend?days=7
 
 **响应 data：** `List<TrendPointVO>`（每日商家入驻申请数，`date` 为 `MM-dd`，`count` 为当日数量）
 
+```json
+[
+  { "date": "08-12", "count": 2 },
+  { "date": "08-13", "count": 0 },
+  { "date": "08-18", "count": 3 }
+]
+```
+
 ---
 
 #### 订单状态分布
@@ -1325,6 +2271,28 @@ GET /api/admin/dashboard/recent-orders?limit=10
 
 **响应 data：** `List<AdminRecentOrderVO>`
 
+```json
+[
+  {
+    "orderNo": "NSP20260811000001",
+    "username": "普通用户a1b2c3d4",
+    "merchantName": "深夜食堂",
+    "status": "PAID",
+    "totalAmount": 52.00,
+    "createdAt": "2026-08-11T21:30:00"
+  }
+]
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `orderNo` | string | 订单号 |
+| `username` | string | 下单用户（后端生成的展示名） |
+| `merchantName` | string | 商家名称 |
+| `status` | string | 订单状态码 |
+| `totalAmount` | number | 实付金额 |
+| `createdAt` | string | 下单时间（ISO-8601） |
+
 ---
 
 ### 6.2 商家入驻审核
@@ -1354,7 +2322,7 @@ GET /api/admin/merchant-application/pending?page=1&size=20&keyword=&status=&cate
     {
       "id": 1,
       "shopName": "深夜食堂",
-      "applicantUsername": "mbjsms8x5k",
+      "applicantUsername": "普通用户a1b2c3d4",
       "phone": "138****1234",
       "logoUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/nsp/2025-07/25/xxx.jpg",
       "categoryName": "中式快餐",
@@ -1387,6 +2355,27 @@ GET /api/admin/merchant-application/{id}/detail
 
 **响应 data：** `AdminApplicationVO`（含分类名称、申请人、地址坐标、拒绝原因、审核备注等完整字段）
 
+```json
+{
+  "id": 1,
+  "shopName": "深夜食堂",
+  "applicantUsername": "普通用户a1b2c3d4",
+  "phone": "138****1234",
+  "logoUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/nsp/2025-07/25/xxx.jpg",
+  "categoryName": "中式快餐",
+  "ownerName": "阿不都·热合曼",
+  "address": "广东省广州市荔湾区荔湾广场店",
+  "lat": 23.1287775,
+  "lng": 113.2769936,
+  "status": "PENDING",
+  "rejectReason": null,
+  "createdAt": "2025-07-18T21:30:00",
+  "reviewedAt": null
+}
+```
+
+（字段说明同申请列表项；`phone` 详情为明文、列表为脱敏；`reviewedAt` 未审核为 null）
+
 ---
 
 #### 通过申请（V1）
@@ -1398,6 +2387,12 @@ PUT /api/admin/merchant-application/{id}/approve
 > 商家状态 → `OPEN`
 
 **可能错误码：** `3003`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1416,6 +2411,12 @@ PUT /api/admin/merchant-application/{id}/reject
 > 申请状态 → `REJECTED`
 
 **可能错误码：** `3003`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1440,9 +2441,15 @@ POST /api/admin/application/{id}/approve
 
 > 配送半径不在审核时配置：商家审核通过后自行在店铺设置中调整（默认 5000 米）。
 
-> 商家账号直接复用申请时填写的 `username` / `password`（见 3.5），凭据缺失（早期申请数据）时报 `1100`。
+> 系统无商家 username：商家账号即手机号（复用申请人手机号），密码复用申请时填写的 `password`（见 3.5）；联系人姓名写入商家表 `owner_name`。凭据缺失（早期申请数据）时报 `1100`。
 
-**可能错误码：** `3003`, `7007`, `1100`（申请缺少登录账号/密码）
+**可能错误码：** `3003`, `7007`, `1100`（申请缺少登录密码）
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1465,6 +2472,12 @@ POST /api/admin/application/{id}/reject
 | `reason` | string | 是 | @NotBlank，10–200 字 | 拒绝原因（将展示给商家） |
 
 **可能错误码：** `3003`, `7001`, `7007`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1479,6 +2492,22 @@ POST /api/admin/merchant-application/batch-approve
 > 仅 `PENDING` 状态可通过；已审核的**自动跳过**。通过后创建商家（默认营业中，配送半径 5000，商家自行调整）。
 
 **响应 data：** `BatchResultVO`
+
+```json
+{
+  "successCount": 2,
+  "skippedCount": 1,
+  "skippedReasons": ["1 条申请已审核"],
+  "message": "成功处理 2 项，跳过 1 项：1 条申请已审核"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `successCount` | int | 成功处理条数 |
+| `skippedCount` | int | 跳过条数 |
+| `skippedReasons` | array | 跳过原因摘要（已去重） |
+| `message` | string | 汇总提示文案（前端直接展示） |
 
 ---
 
@@ -1497,7 +2526,16 @@ POST /api/admin/merchant-application/batch-reject
 
 > 仅 `PENDING` 状态可拒绝；已审核的**自动跳过**。
 
-**响应 data：** `BatchResultVO`
+**响应 data：** `BatchResultVO`（结构同批量通过）
+
+```json
+{
+  "successCount": 1,
+  "skippedCount": 2,
+  "skippedReasons": ["2 条申请已审核"],
+  "message": "成功处理 1 项，跳过 2 项：2 条申请已审核"
+}
+```
 
 ---
 
@@ -1526,9 +2564,12 @@ GET /api/admin/users?page=1&size=20&keyword=&status=&dateStart=&dateEnd=
   "list": [
     {
       "id": 1,
-      "username": "admin",
-      "phone": "138****0001",
+      "username": "普通用户a1b2c3d4",
+      "phone": "138****0003",
+      "avatarUrl": null,
       "status": "ACTIVE",
+      "totalOrders": 6,
+      "totalSpent": 356.50,
       "lastLoginAt": "2026-08-08T10:00:00",
       "createdAt": "2026-01-05T00:00:00",
       "updatedAt": "2026-08-08T10:05:00"
@@ -1537,7 +2578,18 @@ GET /api/admin/users?page=1&size=20&keyword=&status=&dateStart=&dateEnd=
 }
 ```
 
-> 时间字段说明：`createdAt` 注册时间（数据库列默认 `CURRENT_TIMESTAMP`）、`lastLoginAt` 最后登录时间（登录成功后实时更新）、`updatedAt` 更新时间。均为 ISO-8601 T 格式。
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` | long | 用户 ID |
+| `username` | string | 用户名（后端生成的展示名） |
+| `phone` | string | 手机号（脱敏：138****0003） |
+| `avatarUrl` | string | 头像 OSS URL（未上传为 null） |
+| `status` | string | `ACTIVE` / `DISABLED` |
+| `totalOrders` | int | 历史总订单数（`order` 表实时统计） |
+| `totalSpent` | number | 历史总消费金额（`order` 表实时统计） |
+| `lastLoginAt` | string | 最后登录时间（登录成功后实时更新，ISO-8601） |
+| `createdAt` | string | 注册时间（ISO-8601） |
+| `updatedAt` | string | 更新时间（ISO-8601） |
 
 ---
 
@@ -1548,6 +2600,32 @@ GET /api/admin/users/{id}/detail
 ```
 
 **响应 data：** `UserDetailVO`（用户完整信息 + 订单统计）
+
+```json
+{
+  "id": 1,
+  "username": "普通用户a1b2c3d4",
+  "phone": "138****0003",
+  "avatarUrl": null,
+  "status": "ACTIVE",
+  "totalOrders": 6,
+  "totalSpent": 356.50,
+  "lastLoginAt": "2026-08-08T10:00:00",
+  "bannedReason": null,
+  "bannedAt": null,
+  "unbannedAt": null,
+  "remark": null,
+  "createdAt": "2026-01-05T00:00:00",
+  "updatedAt": "2026-08-08T10:05:00"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `bannedReason` | string | 封禁原因（未封禁为 null） |
+| `bannedAt` | string | 封禁时间（ISO-8601，未封禁为 null） |
+| `unbannedAt` | string | 解封时间（ISO-8601） |
+| `remark` | string | 管理员备注 |
 
 **可能错误码：** `2003`
 
@@ -1569,6 +2647,12 @@ PUT /api/admin/users/{id}/ban
 > 状态 → `DISABLED`；写操作日志。
 
 **可能错误码：** `2003`, `2302`（原因为空）, `2303`（已封禁）, `2309`（时长为负数）
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1581,6 +2665,12 @@ PUT /api/admin/users/{id}/unban
 > 状态 → `ACTIVE`；写操作日志。
 
 **可能错误码：** `2003`, `2304`（未封禁）
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1591,6 +2681,27 @@ GET /api/admin/users/{id}/logs
 ```
 
 **响应 data：** `List<Map<String, Object>>`（操作类型、操作人、时间、备注等）
+
+```json
+[
+  {
+    "id": 1,
+    "userId": 5,
+    "action": "BAN",
+    "operatorId": 1,
+    "operatorName": "admin",
+    "detail": "封禁用户，原因：多次恶意差评投诉",
+    "createdAt": "2026-08-08T10:00:00"
+  }
+]
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `action` | string | 操作类型（`BAN` / `UNBAN` / `DELETE` / `RESET_PASSWORD` 等） |
+| `operatorName` | string | 操作人（管理员用户名） |
+| `detail` | string | 操作备注 |
+| `createdAt` | string | 操作时间（ISO-8601） |
 
 **可能错误码：** `2003`
 
@@ -1605,6 +2716,12 @@ DELETE /api/admin/users/{id}
 > **物理删除**并级联删除该用户的订单（含明细/状态日志/支付记录）与收货地址；**启用（ACTIVE）账号不可删除**，返回 `2306`（先封禁再删）。
 
 **可能错误码：** `2003`, `2306`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1618,7 +2735,16 @@ POST /api/admin/users/batch-unban
 
 > 已封禁的启用；未封禁/已删除的**自动跳过**并汇总原因。
 
-**响应 data：** `BatchResultVO`
+**响应 data：** `BatchResultVO`（结构同 6.2 批量通过）
+
+```json
+{
+  "successCount": 3,
+  "skippedCount": 1,
+  "skippedReasons": ["1 个账号未封禁"],
+  "message": "成功处理 3 项，跳过 1 项：1 个账号未封禁"
+}
+```
 
 ---
 
@@ -1632,7 +2758,16 @@ POST /api/admin/users/batch-delete
 
 > 仅封禁账号可物理删除（级联订单/地址）；启用账号**自动跳过**（原因：启用账号不可删除）。
 
-**响应 data：** `BatchResultVO`
+**响应 data：** `BatchResultVO`（结构同 6.2 批量通过）
+
+```json
+{
+  "successCount": 1,
+  "skippedCount": 2,
+  "skippedReasons": ["2 个账号为启用状态，不可删除"],
+  "message": "成功处理 1 项，跳过 2 项：2 个账号为启用状态，不可删除"
+}
+```
 
 ---
 
@@ -1658,7 +2793,7 @@ GET /api/admin/merchants?page=1&size=20&keyword={keyword}&status={status}
     {
       "id": 1,
       "name": "深夜食堂",
-      "ownerName": "zhangsan",
+      "ownerName": "孙七",
       "phone": "138****0001",
       "logoUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/nsp/2025-07/25/xxx.jpg",
       "categoryName": "中式快餐",
@@ -1685,6 +2820,12 @@ PUT /api/admin/merchants/{id}/suspend
 > 状态 → `SUSPENDED`
 
 **可能错误码：** `3001`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1697,6 +2838,12 @@ PUT /api/admin/merchants/{id}/activate
 > 状态 → `OPEN`
 
 **可能错误码：** `3001`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1738,6 +2885,54 @@ GET /api/admin/merchant/{id}/detail
 
 **响应 data：** `MerchantDetailVO`（含完整字段：店铺信息、店主、品类、评分、历史订单/今日订单/今日营收、营业时间、配送半径、简介、公告、封禁原因、入驻时间 `createdAt`、最后登录 `lastLoginAt`、修改时间 `updatedAt` 等）
 
+```json
+{
+  "id": 1,
+  "name": "深夜食堂",
+  "ownerName": "孙七",
+  "phone": "138****0002",
+  "address": "朝阳区望京SOHO T1 B1-101",
+  "lat": 39.99632,
+  "lng": 116.4809,
+  "logoUrl": "https://picsum.photos/seed/bbq-night/400/400",
+  "categoryName": "烧烤类",
+  "description": "望京地区人气深夜食堂，主打烧烤+啤酒，现串现烤，凌晨不打烊！",
+  "idCardNo": "110***********1234",
+  "avgRating": 4.8,
+  "totalOrders": 1256,
+  "todayOrders": 4,
+  "todayRevenue": 134.00,
+  "status": "OPEN",
+  "bannedReason": null,
+  "bannedAt": null,
+  "notice": "本周五推出新品炭烤羊排，欢迎品尝！",
+  "businessHoursStart": "18:00",
+  "businessHoursEnd": "03:00",
+  "deliveryRadius": 5000,
+  "lastLoginAt": "2026-08-17T23:45:00",
+  "createdAt": "2025-03-15T00:00:00",
+  "updatedAt": "2026-08-10T09:00:00"
+}
+```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `id` / `name` / `address` / `lat` / `lng` / `logoUrl` / `description` / `notice` / `businessHoursStart\|End` / `deliveryRadius` | - | 同 5.2 店铺信息 |
+| `ownerName` | string | 联系人姓名（店主，入驻申请时填写） |
+| `phone` | string | 联系电话（脱敏） |
+| `categoryName` | string | 主营品类名称 |
+| `idCardNo` | string | 身份证号（脱敏，未填写为 null） |
+| `avgRating` | number | 评分 |
+| `totalOrders` | int | 历史总订单数 |
+| `todayOrders` | int | 今日订单数（今日 00:00 起实时统计） |
+| `todayRevenue` | number | 今日营收（实时统计） |
+| `status` | string | 营业状态：`PENDING` / `OPEN` / `CLOSED` / `SUSPENDED` |
+| `bannedReason` | string | 封禁原因（未封禁为 null） |
+| `bannedAt` | string | 封禁时间（ISO-8601） |
+| `lastLoginAt` | string | 最后登录时间（ISO-8601） |
+| `createdAt` | string | 入驻时间（ISO-8601） |
+| `updatedAt` | string | 修改时间（ISO-8601） |
+
 ---
 
 #### 暂停营业
@@ -1749,6 +2944,12 @@ PUT /api/admin/merchant/{id}/pause
 > 状态 → `CLOSED`（计入操作日志）
 
 **可能错误码：** `3001`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1761,6 +2962,12 @@ PUT /api/admin/merchant/{id}/resume
 > 状态 → `OPEN`（计入操作日志）
 
 **可能错误码：** `3001`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1779,6 +2986,12 @@ PUT /api/admin/merchant/{id}/ban
 > 状态 → `SUSPENDED`，记录封禁原因、时间、操作人。计入操作日志。
 
 **可能错误码：** `3001`, `7002`, `7003`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1791,6 +3004,12 @@ PUT /api/admin/merchant/{id}/unban
 > 状态 → `OPEN`，清除封禁原因。计入操作日志。
 
 **可能错误码：** `3001`, `7004`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1804,6 +3023,12 @@ DELETE /api/admin/merchant/{id}
 > 级联**物理删除**：订单（含明细/状态日志/支付记录）、商品（含规格）、品类、品类关联等；**不删除**入驻申请记录。计入操作日志。
 
 **可能错误码：** `3001`, `2307`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1817,7 +3042,16 @@ POST /api/admin/merchant/batch-delete
 
 > 仅封禁商家可删（级联订单/商品/品类）；未封禁的**自动跳过**并汇总原因。
 
-**响应 data：** `BatchResultVO`
+**响应 data：** `BatchResultVO`（结构同 6.2 批量通过）
+
+```json
+{
+  "successCount": 1,
+  "skippedCount": 1,
+  "skippedReasons": ["1 个商家未封禁，不可删除"],
+  "message": "成功处理 1 项，跳过 1 项：1 个商家未封禁，不可删除"
+}
+```
 
 ---
 
@@ -1902,6 +3136,22 @@ GET /api/admin/category/all
 
 **响应 data：** `List<CategoryVO>`（仅 `ENABLED` 状态，按 `sortOrder` 升序）
 
+```json
+[
+  {
+    "id": 1,
+    "name": "烧烤类",
+    "icon": "🍖",
+    "iconType": "EMOJI",
+    "sortOrder": 1,
+    "status": "ENABLED",
+    "remark": null,
+    "createdAt": "2025-07-18T21:30:00",
+    "updatedAt": "2025-07-20T14:00:00"
+  }
+]
+```
+
 ---
 
 #### 品类统计
@@ -1928,6 +3178,28 @@ GET /api/admin/category/stats
 GET /api/admin/category/{id}
 ```
 
+**路径参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `id` | long | 是 | 品类 ID |
+
+**响应 data：** `CategoryVO`（结构同品类列表项）
+
+```json
+{
+  "id": 1,
+  "name": "烧烤类",
+  "icon": "🍖",
+  "iconType": "EMOJI",
+  "sortOrder": 1,
+  "status": "ENABLED",
+  "remark": null,
+  "createdAt": "2025-07-18T21:30:00",
+  "updatedAt": "2025-07-20T14:00:00"
+}
+```
+
 **可能错误码：** `8003`
 
 ---
@@ -1951,6 +3223,22 @@ POST /api/admin/category
 
 > 校验：名称唯一、长度 2-10 字；sortOrder ≥ 0
 
+**响应 data：** `CategoryVO`（新建的品类）
+
+```json
+{
+  "id": 11,
+  "name": "凉皮凉面",
+  "icon": "🍜",
+  "iconType": "EMOJI",
+  "sortOrder": 11,
+  "status": "ENABLED",
+  "remark": null,
+  "createdAt": "2026-08-19T00:10:00",
+  "updatedAt": "2026-08-19T00:10:00"
+}
+```
+
 **可能错误码：** `8001`, `8002`, `8006`
 
 ---
@@ -1961,9 +3249,34 @@ POST /api/admin/category
 PUT /api/admin/category/{id}
 ```
 
-**请求体：** 同新增（所有字段可选，传了才更新）
+**请求体：**（所有字段可选，传了才更新）
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| `name` | string | 否 | - | 品类名称（2-10 字） |
+| `icon` | string | 否 | - | 图标（Emoji 或 OSS URL） |
+| `iconType` | string | 否 | `EMOJI` | 图标类型：`EMOJI` / `OSS` |
+| `sortOrder` | int | 否 | - | 排序权重（值越小越靠前） |
+| `status` | string | 否 | - | 状态：`ENABLED` / `DISABLED` |
+| `remark` | string | 否 | - | 备注（≤200 字） |
 
 > **排序插入式重排**：修改 `sortOrder` 时，目标位置及其后的品类自动顺延。例如把排序 3 改为 4，原排序 4 及之后的品类依次变为 5、6、7...（后移区间 `(旧, 新]`、前移区间 `[新, 旧)` 内的品类排序 +1）。
+
+**响应 data：** `CategoryVO`（更新后的品类，结构同新增品类）
+
+```json
+{
+  "id": 1,
+  "name": "烧烤类",
+  "icon": "🍖",
+  "iconType": "EMOJI",
+  "sortOrder": 4,
+  "status": "ENABLED",
+  "remark": null,
+  "createdAt": "2025-07-18T21:30:00",
+  "updatedAt": "2026-08-19T00:12:00"
+}
+```
 
 **可能错误码：** `8001`, `8002`, `8003`, `8006`
 
@@ -1978,6 +3291,12 @@ PUT /api/admin/category/{id}/enable
 > 状态 → `ENABLED`（幂等）
 
 **可能错误码：** `8003`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -1990,6 +3309,12 @@ PUT /api/admin/category/{id}/disable
 > 状态 → `DISABLED`（幂等）。**前条件：无商家关联**（merchant.category_id + merchant_category 表均无记录），否则拒绝停用。
 
 **可能错误码：** `8003`, `8005`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -2002,6 +3327,12 @@ DELETE /api/admin/category/{id}
 > 软删除。前条件：① 状态必须为 `DISABLED`；② 无商家关联（merchant.category_id + merchant_category 表均无记录）
 
 **可能错误码：** `8003`, `8004`, `8005`
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
 
 ---
 
@@ -2056,7 +3387,7 @@ GET /api/admin/orders
     {
       "id": 15,
       "orderNo": "NSP20260727015",
-      "username": "liuer",
+      "username": "普通用户849e63f8",
       "merchantName": "川味牛肉面馆",
       "status": "PAID",
       "totalAmount": 22.00,
@@ -2127,6 +3458,28 @@ POST /api/admin/orders/{id}/refund
 
 **响应 data：** `OrderVO`（退款完成后的订单，status=`REFUNDED`）
 
+```json
+{
+  "id": 15,
+  "orderNo": "NSP20260805000015",
+  "userId": 9,
+  "merchantId": 5,
+  "merchantName": "川味牛肉面馆",
+  "status": "REFUNDED",
+  "totalAmount": 22.00,
+  "addressSnapshot": "{\"receiver\":\"张二\",\"phone\":\"13800001116\",\"detail\":\"海淀区知春路56号\"}",
+  "payChannel": "WECHAT_MOCK",
+  "payTime": "2026-08-05T13:05:02",
+  "items": [
+    { "productId": 9, "specId": 25, "nameSnapshot": "招牌牛肉面-标准份", "priceSnapshot": 22.00, "quantity": 1, "imageUrl": "https://..." }
+  ],
+  "statusLogs": [
+    { "fromStatus": "PAID", "toStatus": "REFUNDING", "operator": "admin", "reason": "管理员发起退款", "createdAt": "2026-08-19T10:00:00" },
+    { "fromStatus": "REFUNDING", "toStatus": "REFUNDED", "operator": "system", "reason": "退款到账", "createdAt": "2026-08-19T10:00:05" }
+  ]
+}
+```
+
 **可能错误码：** `4001`, `4002`, `5005`, `5007`
 
 ---
@@ -2141,7 +3494,18 @@ POST /api/admin/orders/batch-refund
 
 > 逐条执行上表的退款规则：可退/可重试的退款，不可退的**跳过**并汇总原因（未支付/已完成/已退款/不存在），部分成功不算失败。
 
-**响应 data：** `BatchResultVO`（`successCount` / `skippedCount` / `skippedReasons` / `message`）
+**响应 data：** `BatchResultVO`
+
+```json
+{
+  "successCount": 2,
+  "skippedCount": 1,
+  "skippedReasons": ["订单 4 未支付，无法退款"],
+  "message": "成功处理 2 项，跳过 1 项：订单 4 未支付，无法退款"
+}
+```
+
+（字段说明同 6.2 批量通过）
 
 ---
 
@@ -2155,7 +3519,16 @@ POST /api/admin/orders/batch-delete
 
 > 级联删除订单明细/状态日志/支付记录；不存在的订单**跳过**并汇总原因。
 
-**响应 data：** `BatchResultVO`
+**响应 data：** `BatchResultVO`（结构同 6.2 批量通过）
+
+```json
+{
+  "successCount": 3,
+  "skippedCount": 1,
+  "skippedReasons": ["1 条订单不存在"],
+  "message": "成功处理 3 项，跳过 1 项：1 条订单不存在"
+}
+```
 
 **订单状态码表（`status` 与筛选共用）：**
 
@@ -2189,18 +3562,27 @@ GET /api/upload/sign?bizType={bizType}&targetId={targetId}&fileName={fileName}&u
 | `fileName` | string | 是 | 原始文件名（用于校验扩展名） |
 | `userId` | long | 否 | 用户 ID（登录用户可携带，用于限流与目录归属；匿名场景不传） |
 
-**响应 data：**
+**响应 data：** `UploadSignVO`
 
 ```json
 {
-  "host": "https://nsp-upload.oss-cn-shenzhen.aliyuncs.com",
-  "dir": "nsp/2025-07/25/",
+  "accessKeyId": "LTAI5t...",
   "policy": "eyJleHBpcmF...",
   "signature": "abc123...",
-  "accessId": "LTAI5t...",
+  "host": "https://nsp-upload.oss-cn-shenzhen.aliyuncs.com",
+  "dir": "nsp/2025-07/25/",
   "expire": 60
 }
 ```
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `accessKeyId` | string | OSS access key id |
+| `policy` | string | 上传策略（base64） |
+| `signature` | string | 签名 |
+| `host` | string | OSS Host |
+| `dir` | string | 上传目录 |
+| `expire` | int | 签名有效期（秒） |
 
 **OSS 文件命名规则**：`nsp/yyyy-MM/dd/{uuid}.{ext}`，按上传日期自动归类。
 
@@ -2225,6 +3607,14 @@ POST /api/upload/bind
 
 > 前端直传 OSS 成功后调用此接口，后端将文件记录落 `uploaded_file` 表。
 
+**响应 data：** 无（`data: null`，成功即 `code=0`）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
+**可能错误码：** `6003`
+
 ---
 
 ### 7.3 获取文件临时访问 URL
@@ -2233,7 +3623,23 @@ POST /api/upload/bind
 GET /api/upload/url?ossKey={ossKey}
 ```
 
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `ossKey` | string | 是 | OSS 文件 Key |
+
 > 用于私有 Bucket，生成带签名的临时访问 URL。
+
+**响应 data：** `String`（带签名的临时访问 URL）
+
+```json
+{
+  "code": 0,
+  "msg": "ok",
+  "data": "https://nsp-upload.oss-cn-shenzhen.aliyuncs.com/nsp/2025-07/25/xxx.jpg?OSSAccessKeyId=...&Expires=...&Signature=..."
+}
+```
+
+**可能错误码：** `6004`
 
 ---
 

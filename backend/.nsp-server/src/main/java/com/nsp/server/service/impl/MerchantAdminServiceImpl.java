@@ -76,7 +76,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
         LambdaQueryWrapper<Merchant> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isBlank()) {
             wrapper.and(w -> w.like(Merchant::getName, keyword)
-                            .or().like(Merchant::getUsername, keyword)
+                            .or().like(Merchant::getOwnerName, keyword)
                             .or().like(Merchant::getPhone, keyword));
         }
         if (status != null && !status.isBlank()) {
@@ -99,7 +99,6 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
         List<AdminMerchantVO> list = result.getRecords().stream().map(m -> {
             AdminMerchantVO vo = new AdminMerchantVO();
             BeanUtil.copyProperties(m, vo);
-            vo.setOwnerName(m.getUsername());
             vo.setPhone(PhoneMaskUtil.mask(m.getPhone()));
 
             if (m.getCategoryId() != null) {
@@ -387,7 +386,7 @@ public class MerchantAdminServiceImpl implements MerchantAdminService {
 
         return MerchantDetailVO.builder()
                 .id(m.getId())
-                .username(m.getUsername())
+                .ownerName(m.getOwnerName())
                 .name(m.getName())
                 .phone(m.getPhone())
                 .address(m.getAddress())

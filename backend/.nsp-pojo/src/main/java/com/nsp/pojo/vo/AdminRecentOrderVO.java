@@ -16,7 +16,7 @@ public class AdminRecentOrderVO {
     /** 订单号 */
     private String orderNo;
 
-    /** 下单用户名 */
+    /** 下单用户名（user 表，后端生成的展示名） */
     private String username;
 
     /** 商家名 */

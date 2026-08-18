@@ -5,9 +5,8 @@ export const loginApi = (data: { phone: string; password: string }) => {
   return request.post('/merchant/login', data)
 }
 
-/** 商家注册（提交入驻申请） */
+/** 商家注册（提交入驻申请，无 username，登录仅用手机号+密码） */
 export const registerApi = (data: {
-  username: string
   password: string
   phone: string
   ownerName: string

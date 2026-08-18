@@ -62,11 +62,6 @@ const onAreaChange = (codes: string[]) => {
   props.form.district = textOf(codes[2])
 }
 
-/** 自动生成登录账号：m + 10 位随机（字母开头，符合后端账号校验） */
-const generateUsername = () => {
-  return 'm' + Math.random().toString(36).slice(2, 12)
-}
-
 const handleSubmit = async () => {
   if (areaCode.value.length < 3) {
     ElMessage.warning('请选择省市区')
@@ -78,7 +73,6 @@ const handleSubmit = async () => {
   loading.value = true
   try {
     await registerApi({
-      username: generateUsername(),
       password: props.form.password,
       phone: props.form.phone,
       ownerName: props.form.ownerName,

@@ -14,12 +14,10 @@ import lombok.Data;
 @Data
 public class MerchantRegisterDTO {
 
-    /** 商家登录账号：4-20 位，字母开头，字母/数字/下划线 */
-    @NotBlank(message = "账号不能为空")
-    @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9_]{3,19}$", message = "账号格式不正确")
-    private String username;
-
-    /** 登录密码（明文，后端 BCrypt 加密存储）：6-20 位，必须同时包含字母和数字 */
+    /**
+     * 登录密码（明文，后端 BCrypt 加密存储）：6-20 位，必须同时包含字母和数字。
+     * 审核通过后即为商家登录密码（登录账号由后端生成，登录仅用手机号 + 密码）。
+     */
     @NotBlank(message = "密码不能为空")
     @Pattern(regexp = "^(?=.*[a-zA-Z])(?=.*\\d)[a-zA-Z\\d!@#$%^&*()_+]{6,20}$",
             message = "密码6-20位，需包含字母和数字")

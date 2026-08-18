@@ -14,13 +14,13 @@ import StatsStrip from '@/components/StatsStrip.vue'
 // ---- 类型 ----
 interface UserItem {
   id: number; username: string; phone: string
-  avatarUrl: string; gender: number; status: string
+  avatarUrl: string; status: string
   totalOrders: number; totalSpent: number
   lastLoginAt: string; createdAt: string; updatedAt: string
 }
 interface UserDetail {
   id: number; username: string; phone: string
-  avatarUrl: string; gender: number; birthday: string; status: string
+  avatarUrl: string; status: string
   totalOrders: number; totalSpent: number
   lastLoginAt: string
   bannedReason: string; bannedAt: string; unbannedAt: string; remark: string
@@ -369,20 +369,6 @@ onMounted(() => { fetchUsers(); fetchStats() })
             <div class="stat-body">
               <span class="stat-num">{{ formatMoney(detailUser.totalSpent) }}</span>
               <span class="stat-label">累计消费</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon" style="background:#FFF8ED;color:#E6A23C"><el-icon><User /></el-icon></div>
-            <div class="stat-body">
-              <span class="stat-num">{{ genderMap[detailUser.gender] || '未知' }}</span>
-              <span class="stat-label">性别</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon" style="background:#FDF2F2;color:#F56C6C"><el-icon><Calendar /></el-icon></div>
-            <div class="stat-body">
-              <span class="stat-num stat-num-sm">{{ detailUser.birthday || '-' }}</span>
-              <span class="stat-label">生日</span>
             </div>
           </div>
         </div>

@@ -8,7 +8,6 @@ export interface MerchantShopVO {
   address: string
   lat: number | null
   lng: number | null
-  avatarUrl: string | null
   status: string
   businessHoursStart: string | null
   businessHoursEnd: string | null

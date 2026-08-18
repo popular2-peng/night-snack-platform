@@ -6,11 +6,11 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
  * 普通用户（顾客） — 对应 user 表
+ * <p>登录/注册仅用手机号 + 密码；username 由后端生成（「普通用户」+随机串），仅供展示
  */
 @Data
 @TableName("user")
@@ -19,32 +19,26 @@ public class User {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 用户名（登录用，唯一） */
+    /** 用户名（后端生成：普通用户+随机串，展示用） */
     private String username;
 
     /** 密码（BCrypt 加密存储） */
     private String password;
 
-    /** 手机号 */
+    /** 手机号（唯一，登录凭证） */
     private String phone;
 
     /** 头像 OSS URL */
     private String avatarUrl;
 
-    /** 性别：0-未知 1-男 2-女 */
-    private Integer gender;
+    /** 历史总订单数（管理端实时统计） */
+    private Integer totalOrders;
 
-    /** 生日 */
-    private LocalDate birthday;
+    /** 历史总消费金额（管理端实时统计） */
+    private BigDecimal totalSpent;
 
     /** 状态：ACTIVE / DISABLED */
     private String status;
-
-    /** 历史总订单数（缓存） */
-    private Integer totalOrders;
-
-    /** 历史总消费金额（缓存） */
-    private BigDecimal totalSpent;
 
     /** 最后登录时间 */
     private LocalDateTime lastLoginAt;

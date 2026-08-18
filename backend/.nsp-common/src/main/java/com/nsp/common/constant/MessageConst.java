@@ -29,8 +29,6 @@ public final class MessageConst {
     public static final String FORBIDDEN_MERCHANT_BANNED_MSG = "商家已被封禁";
     /** 账号已被封禁（FORBIDDEN） */
     public static final String FORBIDDEN_ACCOUNT_BANNED_MSG = "账号已被封禁";
-    /** 申请缺少商家登录用户名（PARAM_ERROR） */
-    public static final String PARAM_APPLICATION_MISSING_USERNAME_MSG = "申请缺少商家登录用户名";
     /** 申请缺少商家登录密码（PARAM_ERROR） */
     public static final String PARAM_APPLICATION_MISSING_PASSWORD_MSG = "申请缺少商家登录密码";
     /** 不支持的支付渠道（PARAM_ERROR） */
@@ -57,10 +55,6 @@ public final class MessageConst {
     public static final String USER_PHONE_NOT_MERCHANT_MSG = "该手机号未注册商家";
     /** 密码错误（PASSWORD_ERROR） */
     public static final String PASSWORD_ERROR_MSG = "密码错误";
-    /** 用户名已存在（USERNAME_EXISTS） */
-    public static final String USERNAME_EXISTS_MSG = "用户名已存在";
-    /** 账号已被占用，请更换（USERNAME_EXISTS） */
-    public static final String USERNAME_TAKEN_MSG = "账号已被占用，请更换";
     /** 手机号已注册（PHONE_EXISTS） */
     public static final String PHONE_EXISTS_MSG = "手机号已注册";
     /** 手机号已注册，请直接登录（PHONE_EXISTS） */

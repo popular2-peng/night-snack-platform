@@ -32,8 +32,7 @@ public final class ErrorCode {
     public static final int SYSTEM_ERROR           = 1999; // 系统内部错误
 
     // ==================== 用户域 2000 ~ 2999 ====================
-    public static final int USERNAME_EXISTS        = 2001; // 用户名已存在
-    public static final int PHONE_EXISTS           = 2002; // 手机号已注册
+    public static final int PHONE_EXISTS           = 2001; // 手机号已注册
     public static final int USER_NOT_FOUND         = 2003; // 用户不存在
     public static final int PASSWORD_ERROR         = 2004; // 密码错误
     public static final int ADDRESS_NOT_FOUND      = 2101; // 地址不存在

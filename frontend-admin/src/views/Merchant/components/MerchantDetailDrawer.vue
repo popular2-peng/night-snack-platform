@@ -70,7 +70,7 @@ const formatTime = (s: string) => { return s ? s.replace('T', ' ').substring(0, 
                 {{ statusMap[detail.status]?.label || detail.status }}
               </el-tag>
             </div>
-            <p class="hero-sub">{{ detail.username || '-' }} · {{ detail.categoryName || '-' }}</p>
+            <p class="hero-sub">{{ detail.ownerName || '-' }} · {{ detail.categoryName || '-' }}</p>
           </div>
         </div>
       </div>

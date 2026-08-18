@@ -37,6 +37,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 商家业务实现 — 百度地图优先 + Haversine 降级 + Redis 距离缓存 + 商家入驻申请
@@ -214,15 +215,9 @@ public class MerchantServiceImpl implements MerchantService {
 
     @Override
     public LoginVO login(LoginDTO dto) {
-        // 手机号优先，兼容用户名
-        Merchant merchant = null;
-        if (dto.getPhone() != null && !dto.getPhone().isBlank()) {
-            merchant = merchantMapper.selectOne(
-                    new LambdaQueryWrapper<Merchant>().eq(Merchant::getPhone, dto.getPhone()));
-        } else if (dto.getUsername() != null && !dto.getUsername().isBlank()) {
-            merchant = merchantMapper.selectOne(
-                    new LambdaQueryWrapper<Merchant>().eq(Merchant::getUsername, dto.getUsername()));
-        }
+        // 商家登录仅用手机号 + 密码（系统无 username）
+        Merchant merchant = merchantMapper.selectOne(
+                new LambdaQueryWrapper<Merchant>().eq(Merchant::getPhone, dto.getPhone()));
 
         if (merchant == null) {
             throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.USER_PHONE_NOT_MERCHANT_MSG);
@@ -243,7 +238,7 @@ public class MerchantServiceImpl implements MerchantService {
         String refreshToken = jwtTokenProvider.createRefreshToken(merchant.getId(), "MERCHANT");
         return LoginVO.builder()
                 .userId(merchant.getId())
-                .username(merchant.getUsername())
+                .username(merchant.getName())
                 .role("MERCHANT")
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
@@ -253,25 +248,16 @@ public class MerchantServiceImpl implements MerchantService {
     @Override
     @Transactional
     public void register(MerchantRegisterDTO dto) {
-        // 1. 校验用户名唯一（user 表 + 申请表 + 商家表）
-        Long userCount = userMapper.selectCount(
-                new LambdaQueryWrapper<User>().eq(User::getUsername, dto.getUsername()));
-        Long appCount = merchantApplicationMapper.selectCount(
-                new LambdaQueryWrapper<MerchantApplication>().eq(MerchantApplication::getUsername, dto.getUsername()));
-        Long merCount = merchantMapper.selectCount(
-                new LambdaQueryWrapper<Merchant>().eq(Merchant::getUsername, dto.getUsername()));
-        if (userCount + appCount + merCount > 0) {
-            throw new BizException(ErrorCode.USERNAME_EXISTS, MessageConst.USERNAME_TAKEN_MSG);
-        }
-
-        // 2. 校验手机号唯一（user 表）
-        Long phoneCount = userMapper.selectCount(
+        // 1. 校验手机号唯一（user 表 + merchant 表，登录凭证全局唯一）
+        Long userPhoneCount = userMapper.selectCount(
                 new LambdaQueryWrapper<User>().eq(User::getPhone, dto.getPhone()));
-        if (phoneCount > 0) {
+        Long merchantPhoneCount = merchantMapper.selectCount(
+                new LambdaQueryWrapper<Merchant>().eq(Merchant::getPhone, dto.getPhone()));
+        if (userPhoneCount + merchantPhoneCount > 0) {
             throw new BizException(ErrorCode.PHONE_EXISTS, MessageConst.PHONE_EXISTS_LOGIN_MSG);
         }
 
-        // 3. 校验主营品类存在且启用
+        // 2. 校验主营品类存在且启用
         PlatformCategory category = platformCategoryMapper.selectById(dto.getCategoryId());
         if (category == null || category.getDeleted() == 1) {
             throw new BizException(ErrorCode.CATEGORY_NOT_EXISTS, MessageConst.CATEGORY_NOT_EXISTS_MSG);
@@ -280,19 +266,18 @@ public class MerchantServiceImpl implements MerchantService {
             throw new BizException(ErrorCode.CATEGORY_NOT_EXISTS, MessageConst.CATEGORY_DISABLED_MSG);
         }
 
-        // 4. 创建申请人 user 账号
+        // 3. 创建申请人 user 账号（username 由后端生成，规则与用户注册一致）
         User applicant = new User();
-        applicant.setUsername(dto.getUsername());
+        applicant.setUsername("普通用户" + UUID.randomUUID().toString().replace("-", "").substring(0, 8));
         applicant.setPassword(passwordEncoder.encode(dto.getPassword()));
         applicant.setPhone(dto.getPhone());
         applicant.setStatus("ACTIVE");
         userMapper.insert(applicant);
 
-        // 5. 创建入驻申请（PENDING，密码已加密，审核通过后直接复用）
+        // 4. 创建入驻申请（PENDING，密码已加密，审核通过后直接复用）
         MerchantApplication app = new MerchantApplication();
         app.setApplicantUserId(applicant.getId());
         app.setShopName(dto.getShopName());
-        app.setUsername(dto.getUsername());
         app.setPassword(applicant.getPassword());
         app.setCategoryId(dto.getCategoryId());
         app.setDescription(dto.getDescription());
@@ -315,8 +300,8 @@ public class MerchantServiceImpl implements MerchantService {
         app.setStatus("PENDING");
         merchantApplicationMapper.insert(app);
 
-        log.info("商家入驻申请提交: applicantUserId={}, shopName={}, username={}, categoryId={}",
-                applicant.getId(), dto.getShopName(), dto.getUsername(), dto.getCategoryId());
+        log.info("商家入驻申请提交: applicantUserId={}, shopName={}, categoryId={}",
+                applicant.getId(), dto.getShopName(), dto.getCategoryId());
     }
 
     /**

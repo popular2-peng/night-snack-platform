@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 public class UserVO {
 
     private Long id;
+    /** 用户名（后端生成，展示用） */
     private String username;
     private String phone;
     private String role;

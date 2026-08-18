@@ -20,7 +20,7 @@ const ratingText = (rating: number | null) => (rating != null ? Number(rating).t
     <!-- 左：商家 Logo，占屏幕 1/5 -->
     <div class="logo-box">
       <van-image
-        :src="merchant.logoUrl || merchant.avatarUrl"
+        :src="merchant.logoUrl"
         fit="cover"
         class="logo"
       >

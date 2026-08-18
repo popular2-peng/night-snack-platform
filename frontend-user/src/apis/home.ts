@@ -20,7 +20,6 @@ export interface MerchantVO {
   address: string
   lat: number
   lng: number
-  avatarUrl: string
   status: string
   businessHoursStart: string
   businessHoursEnd: string

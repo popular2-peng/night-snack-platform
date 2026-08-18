@@ -1,6 +1,13 @@
 -- ============================================================
 -- V1__init.sql - 夜宵外卖平台 数据库初始化（含种子数据）
--- 合并 V1 + V2 字段，扩充测试数据
+-- 已合并原 V2（payment_record 退款字段）/ V3（user_address 坐标可空）/
+--   V4（order.user_deleted、merchant_application 删 username），dev 库 drop 重建
+-- 本次清理：
+--   * merchant / merchant_application 移除 username（商家登录仅用手机号+密码）；
+--     user.username 保留（注册时后端生成「普通用户」+随机串，展示用），种子同格式
+--   * merchant 移除 avatar_url（与 logo_url 重复的旧字段），新增 owner_name（联系人姓名）
+--   * user 移除 gender/birthday（无业务读写点）；total_orders/total_spent 保留（管理端实时统计展示）
+--   * order_status_log.operator 种子改为脱敏手机号/店铺名
 -- ============================================================
 
 -- ============================================================
@@ -21,17 +28,16 @@ CREATE TABLE `admin` (
 -- ============================================================
 -- 二、普通用户表（顾客）
 -- ============================================================
+-- 登录/注册仅用手机号 + 密码；username 由后端生成（「普通用户」+随机串），仅供展示
 CREATE TABLE `user` (
     `id`            BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
-    `username`      VARCHAR(50)   NOT NULL                COMMENT '用户名',
+    `username`      VARCHAR(50)   NOT NULL                COMMENT '用户名（后端生成：普通用户+随机串，展示用）',
     `password`      VARCHAR(200)  NOT NULL                COMMENT '密码（BCrypt）',
-    `phone`         VARCHAR(20)   DEFAULT NULL            COMMENT '手机号',
+    `phone`         VARCHAR(20)   DEFAULT NULL            COMMENT '手机号（唯一，登录凭证）',
     `avatar_url`    VARCHAR(500)  DEFAULT NULL            COMMENT '用户头像 OSS URL',
-    `gender`        TINYINT       DEFAULT 0              COMMENT '性别：0-未知 1-男 2-女',
-    `birthday`      DATE          DEFAULT NULL            COMMENT '生日',
+    `total_orders`  INT           DEFAULT 0              COMMENT '历史总订单数（管理端实时统计后落库，展示缓存值）',
+    `total_spent`   DECIMAL(10,2) DEFAULT 0.00           COMMENT '历史总消费金额（管理端实时统计后落库，展示缓存值）',
     `status`        VARCHAR(20)   NOT NULL DEFAULT 'ACTIVE' COMMENT '状态：ACTIVE/DISABLED',
-    `total_orders`  INT           DEFAULT 0              COMMENT '历史总订单数（缓存）',
-    `total_spent`   DECIMAL(10,2) DEFAULT 0.00           COMMENT '历史总消费金额（缓存）',
     `last_login_at` DATETIME      DEFAULT NULL            COMMENT '最后登录时间',
     `banned_reason` VARCHAR(500)  DEFAULT NULL            COMMENT '封禁原因',
     `banned_at`     DATETIME      DEFAULT NULL            COMMENT '封禁时间',
@@ -44,6 +50,7 @@ CREATE TABLE `user` (
     `updated_at`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_user_username` (`username`),
+    UNIQUE KEY `uk_user_phone` (`phone`),
     KEY `idx_user_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='普通用户（顾客）';
 
@@ -56,8 +63,8 @@ CREATE TABLE `user_address` (
     `receiver`   VARCHAR(50)   NOT NULL                COMMENT '收货人姓名',
     `phone`      VARCHAR(20)   NOT NULL                COMMENT '收货人电话',
     `detail`     VARCHAR(500)  NOT NULL                COMMENT '详细地址',
-    `lat`        DECIMAL(10,7) NOT NULL                COMMENT '纬度',
-    `lng`        DECIMAL(10,7) NOT NULL                COMMENT '经度',
+    `lat`        DECIMAL(10,7) DEFAULT NULL            COMMENT '纬度（可选，移动端暂不支持地图选点，下单时为空则配送范围校验降级）',
+    `lng`        DECIMAL(10,7) DEFAULT NULL            COMMENT '经度（可选）',
     `is_default` TINYINT(1)    NOT NULL DEFAULT 0      COMMENT '是否默认地址：0-否 1-是',
     `created_at` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -67,18 +74,19 @@ CREATE TABLE `user_address` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户收货地址';
 
 -- ============================================================
--- 四、商家/店铺（V2 含全部字段）
+-- 四、商家/店铺
 -- ============================================================
+-- 商家登录仅使用手机号 + 密码，无 username 概念；
+-- owner_name 为联系人姓名（入驻申请时填写，审核通过后从申请表带入），管理端展示用
 CREATE TABLE `merchant` (
     `id`                   BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
-    `username`             VARCHAR(50)   NOT NULL                COMMENT '登录用户名',
     `password`             VARCHAR(200)  NOT NULL                COMMENT '登录密码（BCrypt）',
     `name`                 VARCHAR(100)  NOT NULL                COMMENT '店铺名称',
-    `phone`                VARCHAR(20)   DEFAULT NULL            COMMENT '联系电话',
+    `phone`                VARCHAR(20)   DEFAULT NULL            COMMENT '联系电话（唯一，登录凭证）',
+    `owner_name`           VARCHAR(50)   DEFAULT NULL            COMMENT '联系人姓名（店主，中文）',
     `address`              VARCHAR(500)  DEFAULT NULL            COMMENT '店铺地址',
     `lat`                  DECIMAL(10,7) DEFAULT NULL            COMMENT '纬度',
     `lng`                  DECIMAL(10,7) DEFAULT NULL            COMMENT '经度',
-    `avatar_url`           VARCHAR(500)  DEFAULT NULL            COMMENT '店铺头像 OSS URL（旧字段）',
     `logo_url`             VARCHAR(500)  DEFAULT NULL            COMMENT '店铺 LOGO OSS URL',
     `status`               VARCHAR(20)   NOT NULL DEFAULT 'PENDING' COMMENT '营业状态：PENDING/OPEN/CLOSED/SUSPENDED',
     `category_id`          BIGINT        DEFAULT NULL            COMMENT '主营品类 ID',
@@ -97,7 +105,7 @@ CREATE TABLE `merchant` (
     `created_at`           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入驻时间',
     `updated_at`           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_merchant_username` (`username`),
+    UNIQUE KEY `uk_merchant_phone` (`phone`),
     KEY `idx_merchant_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商家/店铺';
 
@@ -163,6 +171,7 @@ CREATE TABLE `order` (
     `address_snapshot` TEXT          DEFAULT NULL            COMMENT '收货地址快照 JSON',
     `pay_channel`      VARCHAR(20)   DEFAULT NULL            COMMENT '支付渠道：ALIPAY/WECHAT_MOCK',
     `pay_time`         DATETIME      DEFAULT NULL            COMMENT '支付时间',
+    `user_deleted`     TINYINT       NOT NULL DEFAULT 0      COMMENT '用户删除标记：0-未删除 1-已删除（对用户不显示）',
     `created_at`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
     `updated_at`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
@@ -198,7 +207,7 @@ CREATE TABLE `order_status_log` (
     `order_id`    BIGINT       NOT NULL                COMMENT '订单 ID',
     `from_status` VARCHAR(20)  DEFAULT NULL            COMMENT '变更前状态',
     `to_status`   VARCHAR(20)  NOT NULL                COMMENT '变更后状态',
-    `operator`    VARCHAR(50)  DEFAULT NULL            COMMENT '操作人（用户名或 system）',
+    `operator`    VARCHAR(50)  DEFAULT NULL            COMMENT '操作人（用户=脱敏手机号/商家=店铺名，或 system）',
     `reason`      VARCHAR(500) DEFAULT NULL            COMMENT '变更原因',
     `created_at`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
     PRIMARY KEY (`id`),
@@ -214,10 +223,14 @@ CREATE TABLE `payment_record` (
     `order_no`        VARCHAR(32)   NOT NULL                COMMENT '订单号',
     `channel`         VARCHAR(20)   NOT NULL                COMMENT '支付渠道：ALIPAY/WECHAT_MOCK',
     `trade_no`        VARCHAR(100)  DEFAULT NULL            COMMENT '第三方交易流水号',
+    `out_refund_no`   VARCHAR(64)   DEFAULT NULL            COMMENT '退款请求号（商户侧生成，唯一，重试复用）',
     `amount`          DECIMAL(10,2) NOT NULL                COMMENT '支付金额',
+    `refund_amount`   DECIMAL(10,2) DEFAULT NULL            COMMENT '退款金额',
     `status`          VARCHAR(20)   NOT NULL DEFAULT 'PENDING' COMMENT '支付状态：PENDING/SUCCESS/FAILED/REFUNDED',
+    `refund_status`   VARCHAR(20)   DEFAULT NULL            COMMENT '退款状态：REFUNDING/REFUNDED（成功时与 status=REFUNDED 同步）',
     `notify_count`    INT           DEFAULT 0              COMMENT '回调通知次数',
     `last_notify_at`  DATETIME      DEFAULT NULL            COMMENT '最后回调时间',
+    `refund_at`       DATETIME      DEFAULT NULL            COMMENT '退款完成时间',
     `created_at`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_pay_order_channel` (`order_no`, `channel`),
@@ -247,8 +260,7 @@ CREATE TABLE `merchant_application` (
     `id`                BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
     `applicant_user_id` BIGINT       NOT NULL                COMMENT '申请人用户 ID',
     `shop_name`         VARCHAR(100) NOT NULL                COMMENT '申请店铺名称',
-    `username`          VARCHAR(50)  DEFAULT NULL            COMMENT '商家登录用户名（注册时填写）',
-    `password`          VARCHAR(200) DEFAULT NULL            COMMENT '商家登录密码（BCrypt，注册时填写）',
+    `password`          VARCHAR(200) DEFAULT NULL            COMMENT '商家登录密码（BCrypt，注册时填写；审核通过后创建商家时复用）',
     `status`            VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT '审核状态：PENDING/APPROVED/REJECTED',
     `reviewer_id`       BIGINT       DEFAULT NULL            COMMENT '审核人 ID（admin 用户）',
     `reviewed_at`       DATETIME     DEFAULT NULL            COMMENT '审核时间',
@@ -325,21 +337,21 @@ INSERT INTO `admin` (`id`, `username`, `password`, `phone`, `status`) VALUES
 (2, 'superadmin', '$2b$10$RnfmrSWD7e41HQGEWwXhXeCw982sMKxoPe2wkICq9mp2GrfNy/dpO', '13800000000', 'ACTIVE');
 
 -- ───── 2. 普通用户（顾客）─ 13 人 ─────
--- 密码均为 test123，订单数/消费金额由后端实时查询 order 表计算
-INSERT INTO `user` (`id`, `username`, `password`, `phone`, `gender`, `birthday`, `status`, `last_login_at`, `banned_reason`, `banned_at`, `banned_by`, `created_at`) VALUES
-(1,  'tester',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800000003', 1, '1998-03-15', 'ACTIVE', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(2,  'zhangsan',  '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111111', 1, '1995-08-22', 'ACTIVE', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(3,  'lisi',      '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822222222', 1, '1997-01-10', 'ACTIVE', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(4,  'wangwu',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13833333333', 1, '1993-11-05', 'ACTIVE', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(5,  'zhaoliu',   '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13844444444', 1, '1990-06-18', 'DISABLED', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), '多次恶意差评投诉', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(6,  'sunqi',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13855551111', 2, '2000-12-01', 'ACTIVE', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(7,  'zhouba',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13866661112', 1, '1996-09-09', 'ACTIVE', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(8,  'wujiu',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13877771113', 2, '1999-04-25', 'ACTIVE', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(9,  'zhengshi',  '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13888881114', 1, '1992-07-30', 'ACTIVE', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(10, 'qianyi',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13899991115', 2, '2001-02-14', 'ACTIVE', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(11, 'liuer',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800001116', 1, '1994-10-20', 'ACTIVE', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(12, 'caosan',    '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111117', 1, '1991-05-08', 'ACTIVE', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(13, 'weisi',     '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822221118', 1, '1989-12-25', 'DISABLED', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), '发布违规内容', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()));
+-- 密码均为 test123；username 与运行期注册规则一致：普通用户 + 8 位随机串（固定值保证唯一）
+INSERT INTO `user` (`id`, `username`, `password`, `phone`, `status`, `last_login_at`, `banned_reason`, `banned_at`, `banned_by`, `created_at`) VALUES
+(1,  '普通用户a043bae1', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800000003', 'ACTIVE',   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(2,  '普通用户603803a8', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111111', 'ACTIVE',   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(3,  '普通用户39c0cb52', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822222222', 'ACTIVE',   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(4,  '普通用户f511d9cb', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13833333333', 'ACTIVE',   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(5,  '普通用户8f68d9d9', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13844444444', 'DISABLED', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), '多次恶意差评投诉', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(6,  '普通用户b0341314', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13855551111', 'ACTIVE',   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(7,  '普通用户a5534ea9', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13866661112', 'ACTIVE',   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(8,  '普通用户2b26fa8a', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13877771113', 'ACTIVE',   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(9,  '普通用户dc30543f', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13888881114', 'ACTIVE',   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(10, '普通用户e5a6e743', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13899991115', 'ACTIVE',   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(11, '普通用户849e63f8', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13800001116', 'ACTIVE',   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(12, '普通用户101ac616', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13811111117', 'ACTIVE',   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), NULL, NULL, NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(13, '普通用户f8fd0ba8', '$2b$10$o96xzY8T/91SthduiCTmUuTj/VCtyciPwlYh7z3zR7p9z82pvPPsC', '13822221118', 'DISABLED', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), '发布违规内容', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()));
 
 -- ───── 3. 用户收货地址 ─────
 INSERT INTO `user_address` (`id`, `user_id`, `receiver`, `phone`, `detail`, `lat`, `lng`, `is_default`, `created_at`) VALUES
@@ -368,64 +380,64 @@ INSERT INTO `category` (`id`, `name`, `icon`, `icon_type`, `sort_order`, `status
 (9,  '披萨',     '🍕', 'EMOJI', 9,  'ENABLED', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
 (10, '轻食沙拉', '🥗', 'EMOJI', 10, 'ENABLED', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW()));
 
--- ───── 4. 商家 — 8 家店（含 LOGO） ─────
-INSERT INTO `merchant` (`id`, `username`, `password`, `name`, `phone`, `address`, `lat`, `lng`, `logo_url`,
+-- ───── 4. 商家 — 9 家店（含 LOGO；owner_name 联系人姓名与入驻申请一致） ─────
+INSERT INTO `merchant` (`id`, `password`, `name`, `phone`, `owner_name`, `address`, `lat`, `lng`, `logo_url`,
   `status`, `category_id`, `description`, `avg_rating`, `total_orders`,
   `business_hours_start`, `business_hours_end`, `delivery_radius`, `notice`,
   `created_at`, `last_login_at`) VALUES
-(1, 'nightbb',   '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
-  '深夜食堂',   '13800000002', '朝阳区望京SOHO T1 B1-101', 39.9963200, 116.4809000,
+(1, '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '深夜食堂',   '13800000002', '孙七', '朝阳区望京SOHO T1 B1-101', 39.9963200, 116.4809000,
   'https://picsum.photos/seed/bbq-night/400/400',
   'OPEN', 1, '望京地区人气深夜食堂，主打烧烤+啤酒，现串现烤，凌晨不打烊！', 4.8, 1256,
   '18:00:00', '03:00:00', 5000, '本周五推出新品炭烤羊排，欢迎品尝！',
   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(2, 'spicyhot',  '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
-  '辣翻天小龙虾','13855555555', '朝阳区双井桥东200米', 39.8984700, 116.4675500,
+(2, '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '辣翻天小龙虾','13855555555', '周八', '朝阳区双井桥东200米', 39.8984700, 116.4675500,
   'https://picsum.photos/seed/spicy-lobster/400/400',
   'OPEN', 2, '活虾现做！麻辣鲜香！北京小龙虾排行榜TOP3，支持外卖配送', 4.6, 892,
   '16:00:00', '02:00:00', 4000, '新到一批盱眙大虾，个头更大更过瘾',
   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(3, 'teahouse',   '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
-  '老王糖水铺',  '13866666666', '海淀区五道口地铁站B口旁', 39.9929200, 116.3383200,
+(3, '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '老王糖水铺',  '13866666666', '钱一', '海淀区五道口地铁站B口旁', 39.9929200, 116.3383200,
   'https://picsum.photos/seed/sweet-soup/400/400',
   'OPEN', 7, '30年老店，顺德传统糖水手艺传承，每一碗都是记忆中的味道', 4.9, 2100,
   '14:00:00', '23:00:00', 3500, '夏日特供冰镇系列已上线',
   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(4, 'crispychick','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
-  '脆皮炸鸡（海淀总店）','13877778888', '海淀区中关村大街27号', 39.9836000, 116.3103000,
+(4, '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '脆皮炸鸡（海淀总店）','13877778888', '刘二', '海淀区中关村大街27号', 39.9836000, 116.3103000,
   'https://picsum.photos/seed/crispy-chicken/400/400',
   'OPEN', 5, '韩式脆皮炸鸡专门店，秘制酱料10+种口味任选', 4.5, 567,
   '10:00:00', '22:00:00', 4000, '新出蜂蜜芥末口味，买一送一！',
   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(5, 'hotnoodle',  '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
-  '川味牛肉面馆', '13888889999', '朝阳区大望路万达广场B1', 39.9093000, 116.4715000,
+(5, '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '川味牛肉面馆', '13888889999', '曹三', '朝阳区大望路万达广场B1', 39.9093000, 116.4715000,
   'https://picsum.photos/seed/noodle-soup/400/400',
   'OPEN', 4, '正宗重庆牛肉面，大块牛肉+秘制红油，麻辣过瘾', 4.3, 340,
   '08:00:00', '21:00:00', 3000, NULL,
   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(6, 'teamilk',    '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
-  '元气奶茶实验室','13866667777', '海淀区学院路15号', 39.9888000, 116.3475000,
+(6, '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '元气奶茶实验室','13866667777', '赵六', '海淀区学院路15号', 39.9888000, 116.3475000,
   'https://picsum.photos/seed/bubble-tea/400/400',
   'OPEN', 3, '年轻人的奶茶实验室，每周一款限定新品，好喝又好玩', 4.7, 1890,
   '09:00:00', '22:00:00', 5000, '本周限定：杨枝甘露波波冰',
   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(7, 'pizzaking',  '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
-  '披萨大王',    '13855556666', '东城区东直门银座B1', 39.9406000, 116.4352000,
+(7, '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '披萨大王',    '13855556666', '魏四', '东城区东直门银座B1', 39.9406000, 116.4352000,
   'https://picsum.photos/seed/pizza-king/400/400',
   'CLOSED', 9, '18寸超大披萨，手工现做，芝士拉丝超过1米', 4.1, 210,
   '10:00:00', '21:00:00', 6000, '店铺装修中，预计8月重新开业',
   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(8, 'malatang',   '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
-  '杨国福麻辣烫（望京店）','13812345678', '朝阳区望京阜通东大街6号', 39.9985000, 116.4812000,
+(8, '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '杨国福麻辣烫（望京店）','13812345678', '测试员', '朝阳区望京阜通东大街6号', 39.9985000, 116.4812000,
   'https://picsum.photos/seed/malatang/400/400',
   'SUSPENDED', 6, '东北正宗麻辣烫，骨汤熬制，食材新鲜，价格实惠', 3.9, 450,
   '08:00:00', '22:00:00', 3000, NULL,
   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-	(9, 'zhangsan_bbq', '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
-	  '张三烧烤', '13811111111', '朝阳区望京花园东区3-501', 39.9987400, 116.4741200,
-	  'https://picsum.photos/seed/zhangsan-bbq/400/400',
-	  'OPEN', 1, '东北烧烤老店，秘制配方，3年实体经验', 5.0, 0,
-	  '16:00:00', '01:00:00', 4500, NULL,
+(9, '$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  '张三烧烤', '13811111111', '张三', '朝阳区望京花园东区3-501', 39.9987400, 116.4741200,
+  'https://picsum.photos/seed/zhangsan-bbq/400/400',
+  'OPEN', 1, '东北烧烤老店，秘制配方，3年实体经验', 5.0, 0,
+  '16:00:00', '01:00:00', 4500, NULL,
   TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()), TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()));
 -- ───── 商家-品类关联（多对多） ─────
 INSERT INTO `merchant_category` (`merchant_id`, `category_id`) VALUES
@@ -587,50 +599,52 @@ INSERT INTO `product_spec` (`id`, `product_id`, `name`, `price_delta`, `stock`) 
 (87, 59, '标准份', 0.00, 50), (88, 60, '1杯', 0.00, 80);
 
 -- ───── 8. 商家入驻申请 ─────
-INSERT INTO `merchant_application` (`id`, `applicant_user_id`, `shop_name`, `username`, `password`, `status`, `reviewer_id`, `reviewed_at`, `logo_url`, `description`, `category_id`, `created_at`) VALUES
-(1,2,'张三烧烤','zhangsan_bbq','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '3年烧烤经验，有实体店，想入驻线上平台', 'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
-  'https://picsum.photos/seed/zhangsan-bbq/400/400', '东北烧烤老店，秘制配方', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(2,3,'李四炸鸡店','lisi_chicken','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '自家配方+实体店面，想拓展外卖业务', 'PENDING', NULL, NULL,
-  'https://picsum.photos/seed/lisi-chicken/400/400', '韩式炸鸡专门店，10+口味', 5, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(3,4,'王五麻辣烫','wangwu_mt','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '证照齐全，有3年餐饮经验', 'PENDING', NULL, NULL,
-  'https://picsum.photos/seed/wangwu-malatang/400/400', '正宗川味麻辣烫，骨汤熬制', 6, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(4,1,'测试深夜小厨','test_kitchen','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '测试入驻流程', 'REJECTED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
-  NULL, '测试数据', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(5,8,'吴九日料居酒屋','wujiu_jp','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '在日本学厨5年，想在望京开一家居酒屋', 'PENDING', NULL, NULL,
-  'https://picsum.photos/seed/japanese-izakaya/400/400', '东京风味居酒屋，刺身+烤物+清酒', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(6,9,'郑十螺蛳粉','zheng_lsf','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '柳州学艺归来，正宗螺蛳粉', 'PENDING', NULL, NULL,
-  'https://picsum.photos/seed/luosifen/400/400', '柳州正宗螺蛳粉，酸笋够味', NULL, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
--- 以下为已通过的历史申请（对应现有 8 家商家）
-(7,6,'深夜食堂','nightbb','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '望京地区首家深夜食堂，主打烧烤+啤酒', 'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
-  'https://picsum.photos/seed/bbq-night/400/400', '望京地区人气深夜食堂，主打烧烤+啤酒，现串现烤，凌晨不打烊！', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(8,7,'辣翻天小龙虾','spicyhot','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '活虾现做+独家麻辣配方，实体店生意火爆想拓展外卖', 'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
-  'https://picsum.photos/seed/spicy-lobster/400/400', '活虾现做！麻辣鲜香！北京小龙虾排行榜TOP3，支持外卖配送', 2, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(9,10,'老王糖水铺','teahouse','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '30年顺德糖水老店，传统手艺，想通过线上平台触达更多顾客', 'APPROVED', 2, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
-  'https://picsum.photos/seed/sweet-soup/400/400', '30年老店，顺德传统糖水手艺传承，每一碗都是记忆中的味道', 7, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(10,11,'脆皮炸鸡（海淀总店）','crispychick','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '韩式脆皮炸鸡专门店，秘制酱料10+口味，已有实体店想拓展线上', 'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
-  'https://picsum.photos/seed/crispy-chicken/400/400', '韩式脆皮炸鸡专门店，秘制酱料10+种口味任选', 5, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(11,12,'川味牛肉面馆','hotnoodle','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '正宗重庆牛肉面，大块牛肉+秘制红油，证照齐全', 'APPROVED', 2, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
-  'https://picsum.photos/seed/noodle-soup/400/400', '正宗重庆牛肉面，大块牛肉+秘制红油，麻辣过瘾', 4, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(12,5,'元气奶茶实验室','teamilk','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '年轻人的创意奶茶实验室，每周一款限定新品', 'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
-  'https://picsum.photos/seed/bubble-tea/400/400', '年轻人的奶茶实验室，每周一款限定新品，好喝又好玩', 3, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(13,13,'披萨大王','pizzaking','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '18寸超大披萨，手工现做，芝士拉丝超过1米', 'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
-  'https://picsum.photos/seed/pizza-king/400/400', '18寸超大披萨，手工现做，芝士拉丝超过1米', 9, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
-(14,1,'杨国福麻辣烫（望京店）','malatang','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.'
-  '东北正宗麻辣烫，骨汤熬制食材新鲜，品牌加盟店', 'APPROVED', 2, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
-  'https://picsum.photos/seed/malatang/400/400', '东北正宗麻辣烫，骨汤熬制，食材新鲜，价格实惠', 6, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()));
+-- 申请表不含 username；owner_name 为联系人姓名（审核通过后写入 merchant.owner_name）
+-- password 与 description 分行书写，避免相邻字符串字面量被 MySQL 意外拼接
+INSERT INTO `merchant_application` (`id`, `applicant_user_id`, `shop_name`, `password`, `status`, `reviewer_id`, `reviewed_at`, `logo_url`, `description`, `category_id`, `owner_name`, `created_at`) VALUES
+(1,2,'张三烧烤','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
+  'https://picsum.photos/seed/zhangsan-bbq/400/400', '东北烧烤老店，秘制配方', 1, '张三', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(2,3,'李四炸鸡店','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'PENDING', NULL, NULL,
+  'https://picsum.photos/seed/lisi-chicken/400/400', '韩式炸鸡专门店，10+口味', 5, '李四', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(3,4,'王五麻辣烫','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'PENDING', NULL, NULL,
+  'https://picsum.photos/seed/wangwu-malatang/400/400', '正宗川味麻辣烫，骨汤熬制', 6, '王五', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(4,1,'测试深夜小厨','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'REJECTED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
+  NULL, '测试数据', NULL, '测试员', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(5,8,'吴九日料居酒屋','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'PENDING', NULL, NULL,
+  'https://picsum.photos/seed/japanese-izakaya/400/400', '东京风味居酒屋，刺身+烤物+清酒', NULL, '吴九', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(6,9,'郑十螺蛳粉','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'PENDING', NULL, NULL,
+  'https://picsum.photos/seed/luosifen/400/400', '柳州正宗螺蛳粉，酸笋够味', NULL, '郑十', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+-- 以下为已通过的历史申请（对应现有 9 家商家）
+(7,6,'深夜食堂','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
+  'https://picsum.photos/seed/bbq-night/400/400', '望京地区人气深夜食堂，主打烧烤+啤酒，现串现烤，凌晨不打烊！', 1, '孙七', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(8,7,'辣翻天小龙虾','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
+  'https://picsum.photos/seed/spicy-lobster/400/400', '活虾现做！麻辣鲜香！北京小龙虾排行榜TOP3，支持外卖配送', 2, '周八', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(9,10,'老王糖水铺','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'APPROVED', 2, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
+  'https://picsum.photos/seed/sweet-soup/400/400', '30年老店，顺德传统糖水手艺传承，每一碗都是记忆中的味道', 7, '钱一', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(10,11,'脆皮炸鸡（海淀总店）','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
+  'https://picsum.photos/seed/crispy-chicken/400/400', '韩式脆皮炸鸡专门店，秘制酱料10+种口味任选', 5, '刘二', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(11,12,'川味牛肉面馆','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'APPROVED', 2, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
+  'https://picsum.photos/seed/noodle-soup/400/400', '正宗重庆牛肉面，大块牛肉+秘制红油，麻辣过瘾', 4, '曹三', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(12,5,'元气奶茶实验室','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
+  'https://picsum.photos/seed/bubble-tea/400/400', '年轻人的奶茶实验室，每周一款限定新品，好喝又好玩', 3, '赵六', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(13,13,'披萨大王','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'APPROVED', 1, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
+  'https://picsum.photos/seed/pizza-king/400/400', '18寸超大披萨，手工现做，芝士拉丝超过1米', 9, '魏四', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW())),
+(14,1,'杨国福麻辣烫（望京店）','$2b$10$Yx6fHpnFF8dLzLAhzhsxYeRZ1MqSQwhbWBau3AFOo7aKo02bnAWZ.',
+  'APPROVED', 2, TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()),
+  'https://picsum.photos/seed/malatang/400/400', '东北正宗麻辣烫，骨汤熬制，食材新鲜，价格实惠', 6, '测试员', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 63072000), NOW()));
 
 -- 已通过申请随机填充审核时间（申请后 1 ~ 24 小时）
 UPDATE `merchant_application` SET `reviewed_at` = TIMESTAMPADD(SECOND, 3600 + FLOOR(RAND() * 82800), `created_at`)
@@ -777,128 +791,128 @@ INSERT INTO `order_item` (`id`, `order_id`, `product_id`, `spec_id`, `name_snaps
 -- ───── 11. 订单状态流转日志 ─────
 INSERT INTO `order_status_log` (`id`, `order_id`, `from_status`, `to_status`, `operator`, `reason`) VALUES
 -- 订单1: 深夜食堂 COMPLETED
-(1,  1,  NULL,          'PENDING_PAY', 'tester',   '用户下单'),
+(1,  1,  NULL,          'PENDING_PAY', '138****0003',   '用户下单'),
 (2,  1,  'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
-(3,  1,  'PAID',        'ACCEPTED',    'nightbb',  '商家接单'),
-(4,  1,  'ACCEPTED',    'COOKING',     'nightbb',  '开始制作'),
-(5,  1,  'COOKING',     'COMPLETED',   'nightbb',  '制作完成'),
+(3,  1,  'PAID',        'ACCEPTED',    '深夜食堂',  '商家接单'),
+(4,  1,  'ACCEPTED',    'COOKING',     '深夜食堂',  '开始制作'),
+(5,  1,  'COOKING',     'COMPLETED',   '深夜食堂',  '制作完成'),
 -- 订单2: 深夜食堂 PAID
-(6,  2,  NULL,          'PENDING_PAY', 'zhangsan', '用户下单'),
+(6,  2,  NULL,          'PENDING_PAY', '138****1111', '用户下单'),
 (7,  2,  'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
 -- 订单3: 深夜食堂 COOKING
-(8,  3,  NULL,          'PENDING_PAY', 'sunqi',    '用户下单'),
+(8,  3,  NULL,          'PENDING_PAY', '138****1111',    '用户下单'),
 (9,  3,  'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
-(10, 3,  'PAID',        'ACCEPTED',    'nightbb',  '商家接单'),
-(11, 3,  'ACCEPTED',    'COOKING',     'nightbb',  '开始制作'),
+(10, 3,  'PAID',        'ACCEPTED',    '深夜食堂',  '商家接单'),
+(11, 3,  'ACCEPTED',    'COOKING',     '深夜食堂',  '开始制作'),
 -- 订单4: 深夜食堂 PENDING_PAY
-(12, 4,  NULL,          'PENDING_PAY', 'lisi',     '用户下单'),
+(12, 4,  NULL,          'PENDING_PAY', '138****2222',     '用户下单'),
 -- 订单5: 辣翻天 COMPLETED
-(13, 5,  NULL,          'PENDING_PAY', 'tester',   '用户下单'),
+(13, 5,  NULL,          'PENDING_PAY', '138****0003',   '用户下单'),
 (14, 5,  'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
-(15, 5,  'PAID',        'ACCEPTED',    'spicyhot', '商家接单'),
-(16, 5,  'ACCEPTED',    'COOKING',     'spicyhot', '开始制作'),
-(17, 5,  'COOKING',     'COMPLETED',   'spicyhot', '制作完成'),
+(15, 5,  'PAID',        'ACCEPTED',    '辣翻天小龙虾', '商家接单'),
+(16, 5,  'ACCEPTED',    'COOKING',     '辣翻天小龙虾', '开始制作'),
+(17, 5,  'COOKING',     'COMPLETED',   '辣翻天小龙虾', '制作完成'),
 -- 订单6: 辣翻天 ACCEPTED
-(18, 6,  NULL,          'PENDING_PAY', 'zhouba',   '用户下单'),
+(18, 6,  NULL,          'PENDING_PAY', '138****1112',   '用户下单'),
 (19, 6,  'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
-(20, 6,  'PAID',        'ACCEPTED',    'spicyhot', '商家接单'),
+(20, 6,  'PAID',        'ACCEPTED',    '辣翻天小龙虾', '商家接单'),
 -- 订单7: 辣翻天 PAID
-(21, 7,  NULL,          'PENDING_PAY', 'wangwu',   '用户下单'),
+(21, 7,  NULL,          'PENDING_PAY', '138****3333',   '用户下单'),
 (22, 7,  'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
 -- 订单8: 老王糖水铺 COMPLETED
-(23, 8,  NULL,          'PENDING_PAY', 'zhangsan', '用户下单'),
+(23, 8,  NULL,          'PENDING_PAY', '138****1111', '用户下单'),
 (24, 8,  'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
-(25, 8,  'PAID',        'ACCEPTED',    'teahouse', '商家接单'),
-(26, 8,  'ACCEPTED',    'COOKING',     'teahouse', '开始制作'),
-(27, 8,  'COOKING',     'COMPLETED',   'teahouse', '制作完成'),
+(25, 8,  'PAID',        'ACCEPTED',    '老王糖水铺', '商家接单'),
+(26, 8,  'ACCEPTED',    'COOKING',     '老王糖水铺', '开始制作'),
+(27, 8,  'COOKING',     'COMPLETED',   '老王糖水铺', '制作完成'),
 -- 订单9: 老王糖水铺 COMPLETED
-(28, 9,  NULL,          'PENDING_PAY', 'sunqi',    '用户下单'),
+(28, 9,  NULL,          'PENDING_PAY', '138****1111',    '用户下单'),
 (29, 9,  'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
-(30, 9,  'PAID',        'ACCEPTED',    'teahouse', '商家接单'),
-(31, 9,  'ACCEPTED',    'COOKING',     'teahouse', '开始制作'),
-(32, 9,  'COOKING',     'COMPLETED',   'teahouse', '制作完成'),
+(30, 9,  'PAID',        'ACCEPTED',    '老王糖水铺', '商家接单'),
+(31, 9,  'ACCEPTED',    'COOKING',     '老王糖水铺', '开始制作'),
+(32, 9,  'COOKING',     'COMPLETED',   '老王糖水铺', '制作完成'),
 -- 订单10: 老王糖水铺 PAID
-(33, 10, NULL,          'PENDING_PAY', 'tester',   '用户下单'),
+(33, 10, NULL,          'PENDING_PAY', '138****0003',   '用户下单'),
 (34, 10, 'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
 -- 订单11: 老王糖水铺 COOKING
-(35, 11, NULL,          'PENDING_PAY', 'wujiu',    '用户下单'),
+(35, 11, NULL,          'PENDING_PAY', '138****1113',    '用户下单'),
 (36, 11, 'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
-(37, 11, 'PAID',        'ACCEPTED',    'teahouse', '商家接单'),
-(38, 11, 'ACCEPTED',    'COOKING',     'teahouse', '开始制作'),
+(37, 11, 'PAID',        'ACCEPTED',    '老王糖水铺', '商家接单'),
+(38, 11, 'ACCEPTED',    'COOKING',     '老王糖水铺', '开始制作'),
 -- 订单12: 老王糖水铺 ACCEPTED
-(39, 12, NULL,          'PENDING_PAY', 'caosan',   '用户下单'),
+(39, 12, NULL,          'PENDING_PAY', '138****1117',   '用户下单'),
 (40, 12, 'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
-(41, 12, 'PAID',        'ACCEPTED',    'teahouse', '商家接单'),
+(41, 12, 'PAID',        'ACCEPTED',    '老王糖水铺', '商家接单'),
 -- 订单13: 脆皮炸鸡 COMPLETED
-(42, 13, NULL,          'PENDING_PAY', 'zhengshi', '用户下单'),
+(42, 13, NULL,          'PENDING_PAY', '138****1114', '用户下单'),
 (43, 13, 'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
-(44, 13, 'PAID',        'ACCEPTED',    'crispychick','商家接单'),
-(45, 13, 'ACCEPTED',    'COOKING',     'crispychick','开始制作'),
-(46, 13, 'COOKING',     'COMPLETED',   'crispychick','制作完成'),
+(44, 13, 'PAID',        'ACCEPTED',    '脆皮炸鸡','商家接单'),
+(45, 13, 'ACCEPTED',    'COOKING',     '脆皮炸鸡','开始制作'),
+(46, 13, 'COOKING',     'COMPLETED',   '脆皮炸鸡','制作完成'),
 -- 订单14: 脆皮炸鸡 PAID
-(47, 14, NULL,          'PENDING_PAY', 'qianyi',   '用户下单'),
+(47, 14, NULL,          'PENDING_PAY', '138****1115',   '用户下单'),
 (48, 14, 'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
 -- 订单15: 川味牛肉面馆 PAID
-(49, 15, NULL,          'PENDING_PAY', 'liuer',    '用户下单'),
+(49, 15, NULL,          'PENDING_PAY', '138****1116',    '用户下单'),
 (50, 15, 'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
 -- 订单16: 元气奶茶 COMPLETED
-(51, 16, NULL,          'PENDING_PAY', 'zhangsan', '用户下单'),
+(51, 16, NULL,          'PENDING_PAY', '138****1111', '用户下单'),
 (52, 16, 'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
-(53, 16, 'PAID',        'ACCEPTED',    'teamilk',  '商家接单'),
-(54, 16, 'ACCEPTED',    'COOKING',     'teamilk',  '开始制作'),
-(55, 16, 'COOKING',     'COMPLETED',   'teamilk',  '制作完成'),
+(53, 16, 'PAID',        'ACCEPTED',    '元气奶茶实验室',  '商家接单'),
+(54, 16, 'ACCEPTED',    'COOKING',     '元气奶茶实验室',  '开始制作'),
+(55, 16, 'COOKING',     'COMPLETED',   '元气奶茶实验室',  '制作完成'),
 -- 订单17: 元气奶茶 PAID
-(56, 17, NULL,          'PENDING_PAY', 'sunqi',    '用户下单'),
+(56, 17, NULL,          'PENDING_PAY', '138****1111',    '用户下单'),
 (57, 17, 'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
 -- 订单18: 元气奶茶 ACCEPTED
-(58, 18, NULL,          'PENDING_PAY', 'zhouba',   '用户下单'),
+(58, 18, NULL,          'PENDING_PAY', '138****1112',   '用户下单'),
 (59, 18, 'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
-(60, 18, 'PAID',        'ACCEPTED',    'teamilk',  '商家接单'),
+(60, 18, 'PAID',        'ACCEPTED',    '元气奶茶实验室',  '商家接单'),
 -- 历史订单
-(61, 19, NULL,          'PENDING_PAY', 'tester',   '用户下单'),
+(61, 19, NULL,          'PENDING_PAY', '138****0003',   '用户下单'),
 (62, 19, 'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
-(63, 19, 'PAID',        'ACCEPTED',    'nightbb',  '商家接单'),
-(64, 19, 'ACCEPTED',    'COOKING',     'nightbb',  '开始制作'),
-(65, 19, 'COOKING',     'COMPLETED',   'nightbb',  '制作完成'),
-(66, 20, NULL,          'PENDING_PAY', 'lisi',     '用户下单'),
+(63, 19, 'PAID',        'ACCEPTED',    '深夜食堂',  '商家接单'),
+(64, 19, 'ACCEPTED',    'COOKING',     '深夜食堂',  '开始制作'),
+(65, 19, 'COOKING',     'COMPLETED',   '深夜食堂',  '制作完成'),
+(66, 20, NULL,          'PENDING_PAY', '138****2222',     '用户下单'),
 (67, 20, 'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
-(68, 20, 'PAID',        'ACCEPTED',    'spicyhot', '商家接单'),
-(69, 20, 'ACCEPTED',    'COOKING',     'spicyhot', '开始制作'),
-(70, 20, 'COOKING',     'COMPLETED',   'spicyhot', '制作完成'),
-(71, 21, NULL,          'PENDING_PAY', 'wangwu',   '用户下单'),
-(72, 21, 'PENDING_PAY', 'CANCELLED',   'wangwu',   '用户取消订单'),
-(73, 22, NULL,          'PENDING_PAY', 'zhaoliu',  '用户下单'),
+(68, 20, 'PAID',        'ACCEPTED',    '辣翻天小龙虾', '商家接单'),
+(69, 20, 'ACCEPTED',    'COOKING',     '辣翻天小龙虾', '开始制作'),
+(70, 20, 'COOKING',     'COMPLETED',   '辣翻天小龙虾', '制作完成'),
+(71, 21, NULL,          'PENDING_PAY', '138****3333',   '用户下单'),
+(72, 21, 'PENDING_PAY', 'CANCELLED',   '138****3333',   '用户取消订单'),
+(73, 22, NULL,          'PENDING_PAY', '138****4444',  '用户下单'),
 (74, 22, 'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
-(75, 22, 'PAID',        'ACCEPTED',    'nightbb',  '商家接单'),
-(76, 22, 'ACCEPTED',    'COOKING',     'nightbb',  '开始制作'),
-(77, 22, 'COOKING',     'COMPLETED',   'nightbb',  '制作完成'),
-(78, 23, NULL,          'PENDING_PAY', 'wujiu',    '用户下单'),
+(75, 22, 'PAID',        'ACCEPTED',    '深夜食堂',  '商家接单'),
+(76, 22, 'ACCEPTED',    'COOKING',     '深夜食堂',  '开始制作'),
+(77, 22, 'COOKING',     'COMPLETED',   '深夜食堂',  '制作完成'),
+(78, 23, NULL,          'PENDING_PAY', '138****1113',    '用户下单'),
 (79, 23, 'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
-(80, 23, 'PAID',        'ACCEPTED',    'crispychick','商家接单'),
-(81, 23, 'ACCEPTED',    'COOKING',     'crispychick','开始制作'),
-(82, 23, 'COOKING',     'COMPLETED',   'crispychick','制作完成'),
-(83, 24, NULL,          'PENDING_PAY', 'zhengshi', '用户下单'),
+(80, 23, 'PAID',        'ACCEPTED',    '脆皮炸鸡','商家接单'),
+(81, 23, 'ACCEPTED',    'COOKING',     '脆皮炸鸡','开始制作'),
+(82, 23, 'COOKING',     'COMPLETED',   '脆皮炸鸡','制作完成'),
+(83, 24, NULL,          'PENDING_PAY', '138****1114', '用户下单'),
 (84, 24, 'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
-(85, 24, 'PAID',        'REFUNDING',   'zhengshi', '用户申请退款'),
-(86, 25, NULL,          'PENDING_PAY', 'qianyi',   '用户下单'),
+(85, 24, 'PAID',        'REFUNDING',   '138****1114', '用户申请退款'),
+(86, 25, NULL,          'PENDING_PAY', '138****1115',   '用户下单'),
 (87, 25, 'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
-(88, 25, 'PAID',        'ACCEPTED',    'teamilk',  '商家接单'),
-(89, 25, 'ACCEPTED',    'COOKING',     'teamilk',  '开始制作'),
-(90, 25, 'COOKING',     'COMPLETED',   'teamilk',  '制作完成'),
-(91, 26, NULL,          'PENDING_PAY', 'sunqi',    '用户下单'),
+(88, 25, 'PAID',        'ACCEPTED',    '元气奶茶实验室',  '商家接单'),
+(89, 25, 'ACCEPTED',    'COOKING',     '元气奶茶实验室',  '开始制作'),
+(90, 25, 'COOKING',     'COMPLETED',   '元气奶茶实验室',  '制作完成'),
+(91, 26, NULL,          'PENDING_PAY', '138****1111',    '用户下单'),
 (92, 26, 'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
-(93, 26, 'PAID',        'REFUNDING',   'sunqi',    '用户申请退款'),
+(93, 26, 'PAID',        'REFUNDING',   '138****1111',    '用户申请退款'),
 (94, 26, 'REFUNDING',   'REFUNDED',    'system',   '退款到账'),
-(95, 27, NULL,          'PENDING_PAY', 'caosan',   '用户下单'),
+(95, 27, NULL,          'PENDING_PAY', '138****1117',   '用户下单'),
 (96, 27, 'PENDING_PAY', 'PAID',        'system',   '支付宝支付回调'),
-(97, 27, 'PAID',        'ACCEPTED',    'pizzaking', '商家接单'),
-(98, 27, 'ACCEPTED',    'COOKING',     'pizzaking', '开始制作'),
-(99, 27, 'COOKING',     'COMPLETED',   'pizzaking', '制作完成'),
-(100,28, NULL,          'PENDING_PAY', 'weisi',    '用户下单'),
+(97, 27, 'PAID',        'ACCEPTED',    '披萨大王', '商家接单'),
+(98, 27, 'ACCEPTED',    'COOKING',     '披萨大王', '开始制作'),
+(99, 27, 'COOKING',     'COMPLETED',   '披萨大王', '制作完成'),
+(100,28, NULL,          'PENDING_PAY', '138****2118',    '用户下单'),
 (101,28, 'PENDING_PAY', 'PAID',        'system',   '微信支付回调'),
-(102,28, 'PAID',        'ACCEPTED',    'malatang', '商家接单'),
-(103,28, 'ACCEPTED',    'COOKING',     'malatang', '开始制作'),
-(104,28, 'COOKING',     'COMPLETED',   'malatang', '制作完成');
+(102,28, 'PAID',        'ACCEPTED',    '杨国福麻辣烫', '商家接单'),
+(103,28, 'ACCEPTED',    'COOKING',     '杨国福麻辣烫', '开始制作'),
+(104,28, 'COOKING',     'COMPLETED',   '杨国福麻辣烫', '制作完成');
 
 
 -- 状态日志时间重排：以订单创建时间为基准按状态机顺序递增
@@ -946,4 +960,13 @@ INSERT INTO `payment_record` (`id`, `order_no`, `channel`, `trade_no`, `amount`,
 (24, (SELECT order_no FROM `order` WHERE id=26), 'ALIPAY',      'AL20260720002', 40.00,  'SUCCESS', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
 (25, (SELECT order_no FROM `order` WHERE id=27), 'ALIPAY',      'AL20260726002', 68.00,  'SUCCESS', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW())),
 (26, (SELECT order_no FROM `order` WHERE id=28), 'WECHAT_MOCK', 'WM20260725002', 26.00,  'SUCCESS', TIMESTAMPADD(SECOND, -FLOOR(RAND() * 5184000), NOW()));
+
+-- 退款字段示例：已退款订单（order id=26）的支付记录补全退款信息
+UPDATE `payment_record` pr
+JOIN `order` o ON pr.order_no = o.order_no
+SET pr.refund_status = 'REFUNDED',
+    pr.refund_amount = pr.amount,
+    pr.out_refund_no = CONCAT('RF', o.order_no, '1'),
+    pr.refund_at     = TIMESTAMPADD(SECOND, 3600 + FLOOR(RAND() * 82800), o.pay_time)
+WHERE o.id = 26;
 

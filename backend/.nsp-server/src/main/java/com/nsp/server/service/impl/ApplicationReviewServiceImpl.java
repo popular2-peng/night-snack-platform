@@ -123,18 +123,15 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
             throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.APPLICANT_NOT_FOUND_MSG);
         }
 
-        // 2. 校验申请凭据
-        if (app.getUsername() == null || app.getUsername().isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, MessageConst.PARAM_APPLICATION_MISSING_USERNAME_MSG);
-        }
+        // 2. 校验申请凭据（密码已 BCrypt 加密，审核通过后直接复用；账号即手机号，无 username）
         if (app.getPassword() == null || app.getPassword().isBlank()) {
             throw new BizException(ErrorCode.PARAM_ERROR, MessageConst.PARAM_APPLICATION_MISSING_PASSWORD_MSG);
         }
 
         // 3. 创建商家记录（凭据来自商家注册时填写，密码已 BCrypt 加密）
         Merchant merchant = new Merchant();
-        merchant.setUsername(app.getUsername());
         merchant.setPassword(app.getPassword());
+        merchant.setOwnerName(app.getOwnerName());
         merchant.setName(app.getShopName());
         merchant.setPhone(applicant.getPhone());
         merchant.setLogoUrl(app.getLogoUrl());
@@ -194,18 +191,15 @@ public class ApplicationReviewServiceImpl implements ApplicationReviewService {
             throw new BizException(ErrorCode.USER_NOT_FOUND, MessageConst.APPLICANT_NOT_FOUND_MSG);
         }
 
-        // 2. 校验申请凭据
-        if (app.getUsername() == null || app.getUsername().isBlank()) {
-            throw new BizException(ErrorCode.PARAM_ERROR, MessageConst.PARAM_APPLICATION_MISSING_USERNAME_MSG);
-        }
+        // 2. 校验申请凭据（密码已 BCrypt 加密，审核通过后直接复用；账号即手机号，无 username）
         if (app.getPassword() == null || app.getPassword().isBlank()) {
             throw new BizException(ErrorCode.PARAM_ERROR, MessageConst.PARAM_APPLICATION_MISSING_PASSWORD_MSG);
         }
 
         // 3. 创建商家记录（凭据来自商家注册时填写，密码已 BCrypt 加密）
         Merchant merchant = new Merchant();
-        merchant.setUsername(app.getUsername());
         merchant.setPassword(app.getPassword());
+        merchant.setOwnerName(app.getOwnerName());
         merchant.setName(app.getShopName());
         merchant.setPhone(applicant.getPhone());
         merchant.setLogoUrl(app.getLogoUrl());

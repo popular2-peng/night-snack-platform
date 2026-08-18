@@ -17,7 +17,9 @@ public class LoginVO {
     /** 用户 ID */
     private Long userId;
 
-    /** 用户名 */
+    /**
+     * 展示名：USER → 后端生成的用户名（普通用户+随机串）；MERCHANT → 店铺名称；ADMIN → 登录用户名
+     */
     private String username;
 
     /** 角色：USER / MERCHANT / ADMIN */

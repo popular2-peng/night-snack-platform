@@ -11,6 +11,7 @@ import java.time.LocalTime;
 
 /**
  * 商家/店铺（含登录凭据，自包含）
+ * <p>无 username：登录仅用手机号 + 密码；owner_name 为联系人姓名（入驻申请时填写）
  */
 @Data
 @TableName("merchant")
@@ -19,17 +20,17 @@ public class Merchant {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 商家登录用户名（唯一） */
-    private String username;
-
     /** 登录密码（BCrypt 加密） */
     private String password;
 
     /** 店铺名称 */
     private String name;
 
-    /** 店铺联系电话 */
+    /** 店铺联系电话（唯一，登录凭证） */
     private String phone;
+
+    /** 联系人姓名（店主，中文；入驻申请时填写，审核通过后带入） */
+    private String ownerName;
 
     /** 店铺地址 */
     private String address;
@@ -39,9 +40,6 @@ public class Merchant {
 
     /** 经度 */
     private BigDecimal lng;
-
-    /** 店铺头像/Logo OSS URL */
-    private String avatarUrl;
 
     /** 营业状态：PENDING / OPEN / CLOSED / SUSPENDED */
     private String status;

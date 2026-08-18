@@ -13,8 +13,9 @@ public class AdminApplicationVO {
 
     private Long id;
     private String shopName;
+    /** 申请人用户名（后端生成的展示名） */
     private String applicantUsername;
-    /** 手机号（脱敏） */
+    /** 申请人手机号（脱敏） */
     private String phone;
     /** 店铺 LOGO */
     private String logoUrl;

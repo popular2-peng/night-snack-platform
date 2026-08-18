@@ -5,13 +5,10 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 /**
- * 注册请求参数 — 无需填写用户名，注册时由系统生成「普通用户 + 随机串」
+ * 注册请求参数 — 仅手机号 + 密码（无用户名概念）
  */
 @Data
 public class RegisterDTO {
-
-    /** 用户名（可选）— 注册时系统自动生成，前端无需传入 */
-    private String username;
 
     /** 密码：6-20 位，必须同时包含字母和数字（与三端前端校验规则一致） */
     @NotBlank(message = "密码不能为空")

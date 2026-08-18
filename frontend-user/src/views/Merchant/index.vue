@@ -154,7 +154,7 @@ onMounted(async () => {
     <!-- ====== 头部卡片（内边距 20px） ====== -->
     <div class="shop-head" v-loading="loading">
       <template v-if="shop">
-        <van-image :src="shop.logoUrl || shop.avatarUrl" fit="cover" class="head-logo">
+        <van-image :src="shop.logoUrl" fit="cover" class="head-logo">
           <template #error>🏪</template>
         </van-image>
         <div class="head-info">

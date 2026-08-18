@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -14,21 +13,17 @@ import java.time.LocalDateTime;
 public class UserDetailVO {
 
     private Long id;
+    /** 用户名（后端生成，展示用） */
     private String username;
     /** 手机号（脱敏） */
     private String phone;
     /** 头像 OSS URL */
     private String avatarUrl;
-    /** 性别：0-未知 1-男 2-女 */
-    private Integer gender;
-    /** 生日 */
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate birthday;
     /** ACTIVE / DISABLED */
     private String status;
-    /** 历史总订单数 */
+    /** 历史总订单数（order 表实时统计） */
     private Integer totalOrders;
-    /** 历史总消费金额 */
+    /** 历史总消费金额（order 表实时统计） */
     private BigDecimal totalSpent;
 
     private LocalDateTime lastLoginAt;
