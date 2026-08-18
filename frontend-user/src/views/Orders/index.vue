@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { getOrdersApi, type UserOrder } from '@/apis/order'
 import OrderCard from './components/OrderCard.vue'
 
@@ -70,8 +70,6 @@ const onOrderDeleted = (id: number) => {
   orders.value = orders.value.filter((x) => x.id !== id)
   total.value = Math.max(0, total.value - 1)
 }
-
-onMounted(loadMore)
 </script>
 
 <template>

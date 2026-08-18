@@ -30,6 +30,8 @@ export interface MerchantVO {
   description: string
   notice: string
   avgRating: number | null
+  /** 主营品类 ID（首页分类筛选用） */
+  categoryId: number | null
 }
 
 /** 商品 */
@@ -62,10 +64,11 @@ export interface HomeMerchant extends MerchantVO {
 /** 平台启用品类（分类导航，匿名公开） */
 export const listCategoriesApi = () => request.get<CategoryVO[]>('/user/categories')
 
-/** 商家列表（全部营业中商家，分页） */
+/** 商家列表（全部营业中商家，分页，可选按主营品类筛选） */
 export const listMerchantsApi = (params: {
   page?: number
   size?: number
+  categoryId?: number
 }) => request.get<PageVO<MerchantVO>>('/user/merchants', { params })
 
 /** 商家在售商品列表 */

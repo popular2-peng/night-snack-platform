@@ -29,6 +29,8 @@ const merchants = ref<HomeMerchant[]>([])
 const loading = ref(false)
 /** 搜索关键词 */
 const keyword = ref('')
+/** 当前选中的主营品类 ID（null=全部） */
+const selectedCategoryId = ref<number | null>(null)
 
 /** 默认收货地址 */
 const defaultAddress = ref<AddressVO | null>(null)
@@ -56,11 +58,15 @@ const fetchCategories = async () => {
   }
 }
 
-/** 拉取附近商家，并为每个商家并发拉取前 3 个在售商品 */
+/** 拉取商家列表（可选按主营品类筛选），并为每个商家并发拉取前 6 个在售商品 */
 const fetchMerchants = async () => {
   loading.value = true
   try {
-    const res = await listMerchantsApi({ page: 1, size: 20 })
+    const res = await listMerchantsApi({
+      page: 1,
+      size: 20,
+      categoryId: selectedCategoryId.value ?? undefined,
+    })
     const list = res.data?.list || []
 
     const withProducts = await Promise.all(
@@ -98,9 +104,10 @@ const onSearch = (kw: string) => {
   keyword.value = kw
 }
 const onGoAddress = () => router.push('/address')
+/** 点击分类：按主营品类筛选商家（id=0 为「全部」，清除筛选） */
 const onSelectCategory = (c: CategoryVO) => {
-  // MVP：分类筛选商家需后端配合，暂仅记录
-  void c
+  selectedCategoryId.value = c.id === 0 ? null : c.id
+  fetchMerchants()
 }
 const onMerchantClick = (m: HomeMerchant) => {
   // TODO: 跳转商家详情页（后续实现）
@@ -118,7 +125,11 @@ onMounted(async () => {
   <div class="home-page">
     <HomeHeader :district="district" @search="onSearch" @go-address="onGoAddress" />
 
-    <CategorySlider :categories="categories" @select="onSelectCategory" />
+    <CategorySlider
+      :categories="categories"
+      :active-id="selectedCategoryId ?? 0"
+      @select="onSelectCategory"
+    />
 
     <MerchantList
       :merchants="filteredMerchants"
