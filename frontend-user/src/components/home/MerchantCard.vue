@@ -39,8 +39,8 @@ const ratingText = (rating: number | null) => (rating != null ? Number(rating).t
         </span>
       </div>
 
-      <!-- 下：在售商品（上图片 / 中名称 / 下价格） -->
-      <div class="products">
+      <!-- 下：在售商品（上图片 / 中名称 / 下价格；懒加载：进入视口后请求） -->
+      <div v-if="merchant.products.length" class="products">
         <div v-for="p in merchant.products" :key="p.id" class="product">
           <van-image :src="p.imageUrl" fit="cover" class="product-img">
             <template #error>🍽️</template>
@@ -49,6 +49,15 @@ const ratingText = (rating: number | null) => (rating != null ? Number(rating).t
           <span class="product-price">¥{{ p.price }}</span>
         </div>
       </div>
+      <!-- 未加载：骨架占位 -->
+      <div v-else-if="!merchant.productsLoaded" class="products-skeleton">
+        <div v-for="i in 3" :key="i" class="skeleton-item">
+          <van-skeleton-image class="skeleton-img" />
+          <van-skeleton class="skeleton-line" title :row="0" />
+        </div>
+      </div>
+      <!-- 已加载但无在售商品 -->
+      <div v-else class="products-empty">暂无在售商品</div>
     </div>
   </div>
 </template>
@@ -154,5 +163,33 @@ const ratingText = (rating: number | null) => (rating != null ? Number(rating).t
   font-size: 12px;
   font-weight: 700;
   color: #f53f3f;
+}
+
+/* ---- 商品懒加载骨架 ---- */
+.products-skeleton {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  padding-bottom: 4px;
+}
+.skeleton-item {
+  flex-shrink: 0;
+  width: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.skeleton-img {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+}
+.skeleton-line {
+  width: 100%;
+}
+.products-empty {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--van-text-color-3);
 }
 </style>

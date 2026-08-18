@@ -54,9 +54,11 @@ export interface PageVO<T> {
   list: T[]
 }
 
-/** 首页商家（含在售商品预览） */
+/** 首页商家（含在售商品预览；商品懒加载，进入视口后才请求） */
 export interface HomeMerchant extends MerchantVO {
   products: ProductVO[]
+  /** 商品是否已加载过（本地状态，防止重复请求；加载失败也会置 true 避免请求风暴） */
+  productsLoaded?: boolean
 }
 
 // ============ 接口 ============

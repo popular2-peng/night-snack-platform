@@ -8,7 +8,6 @@ import {
   listProductsApi,
   type CategoryVO,
   type HomeMerchant,
-  type ProductVO,
 } from '@/apis/home'
 import { listAddressesApi, type AddressVO } from '@/apis/address'
 import { extractDistrict } from '@/utils/district'
@@ -58,7 +57,7 @@ const fetchCategories = async () => {
   }
 }
 
-/** 拉取商家列表（可选按主营品类筛选），并为每个商家并发拉取前 6 个在售商品 */
+/** 拉取商家列表（可选按主营品类筛选）；商品懒加载：卡片进入视口时才请求 */
 const fetchMerchants = async () => {
   loading.value = true
   try {
@@ -68,24 +67,33 @@ const fetchMerchants = async () => {
       categoryId: selectedCategoryId.value ?? undefined,
     })
     const list = res.data?.list || []
-
-    const withProducts = await Promise.all(
-      list.map(async (m): Promise<HomeMerchant> => {
-        let products: ProductVO[] = []
-        try {
-          const pr = await listProductsApi(m.id, { page: 1, size: 6 })
-          products = pr.data?.list || []
-        } catch {
-          /* 单个商家商品失败不影响整体 */
-        }
-        return { ...m, products }
-      }),
-    )
-    merchants.value = withProducts
+    merchants.value = list.map((m) => ({ ...m, products: [], productsLoaded: false }))
   } catch {
     /* 拦截器已提示 */
   } finally {
     loading.value = false
+  }
+}
+
+/** 商品懒加载防重：正在请求中的商家 ID */
+const loadingProducts = new Set<number>()
+
+/**
+ * 懒加载单个商家的在售商品（前 6 个）：
+ * 由 MerchantList 的 IntersectionObserver 在卡片进入视口时触发；
+ * productsLoaded 与 in-flight 双重防重，失败也置已加载避免反复重试。
+ */
+const loadProducts = async (m: HomeMerchant) => {
+  if (m.productsLoaded || loadingProducts.has(m.id)) return
+  loadingProducts.add(m.id)
+  try {
+    const pr = await listProductsApi(m.id, { page: 1, size: 6 })
+    m.products = pr.data?.list || []
+  } catch {
+    /* 单个商家商品失败不影响整体，保留空预览 */
+  } finally {
+    m.productsLoaded = true
+    loadingProducts.delete(m.id)
   }
 }
 
@@ -135,6 +143,7 @@ onMounted(async () => {
       :merchants="filteredMerchants"
       :loading="loading"
       @click="onMerchantClick"
+      @visible="loadProducts"
     />
   </div>
 </template>
