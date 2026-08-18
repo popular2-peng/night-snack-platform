@@ -25,8 +25,8 @@ public class HomeMerchantListCache {
 
     private static final Logger log = LoggerFactory.getLogger(HomeMerchantListCache.class);
 
-    /** 缓存 Key（全量营业中商家列表） */
-    private static final String KEY = "merchant:list:home";
+    /** 缓存 Key（全量营业中商家列表；v2：MerchantVO 增加 categoryId 字段后结构变化，版本号强制旧缓存失效） */
+    private static final String KEY = "merchant:list:home:v2";
 
     /** TTL：30 分钟（兜底过期，正常依赖主动清除） */
     private static final Duration TTL = Duration.ofMinutes(30);

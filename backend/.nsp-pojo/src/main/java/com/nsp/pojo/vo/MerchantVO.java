@@ -45,4 +45,7 @@ public class MerchantVO {
     /** 店铺平均评分 */
     private BigDecimal avgRating;
 
+    /** 主营品类 ID（平台品类，首页分类筛选用） */
+    private Long categoryId;
+
 }

@@ -25,7 +25,7 @@ public class MerchantProductsCache {
 
     private static final Logger log = LoggerFactory.getLogger(MerchantProductsCache.class);
 
-    private static final String KEY_PREFIX = "merchant:products:on:";
+    private static final String KEY_PREFIX = "merchant:products:on:v2:";
     private static final Duration TTL = Duration.ofMinutes(30);
 
     private final StringRedisTemplate redisTemplate;

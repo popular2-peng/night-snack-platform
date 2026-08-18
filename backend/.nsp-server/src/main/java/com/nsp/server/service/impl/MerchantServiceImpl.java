@@ -85,12 +85,19 @@ public class MerchantServiceImpl implements MerchantService {
     }
 
     @Override
-    public PageVO<MerchantVO> listAll(int page, int size) {
+    public PageVO<MerchantVO> listAll(int page, int size, Long categoryId) {
         // Cache Aside：先读缓存，未命中回源 MySQL 并写入缓存
         List<MerchantVO> all = homeMerchantListCache.get();
         if (all == null) {
             all = loadOpenMerchants();
             homeMerchantListCache.put(all);
+        }
+
+        // 分类筛选（按商家主营品类匹配，内存过滤，避免按品类拆分缓存）
+        if (categoryId != null) {
+            all = all.stream()
+                    .filter(m -> categoryId.equals(m.getCategoryId()))
+                    .toList();
         }
 
         // 内存分页（商家规模小，全量缓存 + 内存分页可接受）
