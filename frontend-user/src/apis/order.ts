@@ -37,3 +37,29 @@ export const getOrdersApi = (params: {
 export const deleteOrderApi = (id: number) => {
   return request.post(`/user/order/${id}/delete`)
 }
+
+/** 订单明细项（下单请求：productId 必填、specId 选填——有规格商品必传，无规格商品不传） */
+export interface OrderItemDTO {
+  productId: number
+  specId?: number | null
+  quantity: number
+}
+
+/** 下单响应（新创建的订单） */
+export interface OrderResult {
+  id: number
+  orderNo: string
+  status: string
+  totalAmount: number
+}
+
+/** 下单（提交订单） */
+export const createOrderApi = (data: {
+  merchantId: number
+  addressId: number
+  items: OrderItemDTO[]
+  payChannel: 'ALIPAY' | 'WECHAT_MOCK'
+  clientToken: string
+}) => {
+  return request.post<OrderResult>('/user/order', data)
+}

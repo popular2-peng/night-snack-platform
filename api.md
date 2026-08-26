@@ -741,33 +741,38 @@ PUT /api/user/address/{id}/default
 GET /api/user/cart
 ```
 
-**响应 data：** `CartVO`（含商品列表 + 总金额）
+**响应 data：** `CartVO`（按商家分组：`groups` 每组 = 一个商家的商品；当前业务单商家购物车只有一组，结构为多商家预留）
 
 ```json
 {
-  "merchantId": 1,
-  "merchantName": "深夜食堂",
   "totalPrice": 23.50,
-  "items": [
+  "groups": [
     {
-      "cartKey": "1",
-      "specId": 1,
-      "productId": 1,
-      "productName": "羊肉串",
-      "specName": "小份(5串)",
-      "price": 4.00,
-      "quantity": 3,
-      "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg"
-    },
-    {
-      "cartKey": "p61",
-      "specId": null,
-      "productId": 61,
-      "productName": "测试菜品",
-      "specName": null,
-      "price": 0.01,
-      "quantity": 1,
-      "imageUrl": null
+      "merchantId": 1,
+      "merchantName": "深夜食堂",
+      "totalPrice": 23.50,
+      "items": [
+        {
+          "cartKey": "1",
+          "specId": 1,
+          "productId": 1,
+          "productName": "羊肉串",
+          "specName": "小份(5串)",
+          "price": 4.00,
+          "quantity": 3,
+          "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg"
+        },
+        {
+          "cartKey": "p61",
+          "specId": null,
+          "productId": 61,
+          "productName": "测试菜品",
+          "specName": null,
+          "price": 0.01,
+          "quantity": 1,
+          "imageUrl": null
+        }
+      ]
     }
   ]
 }
@@ -775,18 +780,22 @@ GET /api/user/cart
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `merchantId` | long | 商家 ID（购物车只允许一个商家的商品） |
-| `merchantName` | string | 商家名称 |
-| `totalPrice` | number | 商品总金额（单价 × 数量合计） |
-| `items` | array | 购物车商品列表（`CartItemVO`） |
-| `items[].cartKey` | string | 购物车条目键（更新/删除接口用）：有规格=`{specId}`，无规格=`p{productId}` |
-| `items[].specId` | long | 规格 ID（无规格商品为 null） |
-| `items[].productId` | long | 商品 ID |
-| `items[].productName` | string | 商品名称 |
-| `items[].specName` | string | 规格名称（无规格商品为 null） |
-| `items[].price` | number | 单价（有规格=基础价+规格加价；无规格=商品基础价） |
-| `items[].quantity` | int | 数量 |
-| `items[].imageUrl` | string | 商品图片 URL |
+| `totalPrice` | number | 全部商家商品总金额 |
+| `groups` | array | 按商家分组的购物车（`CartGroupVO`） |
+| `groups[].merchantId` | long | 商家 ID |
+| `groups[].merchantName` | string | 商家名称 |
+| `groups[].totalPrice` | number | 该商家商品小计 |
+| `groups[].items` | array | 该商家商品列表（`CartItemVO`） |
+| `groups[].items[].cartKey` | string | 购物车条目键（更新/删除接口用）：有规格=`{specId}`，无规格=`p{productId}` |
+| `groups[].items[].specId` | long | 规格 ID（无规格商品为 null） |
+| `groups[].items[].productId` | long | 商品 ID |
+| `groups[].items[].productName` | string | 商品名称 |
+| `groups[].items[].specName` | string | 规格名称（无规格商品为 null） |
+| `groups[].items[].price` | number | 单价（有规格=基础价+规格加价；无规格=商品基础价） |
+| `groups[].items[].quantity` | int | 数量 |
+| `groups[].items[].imageUrl` | string | 商品图片 URL |
+
+> 前端按当前商家取组展示（浏览其他商家时该组为空则不显示购物车），结算页按组逐商家下单。
 
 ---
 

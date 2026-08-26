@@ -55,6 +55,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '商家' },
       },
       {
+        path: 'checkout',
+        name: 'Checkout',
+        component: () => import('@/views/Checkout/index.vue'),
+        meta: { title: '确认订单', requiresAuth: true },
+      },
+      {
         path: 'address/edit',
         name: 'AddressEdit',
         component: () => import('@/views/Address/edit.vue'),

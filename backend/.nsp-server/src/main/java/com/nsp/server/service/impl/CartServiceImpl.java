@@ -5,10 +5,13 @@ import com.nsp.common.constant.ErrorCode;
 import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.CartItemDTO;
+import com.nsp.pojo.entity.Merchant;
 import com.nsp.pojo.entity.Product;
 import com.nsp.pojo.entity.ProductSpec;
+import com.nsp.pojo.vo.CartGroupVO;
 import com.nsp.pojo.vo.CartItemVO;
 import com.nsp.pojo.vo.CartVO;
+import com.nsp.server.mapper.MerchantMapper;
 import com.nsp.server.mapper.ProductMapper;
 import com.nsp.server.mapper.ProductSpecMapper;
 import com.nsp.server.service.CartService;
@@ -21,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -46,6 +50,7 @@ public class CartServiceImpl implements CartService {
     private final StringRedisTemplate redisTemplate;
     private final ProductMapper productMapper;
     private final ProductSpecMapper productSpecMapper;
+    private final MerchantMapper merchantMapper;
 
     @Override
     public void addItem(Long userId, CartItemDTO dto, Long merchantId) {
@@ -140,65 +145,74 @@ public class CartServiceImpl implements CartService {
         Map<String, String> entries = ops.entries(cartKey);
 
         CartVO cartVO = new CartVO();
-        cartVO.setItems(new ArrayList<>());
+        cartVO.setGroups(new ArrayList<>());
         cartVO.setTotalPrice(BigDecimal.ZERO);
 
         if (entries.isEmpty()) {
             return cartVO;
         }
 
+        // 按商家分组：条目通过商品推导所属商家（key = merchantId → 组）
+        Map<Long, CartGroupVO> groupMap = new LinkedHashMap<>();
+
         for (Map.Entry<String, String> entry : entries.entrySet()) {
             if (MERCHANT_HASH_KEY.equals(entry.getKey())) {
-                cartVO.setMerchantId(Long.valueOf(entry.getValue()));
-                continue;
+                continue; // 商家标记键，不参与条目组装（商家由商品推导）
             }
 
             String fieldKey = entry.getKey();
             int qty = Integer.parseInt(entry.getValue());
 
-            // 无规格商品：条目键 `p{productId}`，按商品基础价
+            // 解析条目 → (商品, 规格, 单价)
+            Product product;
+            ProductSpec spec = null;
+            BigDecimal unitPrice;
             if (fieldKey.startsWith(PLAIN_PRODUCT_PREFIX)) {
+                // 无规格商品：条目键 `p{productId}`，按商品基础价
                 Long productId = Long.valueOf(fieldKey.substring(1));
-                Product product = productMapper.selectById(productId);
+                product = productMapper.selectById(productId);
                 if (product == null) continue;
-
-                CartItemVO item = new CartItemVO();
-                item.setCartKey(fieldKey);
-                item.setSpecId(null);
-                item.setProductId(product.getId());
-                item.setProductName(product.getName());
-                item.setSpecName(null);
-                item.setPrice(product.getPrice());
-                item.setQuantity(qty);
-                item.setImageUrl(product.getImageUrl());
-                cartVO.setTotalPrice(cartVO.getTotalPrice().add(product.getPrice().multiply(BigDecimal.valueOf(qty))));
-                cartVO.getItems().add(item);
-                continue;
+                unitPrice = product.getPrice();
+            } else {
+                // 有规格商品：条目键 `{specId}`
+                Long specId = Long.valueOf(fieldKey);
+                spec = productSpecMapper.selectById(specId);
+                if (spec == null) continue;
+                product = productMapper.selectById(spec.getProductId());
+                if (product == null) continue;
+                unitPrice = product.getPrice().add(spec.getPriceDelta());
             }
 
-            // 有规格商品：条目键 `{specId}`
-            Long specId = Long.valueOf(fieldKey);
-            ProductSpec spec = productSpecMapper.selectById(specId);
-            if (spec == null) continue;
+            // 取（或创建）该商家的分组
+            CartGroupVO group = groupMap.computeIfAbsent(product.getMerchantId(), mid -> {
+                CartGroupVO g = new CartGroupVO();
+                g.setMerchantId(mid);
+                Merchant merchant = merchantMapper.selectById(mid);
+                g.setMerchantName(merchant != null ? merchant.getName() : "");
+                g.setItems(new ArrayList<>());
+                g.setTotalPrice(BigDecimal.ZERO);
+                return g;
+            });
 
-            Product product = productMapper.selectById(spec.getProductId());
-            if (product == null) continue;
-
-            BigDecimal unitPrice = product.getPrice().add(spec.getPriceDelta());
-            cartVO.setTotalPrice(cartVO.getTotalPrice().add(unitPrice.multiply(BigDecimal.valueOf(qty))));
-
+            // 组装条目
             CartItemVO item = new CartItemVO();
             item.setCartKey(fieldKey);
-            item.setSpecId(specId);
+            item.setSpecId(spec != null ? spec.getId() : null);
             item.setProductId(product.getId());
             item.setProductName(product.getName());
-            item.setSpecName(spec.getName());
+            item.setSpecName(spec != null ? spec.getName() : null);
             item.setPrice(unitPrice);
             item.setQuantity(qty);
             item.setImageUrl(product.getImageUrl());
-            cartVO.getItems().add(item);
+            group.getItems().add(item);
+
+            // 组小计 + 全局合计
+            BigDecimal itemTotal = unitPrice.multiply(BigDecimal.valueOf(qty));
+            group.setTotalPrice(group.getTotalPrice().add(itemTotal));
+            cartVO.setTotalPrice(cartVO.getTotalPrice().add(itemTotal));
         }
 
+        cartVO.setGroups(new ArrayList<>(groupMap.values()));
         return cartVO;
     }
 

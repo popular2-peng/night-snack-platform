@@ -16,11 +16,18 @@ export interface CartItem {
   imageUrl: string
 }
 
-/** 购物车（含商品列表与总金额） */
-export interface CartVO {
+/** 购物车商家分组（一组 = 一个商家的商品） */
+export interface CartGroup {
   merchantId: number
   merchantName: string
   items: CartItem[]
+  totalPrice: number
+}
+
+/** 购物车（按商家分组） */
+export interface CartVO {
+  groups: CartGroup[]
+  /** 全部商家商品总金额 */
   totalPrice: number
 }
 

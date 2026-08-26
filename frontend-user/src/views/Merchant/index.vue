@@ -63,7 +63,9 @@ const refreshCart = async () => {
   if (!authStore.isLoggedIn) return
   try {
     const res = await getCartApi()
-    cartItems.value = res.data?.items || []
+    // 后端按商家分组：只取当前商家的组，其他商家的购物车在本页不显示
+    const groups = res.data?.groups || []
+    cartItems.value = groups.find((g) => g.merchantId === merchantId)?.items || []
   } catch { /* 静默：购物车失败不阻塞点餐页 */ }
 }
 
@@ -177,9 +179,10 @@ const onCartClear = async () => {
   } catch { /* 拦截器已提示 */ }
 }
 
-/** 去结算（下单确认页待开发，先提示） */
+/** 去结算：跳转确认订单页（未登录先登录） */
 const onCheckout = () => {
-  showToast('结算功能开发中，敬请期待')
+  if (!requireLogin()) return
+  router.push('/checkout')
 }
 
 onMounted(async () => {
