@@ -30,3 +30,17 @@ export interface CartVO {
  */
 export const addToCartApi = (merchantId: number, productId: number, specId: number | null, quantity: number) =>
   request.post<CartVO>(`/user/cart?merchantId=${merchantId}`, { productId, specId, quantity })
+
+/** 查询购物车 */
+export const getCartApi = () => request.get<CartVO>('/user/cart')
+
+/** 更新购物车商品数量（cartKey：有规格={specId}，无规格=p{productId}） */
+export const updateCartQtyApi = (cartKey: string, quantity: number) =>
+  request.put('/user/cart', { cartKey, quantity })
+
+/** 移除购物车商品 */
+export const removeCartItemApi = (cartKey: string) =>
+  request.delete(`/user/cart/${cartKey}`)
+
+/** 清空购物车 */
+export const clearCartApi = () => request.delete('/user/cart')

@@ -116,6 +116,10 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public void updateQuantity(Long userId, String cartKeyField, Integer quantity) {
+        // 防御：更新接口必须携带条目键（有规格={specId}，无规格=p{productId}）
+        if (cartKeyField == null || cartKeyField.isBlank()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "更新购物车数量：cartKey 不能为空");
+        }
         if (quantity <= 0) {
             removeItem(userId, cartKeyField);
             return;

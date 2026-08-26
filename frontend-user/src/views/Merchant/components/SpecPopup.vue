@@ -17,16 +17,27 @@ const emit = defineEmits<{
 const specSelected = ref<number | null>(null)
 const specQty = ref(1)
 
-/** 打开弹窗时重置选中规格与数量 */
+/** 记住每个商品本会话最后选的规格（下次打开默认选中） */
+const lastSpec = new Map<number, number>()
+
+/** 打开弹窗时重置数量，规格优先选中上次记忆的 */
 watch(
   () => props.visible,
   (v) => {
-    if (v) {
-      specSelected.value = props.product?.specs?.[0]?.id ?? null
+    if (v && props.product) {
+      specSelected.value = lastSpec.get(props.product.id) ?? props.product.specs?.[0]?.id ?? null
       specQty.value = 1
     }
   },
 )
+
+/** 确认加购：记住规格并上抛 */
+const onConfirm = () => {
+  if (specSelected.value != null && props.product) {
+    lastSpec.set(props.product.id, specSelected.value)
+    emit('confirm', specSelected.value, specQty.value)
+  }
+}
 
 /** 商品价格展示：基础价 + 第一个规格加价后最低价 */
 const minPrice = (p: ProductVO) => {
@@ -81,7 +92,7 @@ const minPrice = (p: ProductVO) => {
         round
         class="spec-confirm"
         :loading="addLoading"
-        @click="specSelected != null && emit('confirm', specSelected, specQty)"
+        @click="onConfirm"
       >
         加入购物车
       </van-button>

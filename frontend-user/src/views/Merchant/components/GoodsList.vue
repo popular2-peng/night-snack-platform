@@ -11,11 +11,15 @@ export interface GoodsGroup {
 const props = defineProps<{
   groups: GoodsGroup[]
   loading: boolean
+  /** 商品 ID → 购物车中数量（>0 时按钮显示为「- 数量 +」步进器） */
+  qtyMap: Record<number, number>
 }>()
 
 const emit = defineEmits<{
   (e: 'active-change', idx: number): void
   (e: 'add', product: ProductVO): void
+  (e: 'minus', product: ProductVO): void
+  (e: 'plus', product: ProductVO): void
 }>()
 
 // ---- 滚动联动（scrollspy） ----
@@ -88,7 +92,14 @@ const minPrice = (p: ProductVO) => {
             <span class="goods-name">{{ p.name }}</span>
             <div class="goods-bottom">
               <span class="goods-price">{{ minPrice(p) }}</span>
-              <span v-if="p.specs?.length" class="spec-btn" @click="emit('add', p)">选规格</span>
+              <!-- 已在购物车：显示 - 数量 + 步进器 -->
+              <div v-if="qtyMap[p.id]" class="qty-ctl" @click.stop>
+                <span class="ctl-minus" @click="emit('minus', p)">-</span>
+                <span class="ctl-num">{{ qtyMap[p.id] }}</span>
+                <span class="ctl-plus" @click="emit('plus', p)">+</span>
+              </div>
+              <!-- 未加购：有规格=选规格，无规格=+ -->
+              <span v-else-if="p.specs?.length" class="spec-btn" @click="emit('add', p)">选规格</span>
               <span v-else class="plus-btn" @click="emit('add', p)">+</span>
             </div>
           </div>
@@ -213,6 +224,45 @@ const minPrice = (p: ProductVO) => {
   color: #fff;
   font-size: 18px;
   line-height: 26px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(245, 154, 35, 0.3);
+}
+
+/* 行内步进器：- 数量 + */
+.qty-ctl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ctl-minus {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #c9cdd4;
+  color: #4e5969;
+  font-size: 15px;
+  line-height: 22px;
+  text-align: center;
+  cursor: pointer;
+}
+.ctl-num {
+  min-width: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1d2129;
+  text-align: center;
+}
+.ctl-plus {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f59a23, #ff6f3c);
+  color: #fff;
+  font-size: 15px;
+  line-height: 24px;
   text-align: center;
   cursor: pointer;
   box-shadow: 0 2px 6px rgba(245, 154, 35, 0.3);

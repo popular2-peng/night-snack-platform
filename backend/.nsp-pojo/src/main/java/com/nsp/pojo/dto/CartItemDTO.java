@@ -14,8 +14,7 @@ import lombok.Data;
 @Data
 public class CartItemDTO {
 
-    /** 商品 ID（必填，先按商品校验归属，再看有无规格） */
-    @NotNull(message = "商品 ID 不能为空")
+    /** 商品 ID（添加场景必填，先按商品校验归属，再看有无规格；更新场景不传） */
     private Long productId;
 
     /** 规格 ID（选填）：有规格商品必须传（按规格加价/扣库存），无规格商品不传（按商品基础价） */
@@ -28,7 +27,7 @@ public class CartItemDTO {
     @Min(value = 1, message = "数量最少为 1")
     private Integer quantity;
 
-    @AssertTrue(message = "更新数量请传 cartKey；添加请至少传 productId")
+    @AssertTrue(message = "添加购物车：商品 ID 不能为空；更新数量：cartKey 不能为空")
     public boolean isSkuPresent() {
         // 更新数量场景传 cartKey，不要求 productId
         if (cartKey != null && !cartKey.isBlank()) return true;
