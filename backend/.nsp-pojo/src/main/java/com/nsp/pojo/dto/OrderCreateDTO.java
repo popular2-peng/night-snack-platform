@@ -44,12 +44,15 @@ public class OrderCreateDTO {
     private BigDecimal userLng;
 
     /**
-     * 订单明细项
+     * 订单明细项 — productId 必填、specId 选填（有规格商品必须传，无规格商品不传）
      */
     @Data
     public static class OrderItemDTO {
 
-        @NotNull(message = "规格 ID 不能为空")
+        @NotNull(message = "商品 ID 不能为空")
+        private Long productId;
+
+        /** 规格 ID（选填）：有规格商品必传（按规格加价/扣库存），无规格商品不传（按商品基础价） */
         private Long specId;
 
         @NotNull(message = "数量不能为空")

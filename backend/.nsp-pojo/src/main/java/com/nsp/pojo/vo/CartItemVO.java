@@ -10,7 +10,10 @@ import java.math.BigDecimal;
 @Data
 public class CartItemVO {
 
-    /** 规格 ID */
+    /** 购物车条目键（更新/删除接口用）：有规格=`{specId}`，无规格=`p{productId}` */
+    private String cartKey;
+
+    /** 规格 ID（无规格商品为 null） */
     private Long specId;
 
     /** 商品 ID */

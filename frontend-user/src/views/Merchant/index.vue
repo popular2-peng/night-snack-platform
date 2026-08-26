@@ -56,14 +56,26 @@ const specVisible = ref(false)
 const specProduct = ref<ProductVO | null>(null)
 const addLoading = ref(false)
 
-/** 有规格的商品：点击「选规格」弹窗；无规格：直接 + 加购提示 */
+/** 有规格的商品：点击「选规格」弹窗；无规格：直接加入购物车 */
 const onAddClick = (p: ProductVO) => {
   if (!p.specs?.length) {
-    showToast('该商品暂未配置规格，暂不可加购')
+    directAdd(p)
     return
   }
   specProduct.value = p
   specVisible.value = true
+}
+
+/** 无规格商品：直接加购（按商品基础价） */
+const directAdd = async (p: ProductVO) => {
+  if (!authStore.isLoggedIn) {
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  try {
+    await addToCartApi(merchantId, p.id, null, 1)
+    showToast('已加入购物车')
+  } catch { /* 拦截器已提示（跨店冲突/未登录） */ }
 }
 
 /** 加购：未登录先跳登录；已登录调购物车接口 */
@@ -75,7 +87,7 @@ const confirmAdd = async (specId: number, qty: number) => {
   }
   addLoading.value = true
   try {
-    await addToCartApi(merchantId, specId, qty)
+    await addToCartApi(merchantId, specProduct.value!.id, specId, qty)
     showToast('已加入购物车')
     specVisible.value = false
   } catch { /* 拦截器已提示（跨店冲突/未登录） */ }

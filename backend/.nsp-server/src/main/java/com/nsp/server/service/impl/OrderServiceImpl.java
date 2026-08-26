@@ -131,36 +131,53 @@ public class OrderServiceImpl implements OrderService {
         }
 
         // 3. 校验订单明细，所有商品必须属于同一商家
+        //    productId 必填、specId 选填：有规格商品校验规格归属并按规格计价；无规格商品校验无规格并按基础价计价
         BigDecimal totalAmount = BigDecimal.ZERO;
         List<ProductSpec> specs = new ArrayList<>();
         List<Product> products = new ArrayList<>();
-        Map<Long, Integer> specQtyMap = new LinkedHashMap<>();
+        List<BigDecimal> unitPrices = new ArrayList<>();
 
         for (OrderCreateDTO.OrderItemDTO item : dto.getItems()) {
-            ProductSpec spec = productSpecMapper.selectById(item.getSpecId());
-            if (spec == null) {
-                throw new BizException(ErrorCode.SPEC_NOT_FOUND, String.format(MessageConst.SPEC_NOT_FOUND_WITH_ID_MSG, item.getSpecId()));
-            }
-            Product product = productMapper.selectById(spec.getProductId());
+            Product product = productMapper.selectById(item.getProductId());
             if (product == null || !product.getMerchantId().equals(dto.getMerchantId())) {
                 throw new BizException(ErrorCode.PRODUCT_NOT_FOUND,
-                        String.format(MessageConst.PRODUCT_NOT_BELONG_MERCHANT_MSG, item.getSpecId()));
+                        String.format(MessageConst.PRODUCT_NOT_BELONG_MERCHANT_MSG, item.getProductId()));
             }
             if (!"ON".equals(product.getStatus())) {
                 throw new BizException(ErrorCode.PRODUCT_OFF_SHELF, String.format(MessageConst.PRODUCT_OFF_SHELF_MSG, product.getName()));
             }
 
+            ProductSpec spec = null;
+            BigDecimal unitPrice;
+            if (item.getSpecId() != null) {
+                spec = productSpecMapper.selectById(item.getSpecId());
+                if (spec == null || !spec.getProductId().equals(product.getId())) {
+                    throw new BizException(ErrorCode.SPEC_NOT_FOUND,
+                            String.format(MessageConst.SPEC_NOT_FOUND_WITH_ID_MSG, item.getSpecId()));
+                }
+                unitPrice = product.getPrice().add(spec.getPriceDelta());
+            } else {
+                // 无规格商品：校验该商品确实未配置规格（有规格必须选规格，不能按基础价绕过）
+                Long specCount = productSpecMapper.selectCount(
+                        new LambdaQueryWrapper<ProductSpec>().eq(ProductSpec::getProductId, product.getId()));
+                if (specCount > 0) {
+                    throw new BizException(ErrorCode.PRODUCT_HAS_SPECS,
+                            String.format(MessageConst.PRODUCT_HAS_SPECS_MSG, product.getName()));
+                }
+                unitPrice = product.getPrice();
+            }
+
             specs.add(spec);
             products.add(product);
-            specQtyMap.put(item.getSpecId(), item.getQuantity());
-
-            BigDecimal unitPrice = product.getPrice().add(spec.getPriceDelta());
+            unitPrices.add(unitPrice);
             totalAmount = totalAmount.add(unitPrice.multiply(BigDecimal.valueOf(item.getQuantity())));
         }
 
-        // 4. Lua 原子扣减库存
-        for (OrderCreateDTO.OrderItemDTO item : dto.getItems()) {
-            deductStock(item.getSpecId(), item.getQuantity());
+        // 4. Lua 原子扣减库存（仅规格商品参与扣减，无规格商品无库存概念）
+        for (int i = 0; i < specs.size(); i++) {
+            if (specs.get(i) != null) {
+                deductStock(specs.get(i).getId(), dto.getItems().get(i).getQuantity());
+            }
         }
 
         // 5. 生成订单号
@@ -184,12 +201,15 @@ public class OrderServiceImpl implements OrderService {
         order = orderMapper.selectById(order.getId());
 
         for (int i = 0; i < specs.size(); i++) {
+            ProductSpec spec = specs.get(i);
+            Product product = products.get(i);
             OrderItem oi = new OrderItem();
             oi.setOrderId(order.getId());
-            oi.setProductId(products.get(i).getId());
-            oi.setSpecId(specs.get(i).getId());
-            oi.setNameSnapshot(products.get(i).getName() + " / " + specs.get(i).getName());
-            oi.setPriceSnapshot(products.get(i).getPrice().add(specs.get(i).getPriceDelta()));
+            oi.setProductId(product.getId());
+            oi.setSpecId(spec != null ? spec.getId() : null);
+            // 有规格商品：名称快照含规格（如「羊肉串 / 大份(10串)」）；无规格商品：仅商品名
+            oi.setNameSnapshot(spec != null ? product.getName() + " / " + spec.getName() : product.getName());
+            oi.setPriceSnapshot(unitPrices.get(i));
             oi.setQuantity(dto.getItems().get(i).getQuantity());
             orderItemMapper.insert(oi);
         }
@@ -741,11 +761,14 @@ public class OrderServiceImpl implements OrderService {
         log.info("库存扣减成功: specId={}, qty={}", specId, qty);
     }
 
-    /** 取消/拒单时释放库存 */
+    /** 取消/拒单时释放库存（无规格商品无库存概念，跳过） */
     private void restoreStock(Long orderId) {
         List<OrderItem> items = orderItemMapper.selectList(
                 new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, orderId));
         for (OrderItem item : items) {
+            if (item.getSpecId() == null) {
+                continue; // 无规格商品不参与库存扣减，无需释放
+            }
             String key = "product:stock:" + item.getSpecId();
             redisTemplate.opsForValue().increment(key, item.getQuantity());
             log.info("库存释放: specId={}, qty={}", item.getSpecId(), item.getQuantity());

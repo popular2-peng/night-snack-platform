@@ -138,6 +138,7 @@ Token 有效期 2 小时，Refresh Token 有效期 7 天。
 | `3103` | 规格不存在 |
 | `3104` | 库存不足 |
 | `3105` | 商品在售，请先停售再删除 |
+| `3106` | 商品需选择规格（有规格商品不能按无规格直接加购/下单） |
 | `3201` | 品类不存在 |
 | `3301` | 非本店商家，无权操作 |
 
@@ -749,6 +750,7 @@ GET /api/user/cart
   "totalPrice": 23.50,
   "items": [
     {
+      "cartKey": "1",
       "specId": 1,
       "productId": 1,
       "productName": "羊肉串",
@@ -758,13 +760,14 @@ GET /api/user/cart
       "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/xxx.jpg"
     },
     {
-      "specId": 12,
-      "productId": 7,
-      "productName": "冰镇酸梅汤",
-      "specName": "壶(1.5L)",
-      "price": 11.50,
+      "cartKey": "p61",
+      "specId": null,
+      "productId": 61,
+      "productName": "测试菜品",
+      "specName": null,
+      "price": 0.01,
       "quantity": 1,
-      "imageUrl": "https://nsp.oss-cn-shenzhen.aliyuncs.com/product/1/yyy.jpg"
+      "imageUrl": null
     }
   ]
 }
@@ -776,11 +779,12 @@ GET /api/user/cart
 | `merchantName` | string | 商家名称 |
 | `totalPrice` | number | 商品总金额（单价 × 数量合计） |
 | `items` | array | 购物车商品列表（`CartItemVO`） |
-| `items[].specId` | long | 规格 ID（Redis Hash 的 key） |
+| `items[].cartKey` | string | 购物车条目键（更新/删除接口用）：有规格=`{specId}`，无规格=`p{productId}` |
+| `items[].specId` | long | 规格 ID（无规格商品为 null） |
 | `items[].productId` | long | 商品 ID |
 | `items[].productName` | string | 商品名称 |
-| `items[].specName` | string | 规格名称 |
-| `items[].price` | number | 单价（商品价 + 规格加价） |
+| `items[].specName` | string | 规格名称（无规格商品为 null） |
+| `items[].price` | number | 单价（有规格=基础价+规格加价；无规格=商品基础价） |
 | `items[].quantity` | int | 数量 |
 | `items[].imageUrl` | string | 商品图片 URL |
 
@@ -802,10 +806,11 @@ POST /api/user/cart?merchantId={merchantId}
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `specId` | long | 是 | 规格 ID |
+| `productId` | long | 是 | 商品 ID（先按商品校验归属与上架状态） |
+| `specId` | long | 否 | 规格 ID：有规格商品**必须传**（按规格加价/扣库存），不传且商品有规格返回 `3106`；无规格商品不传（按商品基础价） |
 | `quantity` | int | 是 | 数量 |
 
-**可能错误码：** `2201`
+**可能错误码：** `2201`, `3101`（商品不存在/不属于该商家）, `3102`, `3103`, `3106`
 **响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
 
 ```json
@@ -825,7 +830,7 @@ PUT /api/user/cart
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `specId` | long | 是 | 规格 ID |
+| `cartKey` | string | 是 | 购物车条目键（查购物车返回）：有规格=`{specId}`，无规格=`p{productId}` |
 | `quantity` | int | 是 | 新数量（≥1，数量减少不会影响库存占用） |
 
 **可能错误码：** `2201`
@@ -841,8 +846,14 @@ PUT /api/user/cart
 #### 移除购物车商品
 
 ```
-DELETE /api/user/cart/{specId}
+DELETE /api/user/cart/{cartKey}
 ```
+
+**路径参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `cartKey` | string | 是 | 购物车条目键：有规格=`{specId}`，无规格=`p{productId}` |
 
 **响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
 
@@ -895,7 +906,7 @@ POST /api/user/order
 |------|------|------|------|
 | `merchantId` | long | 是 | 商家 ID |
 | `addressId` | long | 是 | 收货地址 ID |
-| `items` | array | 是 | 订单明细：`[{ "specId": 1, "quantity": 2 }]` |
+| `items` | array | 是 | 订单明细：`[{ "productId": 1, "specId": 2, "quantity": 2 }]` —— `productId` 必填、`specId` 选填（有规格商品必传，无规格商品不传） |
 | `payChannel` | string | 是 | 支付渠道：`ALIPAY` / `WECHAT_MOCK` |
 | `clientToken` | string | 是 | 幂等键（客户端生成的唯一串，如 UUID，最长 64 位） |
 | `userLat` | number | 否 | 用户当前纬度（参考值，服务端以地址坐标为准） |

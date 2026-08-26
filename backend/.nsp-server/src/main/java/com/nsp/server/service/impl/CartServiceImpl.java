@@ -1,5 +1,6 @@
 package com.nsp.server.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.nsp.common.constant.ErrorCode;
 import com.nsp.common.constant.MessageConst;
 import com.nsp.common.exception.BizException;
@@ -26,7 +27,8 @@ import java.util.concurrent.TimeUnit;
 /**
  * 购物车业务实现 — Redis Hash
  *
- * <p>Key: cart:{userId} | Field: specId | Value: quantity
+ * <p>Key: cart:{userId} | Field: 购物车条目键 | Value: quantity
+ * <p>条目键规则：有规格商品 = `{specId}`；无规格商品 = `p{productId}`
  * <p>TTL: 7 天
  */
 @Service
@@ -38,6 +40,8 @@ public class CartServiceImpl implements CartService {
     private static final int MAX_QUANTITY = 99;
     private static final int CART_TTL_DAYS = 7;
     private static final String MERCHANT_HASH_KEY = "__merchant_id__";
+    /** 无规格商品条目键前缀：p{productId} */
+    private static final String PLAIN_PRODUCT_PREFIX = "p";
 
     private final StringRedisTemplate redisTemplate;
     private final ProductMapper productMapper;
@@ -48,53 +52,81 @@ public class CartServiceImpl implements CartService {
         String cartKey = cartKey(userId);
         HashOperations<String, String, String> ops = redisTemplate.opsForHash();
 
+        // 跨店切换：清空原店铺商品（购物车只允许一个商家的商品）
         String existingMerchant = ops.get(cartKey, MERCHANT_HASH_KEY);
         if (existingMerchant != null && !existingMerchant.equals(String.valueOf(merchantId))) {
             redisTemplate.delete(cartKey);
             log.info("跨店切换，清空购物车: userId={}, old={}, new={}", userId, existingMerchant, merchantId);
         }
 
-        ProductSpec spec = productSpecMapper.selectById(dto.getSpecId());
-        if (spec == null) {
-            throw new BizException(ErrorCode.SPEC_NOT_FOUND, MessageConst.SPEC_NOT_FOUND_MSG);
-        }
-        Product product = productMapper.selectById(spec.getProductId());
+        // 1. 先校验商品（必填）：存在、属于当前商家、上架中
+        Product product = productMapper.selectById(dto.getProductId());
         if (product == null || !product.getMerchantId().equals(merchantId)) {
-            throw new BizException(ErrorCode.PRODUCT_NOT_FOUND, MessageConst.CART_PRODUCT_NOT_BELONG_MSG);
+            throw new BizException(ErrorCode.PRODUCT_NOT_FOUND,
+                    String.format(MessageConst.PRODUCT_NOT_BELONG_MERCHANT_MSG, dto.getProductId()));
+        }
+        if (!"ON".equals(product.getStatus())) {
+            throw new BizException(ErrorCode.PRODUCT_OFF_SHELF,
+                    String.format(MessageConst.PRODUCT_OFF_SHELF_MSG, product.getName()));
         }
 
-        String currentQty = ops.get(cartKey, String.valueOf(dto.getSpecId()));
+        // 2. 再判断规格（选填）：传了 specId 走规格（加价/扣库存维度），没传按无规格商品（商品基础价）
+        String fieldKey;
+        BigDecimal unitPrice;
+        if (dto.getSpecId() != null) {
+            ProductSpec spec = productSpecMapper.selectById(dto.getSpecId());
+            if (spec == null || !spec.getProductId().equals(product.getId())) {
+                throw new BizException(ErrorCode.SPEC_NOT_FOUND,
+                        String.format(MessageConst.SPEC_NOT_FOUND_WITH_ID_MSG, dto.getSpecId()));
+            }
+            fieldKey = String.valueOf(spec.getId());
+            unitPrice = product.getPrice().add(spec.getPriceDelta());
+        } else {
+            // 无规格商品：校验该商品确实未配置规格（有规格必须选规格，不能按基础价绕过）
+            Long specCount = productSpecMapper.selectCount(
+                    new LambdaQueryWrapper<ProductSpec>().eq(ProductSpec::getProductId, product.getId()));
+            if (specCount > 0) {
+                throw new BizException(ErrorCode.PRODUCT_HAS_SPECS,
+                        String.format(MessageConst.PRODUCT_HAS_SPECS_MSG, product.getName()));
+            }
+            fieldKey = PLAIN_PRODUCT_PREFIX + product.getId();
+            unitPrice = product.getPrice();
+        }
+
+        // 3. 数量累加（同一条目合并），上限 99
+        String currentQty = ops.get(cartKey, fieldKey);
         int newQty = (currentQty == null ? 0 : Integer.parseInt(currentQty)) + dto.getQuantity();
         if (newQty > MAX_QUANTITY) {
             throw new BizException(ErrorCode.CART_ITEM_LIMIT, String.format(MessageConst.CART_ITEM_LIMIT_MSG, MAX_QUANTITY));
         }
 
-        ops.put(cartKey, String.valueOf(dto.getSpecId()), String.valueOf(newQty));
+        ops.put(cartKey, fieldKey, String.valueOf(newQty));
         ops.put(cartKey, MERCHANT_HASH_KEY, String.valueOf(merchantId));
         redisTemplate.expire(cartKey, CART_TTL_DAYS, TimeUnit.DAYS);
 
-        log.info("加入购物车: userId={}, specId={}, qty={}", userId, dto.getSpecId(), newQty);
+        log.info("加入购物车: userId={}, productId={}, specId={}, fieldKey={}, qty={}",
+                userId, product.getId(), dto.getSpecId(), fieldKey, newQty);
     }
 
     @Override
-    public void removeItem(Long userId, Long specId) {
-        redisTemplate.opsForHash().delete(cartKey(userId), String.valueOf(specId));
-        log.info("移除购物车: userId={}, specId={}", userId, specId);
+    public void removeItem(Long userId, String cartKeyField) {
+        redisTemplate.opsForHash().delete(cartKey(userId), cartKeyField);
+        log.info("移除购物车: userId={}, fieldKey={}", userId, cartKeyField);
     }
 
     @Override
-    public void updateQuantity(Long userId, Long specId, Integer quantity) {
+    public void updateQuantity(Long userId, String cartKeyField, Integer quantity) {
         if (quantity <= 0) {
-            removeItem(userId, specId);
+            removeItem(userId, cartKeyField);
             return;
         }
         if (quantity > MAX_QUANTITY) {
             throw new BizException(ErrorCode.CART_ITEM_LIMIT, String.format(MessageConst.CART_ITEM_LIMIT_MSG, MAX_QUANTITY));
         }
         String cartKey = cartKey(userId);
-        redisTemplate.opsForHash().put(cartKey, String.valueOf(specId), String.valueOf(quantity));
+        redisTemplate.opsForHash().put(cartKey, cartKeyField, String.valueOf(quantity));
         redisTemplate.expire(cartKey, CART_TTL_DAYS, TimeUnit.DAYS);
-        log.info("更新购物车数量: userId={}, specId={}, qty={}", userId, specId, quantity);
+        log.info("更新购物车数量: userId={}, fieldKey={}, qty={}", userId, cartKeyField, quantity);
     }
 
     @Override
@@ -117,9 +149,31 @@ public class CartServiceImpl implements CartService {
                 continue;
             }
 
-            Long specId = Long.valueOf(entry.getKey());
+            String fieldKey = entry.getKey();
             int qty = Integer.parseInt(entry.getValue());
 
+            // 无规格商品：条目键 `p{productId}`，按商品基础价
+            if (fieldKey.startsWith(PLAIN_PRODUCT_PREFIX)) {
+                Long productId = Long.valueOf(fieldKey.substring(1));
+                Product product = productMapper.selectById(productId);
+                if (product == null) continue;
+
+                CartItemVO item = new CartItemVO();
+                item.setCartKey(fieldKey);
+                item.setSpecId(null);
+                item.setProductId(product.getId());
+                item.setProductName(product.getName());
+                item.setSpecName(null);
+                item.setPrice(product.getPrice());
+                item.setQuantity(qty);
+                item.setImageUrl(product.getImageUrl());
+                cartVO.setTotalPrice(cartVO.getTotalPrice().add(product.getPrice().multiply(BigDecimal.valueOf(qty))));
+                cartVO.getItems().add(item);
+                continue;
+            }
+
+            // 有规格商品：条目键 `{specId}`
+            Long specId = Long.valueOf(fieldKey);
             ProductSpec spec = productSpecMapper.selectById(specId);
             if (spec == null) continue;
 
@@ -127,10 +181,10 @@ public class CartServiceImpl implements CartService {
             if (product == null) continue;
 
             BigDecimal unitPrice = product.getPrice().add(spec.getPriceDelta());
-            BigDecimal itemTotal = unitPrice.multiply(BigDecimal.valueOf(qty));
-            cartVO.setTotalPrice(cartVO.getTotalPrice().add(itemTotal));
+            cartVO.setTotalPrice(cartVO.getTotalPrice().add(unitPrice.multiply(BigDecimal.valueOf(qty))));
 
             CartItemVO item = new CartItemVO();
+            item.setCartKey(fieldKey);
             item.setSpecId(specId);
             item.setProductId(product.getId());
             item.setProductName(product.getName());

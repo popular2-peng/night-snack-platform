@@ -117,6 +117,8 @@ public final class MessageConst {
     public static final String SPEC_NOT_FOUND_WITH_ID_MSG = "规格不存在: %s";
     /** 商品在售，请先停售再删除（PRODUCT_MUST_OFF_FIRST） */
     public static final String PRODUCT_MUST_OFF_FIRST_MSG = "商品在售中，请先停售再删除";
+    /** 商品需选择规格（PRODUCT_HAS_SPECS），参数：商品名 */
+    public static final String PRODUCT_HAS_SPECS_MSG = "「%s」需选择规格，不能直接加购";
     /** 品类不存在（CATEGORY_NOT_FOUND） */
     public static final String CATEGORY_NOT_FOUND_MSG = "品类不存在";
 
