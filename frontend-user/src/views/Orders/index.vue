@@ -22,9 +22,18 @@ const size = 20
 const loading = ref(false)
 const finished = ref(false)
 const refreshing = ref(false)
+/** 请求进行中标志：防下拉刷新/切 tab 时 van-list 自动加载与手动加载并发触发重复请求 */
+const requesting = ref(false)
 
-/** 上拉加载更多 */
+/** 上拉加载更多（防重入：并发第二次直接丢弃，避免下拉刷新发两个 page=1 请求） */
 const loadMore = async () => {
+  if (requesting.value) {
+    // 并发请求被丢弃，但需复位 van-list / pull-refresh 的状态防止卡死
+    loading.value = false
+    refreshing.value = false
+    return
+  }
+  requesting.value = true
   try {
     const res = await getOrdersApi({
       page: page.value,
@@ -40,6 +49,7 @@ const loadMore = async () => {
   } catch {
     finished.value = true
   } finally {
+    requesting.value = false
     loading.value = false
     refreshing.value = false
   }
@@ -60,8 +70,8 @@ const switchTab = (key: string) => {
 }
 const onRefresh = async () => {
   page.value = 1
-  orders.value = []
   finished.value = false
+  // 不清空列表：清空会让 van-list 因内容为空再触发一次 load，导致重复请求；加载完成后整体替换
   await loadMore()
 }
 
