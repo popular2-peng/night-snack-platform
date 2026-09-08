@@ -59,6 +59,17 @@ public class AlipayService {
     }
 
     /**
+     * 支付宝沙箱是否已配置（app-id / 私钥非 placeholder）
+     *
+     * <p>未配置时支付通道降级为 mock 直接成功（与地图 AK 未配置降级同模式），
+     * 配置真实沙箱密钥（环境变量 ALIPAY_APP_ID / ALIPAY_PRIVATE_KEY / ALIPAY_PUBLIC_KEY）后自动走真实链路。
+     */
+    public boolean isConfigured() {
+        return appId != null && !"placeholder".equals(appId)
+                && privateKey != null && !"placeholder".equals(privateKey);
+    }
+
+    /**
      * 扫码预下单 — 返回支付二维码链接
      *
      * @param orderNo   商户订单号

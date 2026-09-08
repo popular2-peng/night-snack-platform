@@ -75,27 +75,39 @@ public class PaymentServiceImpl implements PaymentService {
         }
 
         // 按渠道分发
+        boolean isWechatMock = "WECHAT_MOCK".equalsIgnoreCase(dto.getChannel());
+        boolean isAlipay = "ALIPAY".equalsIgnoreCase(dto.getChannel());
+        // 支付宝沙箱未配置（app-id 为 placeholder）时降级为模拟支付成功，链路可测
+        boolean alipayUnconfigured = isAlipay && !alipayService.isConfigured();
+
         String channelResult;
-        if ("ALIPAY".equalsIgnoreCase(dto.getChannel())) {
-            // 组装商品标题
-            String subject = buildSubject(order.getId());
-            String amountYuan = order.getTotalAmount()
-                    .setScale(2, RoundingMode.HALF_UP).toString();
-            channelResult = alipayService.precreate(dto.getOrderNo(), subject, amountYuan);
-        } else if ("WECHAT_MOCK".equalsIgnoreCase(dto.getChannel())) {
+        if (isWechatMock) {
             channelResult = wechatMockService.mockPay(dto.getOrderNo());
             // Mock 直接标记为已支付
             markOrderPaid(order, dto.getChannel(), "MOCK_" + dto.getOrderNo());
+        } else if (isAlipay) {
+            if (alipayService.isConfigured()) {
+                // 组装商品标题
+                String subject = buildSubject(order.getId());
+                String amountYuan = order.getTotalAmount()
+                        .setScale(2, RoundingMode.HALF_UP).toString();
+                channelResult = alipayService.precreate(dto.getOrderNo(), subject, amountYuan);
+            } else {
+                // 降级：模拟支付成功（配置 ALIPAY_APP_ID 等环境变量后自动走真实沙箱）
+                log.warn("支付宝沙箱未配置（ALIPAY_APP_ID 为 placeholder），降级为模拟支付成功: orderNo={}", dto.getOrderNo());
+                channelResult = null;
+                markOrderPaid(order, dto.getChannel(), "MOCK_" + dto.getOrderNo());
+            }
         } else {
             throw new BizException(ErrorCode.PARAM_ERROR, String.format(MessageConst.PARAM_PAY_CHANNEL_UNSUPPORTED_MSG, dto.getChannel()));
         }
 
-        // 记录支付请求（支付宝渠道：状态 PENDING 等待回调）
+        // 记录支付请求（真实支付宝渠道：状态 PENDING 等待回调；mock/降级：直接 SUCCESS）
         PaymentRecord record = new PaymentRecord();
         record.setOrderNo(dto.getOrderNo());
         record.setChannel(dto.getChannel());
         record.setAmount(order.getTotalAmount());
-        record.setStatus("WECHAT_MOCK".equalsIgnoreCase(dto.getChannel()) ? "SUCCESS" : "PENDING");
+        record.setStatus(isWechatMock || alipayUnconfigured ? "SUCCESS" : "PENDING");
         record.setNotifyCount(0);
         paymentRecordMapper.insert(record);
 
@@ -107,7 +119,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .channel(dto.getChannel())
                 .amount(order.getTotalAmount())
                 .status(record.getStatus())
-                .qrCode("ALIPAY".equalsIgnoreCase(dto.getChannel()) ? channelResult : null)
+                .qrCode(isAlipay && !alipayUnconfigured ? channelResult : null)
                 .build();
     }
 

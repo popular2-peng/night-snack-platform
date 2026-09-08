@@ -26,6 +26,17 @@ const goodsTotal = computed(() =>
   groups.value.reduce((s, g) => s + g.items.reduce((s2, i) => s2 + Number(i.price) * i.quantity, 0), 0),
 )
 
+/** 支付方式：微信（mock 直付）/ 支付宝（沙箱，未配置时降级 mock） */
+const payChannel = ref<'WECHAT_MOCK' | 'ALIPAY'>('WECHAT_MOCK')
+
+/** 支付宝二维码（沙箱预下单返回，展示用） */
+const alipayQr = ref<string | null>(null)
+/** 二维码弹窗显隐（可写 computed 供 v-model 使用） */
+const alipayQrVisible = computed({
+  get: () => !!alipayQr.value,
+  set: (v: boolean) => { if (!v) alipayQr.value = null },
+})
+
 /** 是否可提交（有地址 + 有商品） */
 const canSubmit = computed(() => !!selectedAddr.value && groups.value.length > 0)
 
@@ -80,13 +91,17 @@ const onSubmit = async () => {
         merchantId: group.merchantId,
         addressId: selectedAddr.value!.id,
         items,
-        payChannel: 'WECHAT_MOCK',
+        payChannel: payChannel.value,
         clientToken: crypto.randomUUID(),
       })
       const orderNo = res.data?.orderNo ?? ''
-      // 微信 mock 直接支付成功
+      // 发起支付：微信 mock 直付成功；支付宝沙箱返回二维码（未配置时后端降级直付成功）
       try {
-        await payApi(orderNo, 'WECHAT_MOCK')
+        const payRes = await payApi(orderNo, payChannel.value)
+        if (payRes.data?.qrCode) {
+          alipayQr.value = payRes.data.qrCode
+          return // 展示二维码等待扫码（沙箱配置后才会走到）
+        }
       } catch { /* 支付失败不影响跳转（订单待支付可在订单列表继续） */ }
     }
     showToast('下单成功')
@@ -107,8 +122,8 @@ const goBackToShop = () => {
   <div class="checkout-page">
     <van-nav-bar title="确认订单" left-arrow fixed placeholder @click-left="router.back()" />
 
-    <!-- ====== 收货地址卡片 ====== -->
-    <div class="addr-card" v-loading="loading">
+    <!-- ====== 收货地址卡片（点击弹出地址选择层） ====== -->
+    <div class="addr-card" v-loading="loading" @click="addrPickerVisible = true">
       <template v-if="selectedAddr">
         <van-icon name="location-o" color="#f59a23" size="20" class="addr-icon" />
         <div class="addr-info">
@@ -204,6 +219,33 @@ const goBackToShop = () => {
         去点餐
       </van-button>
     </van-empty>
+
+    <!-- ====== 支付方式（美团式单选） ====== -->
+    <div v-if="groups.length" class="pay-card">
+      <div class="pay-title">支付方式</div>
+      <div class="pay-option" :class="{ active: payChannel === 'WECHAT_MOCK' }" @click="payChannel = 'WECHAT_MOCK'">
+        <span class="pay-icon wechat">微</span>
+        <span class="pay-name">微信支付</span>
+        <van-icon name="success" color="#f59a23" class="pay-check" v-if="payChannel === 'WECHAT_MOCK'" />
+      </div>
+      <div class="pay-option" :class="{ active: payChannel === 'ALIPAY' }" @click="payChannel = 'ALIPAY'">
+        <span class="pay-icon alipay">支</span>
+        <span class="pay-name">支付宝</span>
+        <van-icon name="success" color="#f59a23" class="pay-check" v-if="payChannel === 'ALIPAY'" />
+      </div>
+    </div>
+
+    <!-- 支付宝扫码支付弹窗（沙箱配置后返回二维码时展示） -->
+    <van-popup v-model:show="alipayQrVisible" round>
+      <div class="qr-pop">
+        <p class="qr-title">支付宝扫码支付</p>
+        <img v-if="alipayQr" :src="alipayQr" class="qr-img" alt="支付宝收款码" />
+        <p class="qr-tip">请使用支付宝 App 扫码支付（沙箱环境）</p>
+        <van-button round block color="linear-gradient(135deg, #f59a23, #ff6f3c)" @click="alipayQr = null; router.replace('/orders')">
+          我已支付
+        </van-button>
+      </div>
+    </van-popup>
 
     <!-- 底部结算栏 -->
     <div class="checkout-bar" v-if="groups.length">
@@ -460,6 +502,81 @@ const goBackToShop = () => {
   color: #4e5969;
 }
 .amount-row .free {
+  color: #86909c;
+}
+
+/* ---- 支付方式 ---- */
+.pay-card {
+  margin: 0 10px;
+  padding: 4px 16px 10px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.pay-title {
+  padding: 12px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4e5969;
+}
+.pay-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f2f3f5;
+  cursor: pointer;
+}
+.pay-option:last-child {
+  border-bottom: none;
+}
+.pay-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.pay-icon.wechat {
+  background: #07c160;
+}
+.pay-icon.alipay {
+  background: #1677ff;
+}
+.pay-name {
+  flex: 1;
+  font-size: 14px;
+  color: #1d2129;
+}
+.pay-check {
+  font-size: 18px;
+}
+
+/* 支付宝二维码弹窗 */
+.qr-pop {
+  width: 280px;
+  padding: 24px 20px 20px;
+  text-align: center;
+}
+.qr-title {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1d2129;
+}
+.qr-img {
+  width: 200px;
+  height: 200px;
+  border-radius: 8px;
+  background: #f2f3f5;
+}
+.qr-tip {
+  margin: 12px 0 14px;
+  font-size: 12px;
   color: #86909c;
 }
 
