@@ -85,4 +85,13 @@ public class OrderController {
         return Result.ok();
     }
 
+    @Operation(summary = "处理退款申请（用户超1分钟发起的售后申请：approve 同意退款 / false 拒绝回滚）")
+    @PutMapping("/{id}/refund-decision")
+    public Result<Void> refundDecision(@PathVariable Long id,
+                                       @RequestParam boolean approve) {
+        Long merchantId = MerchantContext.currentMerchantId();
+        orderService.merchantRefundDecision(id, merchantId, approve);
+        return Result.ok();
+    }
+
 }

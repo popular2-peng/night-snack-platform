@@ -7,7 +7,7 @@ import {
 } from '@element-plus/icons-vue'
 import {
   getMerchantOrdersApi, getMerchantOrderStatsApi, getMerchantOrderDetailApi,
-  acceptOrderApi, startCookingApi, completeOrderApi, rejectOrderApi,
+  acceptOrderApi, startCookingApi, completeOrderApi, rejectOrderApi, refundDecisionApi,
   type MerchantOrderListVO, type MerchantOrderDetailVO,
 } from '@/apis/order'
 
@@ -152,6 +152,15 @@ const connectWs = () => {
         } else {
           fetchOrders(true)
         }
+      } else if (msg.type === 'REFUND_REQUEST') {
+        ElNotification({
+          title: '收到退款申请',
+          message: `订单 ${shortNo(msg.data.orderNo)} · ${formatMoney(msg.data.totalAmount)}，请前往处理（同意后原路退款）`,
+          type: 'error',
+          position: 'bottom-right',
+          duration: 10000,
+        })
+        refreshAll()
       }
     } catch { /* 非 JSON 帧忽略 */ }
   }
@@ -196,6 +205,34 @@ const handleAccept = async (row: MerchantOrderListVO) => {
     refreshAll()
   } catch { /* 拦截器已提示 */ }
   finally { setActionLoading(row.id, 'accept', false) }
+}
+
+/** 同意退款（用户发起的售后申请 → 执行退款） */
+const handleRefundApprove = async (row: MerchantOrderListVO) => {
+  await ElMessageBox.confirm(
+    `同意退款后订单将标记为已退款，款项原路退回用户。确认同意订单 ${shortNo(row.orderNo)} 的退款申请？`,
+    '同意退款', { type: 'warning', confirmButtonText: '同意退款' })
+  setActionLoading(row.id, 'refundApprove', true)
+  try {
+    await refundDecisionApi(row.id, true)
+    ElMessage.success('已同意退款，款项原路退回')
+    refreshAll()
+  } catch { /* 拦截器已提示 */ }
+  finally { setActionLoading(row.id, 'refundApprove', false) }
+}
+
+/** 拒绝退款（订单回滚为已支付/制作中，可继续履行） */
+const handleRefundReject = async (row: MerchantOrderListVO) => {
+  await ElMessageBox.confirm(
+    `拒绝后订单将恢复为待接单状态继续履行。确认拒绝订单 ${shortNo(row.orderNo)} 的退款申请？`,
+    '拒绝退款', { type: 'info', confirmButtonText: '拒绝退款' })
+  setActionLoading(row.id, 'refundReject', true)
+  try {
+    await refundDecisionApi(row.id, false)
+    ElMessage.success('已拒绝退款申请，订单恢复履行')
+    refreshAll()
+  } catch { /* 拦截器已提示 */ }
+  finally { setActionLoading(row.id, 'refundReject', false) }
 }
 
 /** 拒单（填写原因，触发自动退款） */
@@ -406,6 +443,12 @@ watch(() => route.path, () => {
               <template v-else-if="row.status === 'COOKING'">
                 <el-button size="small" type="success"
                   :loading="isActionLoading(row.id, 'complete')" @click="handleComplete(row)">完成出餐</el-button>
+              </template>
+              <template v-else-if="row.status === 'REFUNDING'">
+                <el-button size="small" plain
+                  :loading="isActionLoading(row.id, 'refundReject')" @click="handleRefundReject(row)">拒绝退款</el-button>
+                <el-button size="small" type="danger" plain
+                  :loading="isActionLoading(row.id, 'refundApprove')" @click="handleRefundApprove(row)">同意退款</el-button>
               </template>
             </div>
           </div>

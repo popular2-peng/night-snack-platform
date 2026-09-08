@@ -1116,6 +1116,26 @@ POST /api/user/order/{id}/delete
 
 ---
 
+#### 申请退款（售后退款）
+
+```
+POST /api/user/order/{id}/refund
+```
+
+> 仅限 `PAID` / `ACCEPTED` / `COOKING`（已支付未完成）状态可申请。退款规则：
+> - **支付成功 1 分钟内**：即时退款，无需商家同意 → 订单直接 `REFUNDED`（`data` 提示「退款成功」）
+> - **支付超过 1 分钟**：订单置 `REFUNDING`（待商家确认），WebSocket 推送 `REFUND_REQUEST` 给商家；商家同意后执行退款 → `REFUNDED`，拒绝则回滚到申请前状态
+
+**响应 data：** `String`（提示文案，前端直接展示）
+
+```json
+{ "code": 0, "msg": "ok", "data": "退款申请已提交，等待商家确认" }
+```
+
+**可能错误码：** `4001`, `4002`（未支付/状态不允许）
+
+---
+
 ### 4.5 支付
 
 #### 发起支付
@@ -2136,6 +2156,28 @@ PUT /api/merchant/order/{id}/reject?reason={reason}
 
 ---
 
+#### 处理退款申请（用户售后申请，WebSocket 收到 REFUND_REQUEST 后处理）
+
+```
+PUT /api/merchant/order/{id}/refund-decision?approve={approve}
+```
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `approve` | boolean | 是 | `true` 同意退款（执行渠道退款 → `REFUNDED`）；`false` 拒绝（回滚到申请前状态 `PAID`/`ACCEPTED`/`COOKING`，订单恢复履行） |
+
+> 仅可处理**用户发起**的退款申请（最近一条进入 `REFUNDING` 的状态日志 `operator=USER`）；管理员发起的退款由管理后台处理，商家操作返回 `4002`「该退款申请非用户发起」。
+
+**可能错误码：** `4001`, `3301`（非本店订单）, `4002`
+
+**响应 data：** 无（写操作成功即 `code=0`，`data` 为 null）
+
+```json
+{ "code": 0, "msg": "ok", "data": null }
+```
+
+---
+
 ### 5.6 WebSocket 实时推送（新订单通知）
 
 ```
@@ -2154,9 +2196,14 @@ ws://localhost:8080/ws/merchant?token=<accessToken>
 | `CONNECTED` | 握手成功建立连接 | 无 |
 | `PONG` | 心跳响应 | 无 |
 | `NEW_ORDER` | 订单支付成功（WECHAT_MOCK 直付 / 支付宝回调，统一入口 `markOrderPaid`） | `orderId` / `orderNo` / `totalAmount` / `createdAt`（ISO-8601） |
+| `REFUND_REQUEST` | 用户发起售后退款申请（支付超 1 分钟，需商家确认） | `orderId` / `orderNo` / `totalAmount` / `createdAt`（ISO-8601） |
 
 ```json
 { "type": "NEW_ORDER", "data": { "orderId": 15, "orderNo": "NSP20260814000012", "totalAmount": 22.00, "createdAt": "2026-08-14T02:30:00" } }
+```
+
+```json
+{ "type": "REFUND_REQUEST", "data": { "orderId": 16, "orderNo": "NSP20260908000010", "totalAmount": 68.00, "createdAt": "2026-09-08T10:05:00" } }
 ```
 
 **客户端 → 服务端：** `{"type":"PING"}` 心跳（建议 30 秒一次）。

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { getCartApi, updateCartQtyApi, removeCartItemApi, type CartGroup, type CartItem } from '@/apis/cart'
@@ -40,6 +40,82 @@ const alipayQrVisible = computed({
 /** 是否可提交（有地址 + 有商品） */
 const canSubmit = computed(() => !!selectedAddr.value && groups.value.length > 0)
 
+// ---- 支付确认与超时倒计时（参考美团：下单后二次确认支付，取消则进入自动取消倒计时） ----
+/** 后端超时自动取消时长（分钟），与订单服务一致 */
+const PAY_TIMEOUT_MIN = 15
+/** 已创建待支付订单（确认支付/倒计时用） */
+const pendingOrders = ref<{ orderNo: string; totalAmount: number; createdAt: string }[]>([])
+const confirmPayVisible = ref(false)
+const countdownVisible = ref(false)
+const countdownText = ref('15:00')
+const payExpired = ref(false)
+let countdownTimer: number | undefined
+
+/** 待支付合计（弹窗展示） */
+const pendingTotal = computed(() => pendingOrders.value.reduce((s, o) => s + Number(o.totalAmount), 0))
+
+/** 确认支付：逐单发起支付（微信 mock / 支付宝未配置降级均直接成功；真实沙箱返回收款码则弹扫码） */
+const confirmPay = async () => {
+  if (!pendingOrders.value.length) return
+  submitting.value = true
+  try {
+    for (const o of pendingOrders.value) {
+      const payRes = await payApi(o.orderNo, payChannel.value)
+      if (payRes.data?.qrCode) {
+        alipayQr.value = payRes.data.qrCode // 真实沙箱：展示二维码等待扫码
+        submitting.value = false
+        confirmPayVisible.value = false
+        return
+      }
+    }
+    showToast('支付成功')
+    router.replace('/orders')
+  } catch {
+    showToast('支付失败，可到订单列表继续支付')
+    router.replace('/orders')
+  } finally {
+    submitting.value = false
+    confirmPayVisible.value = false
+  }
+}
+
+/** 取消支付：进入自动取消倒计时弹窗（以最早订单创建时间 + 15 分钟为截止） */
+const cancelPay = () => {
+  confirmPayVisible.value = false
+  const created = pendingOrders.value.map((o) => o.createdAt).sort()[0] || new Date().toISOString()
+  const deadline = new Date(created).getTime() + PAY_TIMEOUT_MIN * 60 * 1000
+  payExpired.value = false
+  countdownVisible.value = true
+  window.clearInterval(countdownTimer)
+  tickCountdown(deadline)
+  countdownTimer = window.setInterval(() => tickCountdown(deadline), 1000)
+}
+
+/** 倒计时每秒刷新；归零提示超时自动取消 */
+const tickCountdown = (deadline: number) => {
+  const remain = Math.max(0, Math.floor((deadline - Date.now()) / 1000))
+  countdownText.value =
+    String(Math.floor(remain / 60)).padStart(2, '0') + ':' + String(remain % 60).padStart(2, '0')
+  if (remain <= 0) {
+    window.clearInterval(countdownTimer)
+    countdownTimer = undefined
+    payExpired.value = true
+  }
+}
+
+/** 倒计时弹窗「去支付」：回到确认支付弹窗 */
+const goPayAgain = () => {
+  window.clearInterval(countdownTimer)
+  countdownTimer = undefined
+  countdownVisible.value = false
+  confirmPayVisible.value = true
+}
+
+/** 离开页面清理倒计时定时器 */
+onBeforeUnmount(() => {
+  window.clearInterval(countdownTimer)
+})
+
 // ---- 加载 ----
 onMounted(async () => {
   loading.value = true
@@ -73,7 +149,7 @@ const changeQty = async (group: CartGroup, item: CartItem, delta: number) => {
   } catch { /* 拦截器已提示 */ }
 }
 
-// ---- 提交订单（按商家逐组下单，每商家一单） ----
+// ---- 提交订单（按商家逐组下单，每商家一单；成功后弹支付确认，不自动支付） ----
 const onSubmit = async () => {
   if (!canSubmit.value) {
     if (!selectedAddr.value) showToast('请先选择收货地址')
@@ -81,6 +157,7 @@ const onSubmit = async () => {
   }
   submitting.value = true
   try {
+    const created: { orderNo: string; totalAmount: number; createdAt: string }[] = []
     for (const group of groups.value) {
       const items = group.items.map((i) => ({
         productId: i.productId,
@@ -94,18 +171,22 @@ const onSubmit = async () => {
         payChannel: payChannel.value,
         clientToken: crypto.randomUUID(),
       })
-      const orderNo = res.data?.orderNo ?? ''
-      // 发起支付：微信 mock 直付成功；支付宝沙箱返回二维码（未配置时后端降级直付成功）
-      try {
-        const payRes = await payApi(orderNo, payChannel.value)
-        if (payRes.data?.qrCode) {
-          alipayQr.value = payRes.data.qrCode
-          return // 展示二维码等待扫码（沙箱配置后才会走到）
-        }
-      } catch { /* 支付失败不影响跳转（订单待支付可在订单列表继续） */ }
+      const data = res.data
+      if (data?.orderNo) {
+        created.push({
+          orderNo: data.orderNo,
+          totalAmount: data.totalAmount ?? 0,
+          createdAt: data.createdAt ?? new Date().toISOString(),
+        })
+      }
     }
-    showToast('下单成功')
-    router.replace('/orders')
+    if (!created.length) {
+      showToast('下单失败')
+      return
+    }
+    // 弹二次确认支付（mock 支付也不能直接成功）
+    pendingOrders.value = created
+    confirmPayVisible.value = true
   } catch {
     // 拦截器已提示（库存/配送范围/重复提交等）；部分商家下单失败时其余商家订单已创建
     showToast('部分订单提交失败，请到订单列表查看')
@@ -234,6 +315,59 @@ const goBackToShop = () => {
         <van-icon name="success" color="#f59a23" class="pay-check" v-if="payChannel === 'ALIPAY'" />
       </div>
     </div>
+
+    <!-- ====== 确认支付弹窗（二次确认：确认即支付成功，取消进入倒计时） ====== -->
+    <van-popup v-model:show="confirmPayVisible" position="bottom" round safe-area-inset-bottom>
+      <div class="pay-confirm">
+        <p class="confirm-title">订单支付</p>
+        <p class="confirm-amount">¥{{ pendingTotal.toFixed(2) }}</p>
+        <p v-if="pendingOrders.length > 1" class="confirm-count">共 {{ pendingOrders.length }} 笔订单</p>
+        <p class="confirm-order-no" v-else>订单号：{{ pendingOrders[0]?.orderNo }}</p>
+
+        <div class="confirm-channel">
+          <span class="channel-icon" :class="payChannel === 'WECHAT_MOCK' ? 'wechat' : 'alipay'">
+            {{ payChannel === 'WECHAT_MOCK' ? '微' : '支' }}
+          </span>
+          <span>{{ payChannel === 'WECHAT_MOCK' ? '微信支付' : '支付宝' }}</span>
+        </div>
+
+        <div class="confirm-btns">
+          <van-button round plain class="btn-cancel" @click="cancelPay">取消</van-button>
+          <van-button
+            round
+            class="btn-ok"
+            :loading="submitting"
+            color="linear-gradient(135deg, #f59a23, #ff6f3c)"
+            @click="confirmPay"
+          >
+            确认支付
+          </van-button>
+        </div>
+      </div>
+    </van-popup>
+
+    <!-- ====== 超时自动取消倒计时弹窗（取消支付后弹出，参考美团） ====== -->
+    <van-popup v-model:show="countdownVisible" round :close-on-click-overlay="false">
+      <div class="countdown-pop">
+        <van-icon name="clock-o" size="44" color="#f59a23" />
+        <p class="cd-title">{{ payExpired ? '订单已超时自动取消' : '订单未支付' }}</p>
+        <p v-if="!payExpired" class="cd-tip">支付剩余时间</p>
+        <p v-if="!payExpired" class="cd-time">{{ countdownText }}</p>
+        <p class="cd-note" v-if="!payExpired">超时未支付订单将自动取消，已选商品及时支付不迷路</p>
+        <p class="cd-note" v-else>可在订单列表中查看</p>
+        <div class="cd-btns" v-if="!payExpired">
+          <van-button round plain class="btn-cancel" @click="countdownVisible = false">稍后再说</van-button>
+          <van-button round class="btn-ok" color="linear-gradient(135deg, #f59a23, #ff6f3c)" @click="goPayAgain">
+            去支付
+          </van-button>
+        </div>
+        <div class="cd-btns" v-else>
+          <van-button round block class="btn-ok" color="linear-gradient(135deg, #f59a23, #ff6f3c)" @click="router.replace('/orders')">
+            查看订单
+          </van-button>
+        </div>
+      </div>
+    </van-popup>
 
     <!-- 支付宝扫码支付弹窗（沙箱配置后返回二维码时展示） -->
     <van-popup v-model:show="alipayQrVisible" round>
@@ -554,6 +688,105 @@ const goBackToShop = () => {
 }
 .pay-check {
   font-size: 18px;
+}
+
+/* ---- 确认支付弹窗 ---- */
+.pay-confirm {
+  padding: 24px 20px calc(16px + env(safe-area-inset-bottom));
+  text-align: center;
+}
+.confirm-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: #4e5969;
+}
+.confirm-amount {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: #f53f3f;
+}
+.confirm-count,
+.confirm-order-no {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #86909c;
+}
+.confirm-channel {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 8px 18px;
+  border-radius: 18px;
+  background: #f6f7f9;
+  font-size: 14px;
+  color: #1d2129;
+}
+.channel-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+}
+.channel-icon.wechat {
+  background: #07c160;
+}
+.channel-icon.alipay {
+  background: #1677ff;
+}
+.confirm-btns {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+.btn-cancel {
+  flex: 1;
+  border-color: #c9cdd4;
+  color: #4e5969;
+}
+.btn-ok {
+  flex: 2;
+  border: none;
+}
+
+/* ---- 超时倒计时弹窗 ---- */
+.countdown-pop {
+  width: 300px;
+  padding: 26px 20px 20px;
+  text-align: center;
+}
+.cd-title {
+  margin: 12px 0 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1d2129;
+}
+.cd-tip {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #86909c;
+}
+.cd-time {
+  margin: 4px 0 0;
+  font-size: 42px;
+  font-weight: 700;
+  color: #f53f3f;
+  font-variant-numeric: tabular-nums;
+}
+.cd-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #86909c;
+}
+.cd-btns {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
 }
 
 /* 支付宝二维码弹窗 */

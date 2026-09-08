@@ -38,6 +38,30 @@ export const deleteOrderApi = (id: number) => {
   return request.post(`/user/order/${id}/delete`)
 }
 
+/** 订单详情 */
+export interface OrderDetail extends UserOrder {
+  userId: number
+  merchantId: number
+  payTime: string | null
+  addressSnapshot: string | null
+  statusLogs: { fromStatus: string | null; toStatus: string; operator: string; reason: string; createdAt: string }[]
+}
+
+/** 订单详情 */
+export const getOrderDetailApi = (id: number) => {
+  return request.get<OrderDetail>(`/user/order/${id}`)
+}
+
+/** 取消订单（仅待支付可取消） */
+export const cancelOrderApi = (id: number) => {
+  return request.post(`/user/order/${id}/cancel`)
+}
+
+/** 申请退款（支付1分钟内即时退款；超过1分钟待商家确认） */
+export const applyRefundApi = (id: number) => {
+  return request.post<string>(`/user/order/${id}/refund`)
+}
+
 /** 订单明细项（下单请求：productId 必填、specId 选填——有规格商品必传，无规格商品不传） */
 export interface OrderItemDTO {
   productId: number
@@ -51,6 +75,8 @@ export interface OrderResult {
   orderNo: string
   status: string
   totalAmount: number
+  /** 下单时间（ISO-8601，用于未支付自动取消倒计时） */
+  createdAt: string
 }
 
 /** 下单（提交订单） */

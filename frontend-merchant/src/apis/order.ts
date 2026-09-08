@@ -78,3 +78,8 @@ export const completeOrderApi = (id: number) => {
 export const rejectOrderApi = (id: number, reason: string) => {
   return request.put(`/merchant/order/${id}/reject`, null, { params: { reason } })
 }
+
+/** 处理退款申请（用户超1分钟发起）：approve 同意退款 / false 拒绝并回滚订单 */
+export const refundDecisionApi = (id: number, approve: boolean) => {
+  return request.put(`/merchant/order/${id}/refund-decision`, null, { params: { approve } })
+}

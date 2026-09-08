@@ -153,6 +153,8 @@ public final class MessageConst {
     public static final String ORDER_NOT_PAID_REFUND_MSG = "订单未支付，无法退款";
     /** 当前状态不允许退款（ORDER_STATUS_ERROR），参数：状态描述 */
     public static final String ORDER_STATUS_REFUND_MSG = "当前状态不允许退款: %s";
+    /** 该退款非用户发起（ORDER_STATUS_ERROR），商家无权处理 */
+    public static final String REFUND_NOT_USER_APPLY_MSG = "该退款申请非用户发起，商家无权处理";
     /** 库存未初始化（SPEC_NOT_FOUND），参数：specId */
     public static final String STOCK_NOT_INITIALIZED_MSG = "库存未初始化: specId=%s";
     /** 订单创建中，请勿重复提交（ORDER_CREATING） */

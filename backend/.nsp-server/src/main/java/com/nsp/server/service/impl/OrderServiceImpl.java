@@ -14,11 +14,13 @@ import com.nsp.common.exception.BizException;
 import com.nsp.pojo.dto.OrderCreateDTO;
 import com.nsp.pojo.entity.*;
 import com.nsp.pojo.vo.*;
+import com.nsp.server.config.JacksonConfig;
 import com.nsp.server.mapper.*;
 import com.nsp.server.service.CartService;
 import com.nsp.server.service.MapService;
 import com.nsp.server.service.OrderService;
 import com.nsp.server.service.PaymentService;
+import com.nsp.server.ws.MerchantWsSessionManager;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +65,7 @@ public class OrderServiceImpl implements OrderService {
     private final CartService cartService;
     private final PaymentService paymentService;
     private final ObjectMapper objectMapper;
+    private final MerchantWsSessionManager wsSessionManager;
 
     /** 订单号日期前缀（yyyyMMdd，Redis 自增序号键按天分桶） */
     private static final DateTimeFormatter ORDER_NO_DAY = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -674,7 +677,104 @@ public class OrderServiceImpl implements OrderService {
         if (order == null) {
             throw new BizException(ErrorCode.ORDER_NOT_FOUND, MessageConst.ORDER_NOT_FOUND_MSG);
         }
+        executeRefund(order, "ADMIN", "管理员发起退款");
+        return toVO(orderMapper.selectById(orderId));
+    }
 
+    /**
+     * 用户申请退款（售后退款，详情页按钮）
+     *
+     * <p>规则（参考电商售后）：
+     * <ul>
+     *   <li>支付成功 <b>1 分钟内</b>：即时退款，无需商家同意（订单直接 REFUNDED）</li>
+     *   <li>支付超过 1 分钟：订单置 REFUNDING（待商家确认），WebSocket 推送 REFUND_REQUEST 给商家</li>
+     * </ul>
+     *
+     * @return 提示文案（前端直接展示）
+     */
+    @Override
+    @Transactional
+    public String applyUserRefund(Long userId, Long orderId) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null || !order.getUserId().equals(userId)) {
+            throw new BizException(ErrorCode.ORDER_NOT_FOUND, MessageConst.ORDER_NOT_FOUND_MSG);
+        }
+        OrderStatus status = order.getStatus();
+        if (status != OrderStatus.PAID && status != OrderStatus.ACCEPTED && status != OrderStatus.COOKING) {
+            throw new BizException(ErrorCode.ORDER_STATUS_ERROR,
+                    String.format(MessageConst.ORDER_STATUS_REFUND_MSG, status.getDesc()));
+        }
+        if (order.getPayTime() == null) {
+            throw new BizException(ErrorCode.ORDER_STATUS_ERROR, MessageConst.ORDER_NOT_PAID_REFUND_MSG);
+        }
+
+        // 支付时间超过 1 分钟 → 需商家同意（先占位 REFUNDING + 记录申请来源与申请前状态，便于商家处理）
+        boolean withinOneMinute = Duration.between(order.getPayTime(), LocalDateTime.now()).toSeconds() < 60;
+        if (!withinOneMinute) {
+            order.setStatus(OrderStatus.REFUNDING);
+            orderMapper.updateById(order);
+            saveStatusLog(orderId, status.getCode(), OrderStatus.REFUNDING.getCode(), "USER", "用户申请售后退款（待商家确认）");
+            log.info("用户申请售后退款（待商家确认）: orderId={}, orderNo={}, from={}",
+                    orderId, order.getOrderNo(), status.getCode());
+            // WebSocket 推送退款申请给商家（尽力而为，失败不影响申请提交）
+            pushRefundRequest(order);
+            return "退款申请已提交，等待商家确认";
+        }
+
+        // 支付 1 分钟内：即时退款，无需商家同意
+        executeRefund(order, "USER", "用户申请即时退款（支付1分钟内）");
+        return "退款成功（支付 1 分钟内即时退款，无需商家确认）";
+    }
+
+    /**
+     * 商家处理退款申请（同意 → 执行退款；拒绝 → 订单回滚到申请前状态）
+     *
+     * <p>仅允许处理「用户发起」的退款申请（最近一次进入 REFUNDING 的日志 operator=USER），
+     * 管理员发起的退款由管理后台处理。
+     */
+    @Override
+    @Transactional
+    public void merchantRefundDecision(Long orderId, Long merchantId, boolean approve) {
+        Order order = findMerchantOrder(orderId, merchantId, merchantId);
+        if (order.getStatus() != OrderStatus.REFUNDING) {
+            throw new BizException(ErrorCode.ORDER_STATUS_ERROR,
+                    String.format(MessageConst.ORDER_STATUS_REFUND_MSG, order.getStatus().getDesc()));
+        }
+
+        // 校验是用户发起的退款申请：取最近一条进入 REFUNDING 的日志
+        OrderStatusLog latest = orderStatusLogMapper.selectOne(
+                new LambdaQueryWrapper<OrderStatusLog>()
+                        .eq(OrderStatusLog::getOrderId, orderId)
+                        .eq(OrderStatusLog::getToStatus, OrderStatus.REFUNDING.getCode())
+                        .orderByDesc(OrderStatusLog::getId)
+                        .last("LIMIT 1"));
+        if (latest == null || !"USER".equals(latest.getOperator())) {
+            throw new BizException(ErrorCode.ORDER_STATUS_ERROR, MessageConst.REFUND_NOT_USER_APPLY_MSG);
+        }
+
+        if (approve) {
+            // 同意退款：执行渠道退款 → REFUNDED
+            executeRefund(order, "MERCHANT", "商家同意退款申请");
+            log.info("商家同意退款: orderId={}, orderNo={}", orderId, order.getOrderNo());
+        } else {
+            // 拒绝退款：回滚到申请前状态（日志 from_status，缺省 PAID）
+            OrderStatus rollback = OrderStatus.fromCode(latest.getFromStatus());
+            if (rollback == null) rollback = OrderStatus.PAID;
+            order.setStatus(rollback);
+            orderMapper.updateById(order);
+            saveStatusLog(orderId, OrderStatus.REFUNDING.getCode(), rollback.getCode(), "MERCHANT", "商家拒绝退款申请");
+            log.info("商家拒绝退款申请: orderId={}, orderNo={}, rollback={}", orderId, order.getOrderNo(), rollback.getCode());
+        }
+    }
+
+    /**
+     * 执行退款核心流程（校验 + 置 REFUNDING + 渠道退款 + REFUNDED）
+     *
+     * <p>operator 区分发起方（ADMIN 管理员 / USER 用户即时退款 / MERCHANT 商家同意），
+     * 状态日志完整可审计；渠道退款失败抛 5007，订单保持 REFUNDING 可重试。
+     */
+    private void executeRefund(Order order, String operator, String applyReason) {
+        Long orderId = order.getId();
         OrderStatus status = order.getStatus();
         if (status == OrderStatus.PENDING_PAY) {
             throw new BizException(ErrorCode.ORDER_STATUS_ERROR, MessageConst.ORDER_NOT_PAID_REFUND_MSG);
@@ -689,10 +789,10 @@ public class OrderServiceImpl implements OrderService {
         if (!retry) {
             order.setStatus(OrderStatus.REFUNDING);
             orderMapper.updateById(order);
-            saveStatusLog(orderId, status.getCode(), OrderStatus.REFUNDING.getCode(), "ADMIN", "管理员发起退款");
-            log.info("管理员发起退款: orderId={}, orderNo={}", orderId, order.getOrderNo());
+            saveStatusLog(orderId, status.getCode(), OrderStatus.REFUNDING.getCode(), operator, applyReason);
+            log.info("{}发起退款: orderId={}, orderNo={}", operator, orderId, order.getOrderNo());
         } else {
-            log.info("管理员重试退款: orderId={}, orderNo={}", orderId, order.getOrderNo());
+            log.info("{}重试退款: orderId={}, orderNo={}", operator, orderId, order.getOrderNo());
         }
 
         // 渠道退款（失败抛 5007，订单保持 REFUNDING 可重试）
@@ -702,10 +802,25 @@ public class OrderServiceImpl implements OrderService {
         order = orderMapper.selectById(orderId);
         order.setStatus(OrderStatus.REFUNDED);
         orderMapper.updateById(order);
-        saveStatusLog(orderId, OrderStatus.REFUNDING.getCode(), OrderStatus.REFUNDED.getCode(), "ADMIN", "退款成功");
-        log.info("管理员退款完成: orderId={}, orderNo={}", orderId, order.getOrderNo());
+        saveStatusLog(orderId, OrderStatus.REFUNDING.getCode(), OrderStatus.REFUNDED.getCode(), operator, "退款成功");
+        log.info("{}退款完成: orderId={}, orderNo={}", operator, orderId, order.getOrderNo());
+    }
 
-        return toVO(order);
+    /** WebSocket 推送 REFUND_REQUEST 给对应商家（尽力而为，失败仅告警） */
+    private void pushRefundRequest(Order order) {
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "type", "REFUND_REQUEST",
+                    "data", Map.of(
+                            "orderId", order.getId(),
+                            "orderNo", order.getOrderNo(),
+                            "totalAmount", order.getTotalAmount(),
+                            "createdAt", JacksonConfig.LOCAL_DATE_TIME_FORMATTER.format(LocalDateTime.now())
+                    )));
+            wsSessionManager.sendToMerchant(order.getMerchantId(), payload);
+        } catch (Exception e) {
+            log.warn("退款申请 WS 推送失败（不影响申请）: orderNo={}, err={}", order.getOrderNo(), e.getMessage());
+        }
     }
 
     @Override

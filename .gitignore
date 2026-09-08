@@ -39,3 +39,6 @@ Thumbs.db
 # 忽略测试用例目录及其所有内容
 测试用例/
 
+
+# pytest 接口自动化测试工程（本地维护，不入库）
+api_test_project/

@@ -70,4 +70,12 @@ public class OrderController {
         return Result.ok();
     }
 
+    @Operation(summary = "申请退款（支付1分钟内即时退款；超过1分钟待商家确认并WS推送）")
+    @PostMapping("/{id}/refund")
+    @RequireRole("USER")
+    public Result<String> refund(@PathVariable Long id,
+                                 @AuthenticationPrincipal Long userId) {
+        return Result.ok(orderService.applyUserRefund(userId, id));
+    }
+
 }

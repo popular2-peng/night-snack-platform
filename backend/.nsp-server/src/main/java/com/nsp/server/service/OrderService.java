@@ -72,4 +72,17 @@ public interface OrderService {
     /** 管理员批量退款 — 逐条执行 refundOrder，不可退（未支付/已完成/已退款/不存在）的跳过并汇总原因 */
     com.nsp.pojo.vo.BatchResultVO batchRefund(java.util.List<Long> ids);
 
+    /**
+     * 用户申请退款（售后退款）— 支付 1 分钟内即时退款；超过 1 分钟置 REFUNDING 待商家确认并 WS 推送
+     *
+     * @return 提示文案
+     */
+    String applyUserRefund(Long userId, Long orderId);
+
+    /**
+     * 商家处理退款申请 — approve：执行渠道退款 → REFUNDED；reject：回滚到申请前状态
+     * 仅限处理「用户发起」的退款申请（最近 REFUNDING 日志 operator=USER）
+     */
+    void merchantRefundDecision(Long orderId, Long merchantId, boolean approve);
+
 }

@@ -80,6 +80,15 @@ const onOrderDeleted = (id: number) => {
   orders.value = orders.value.filter((x) => x.id !== id)
   total.value = Math.max(0, total.value - 1)
 }
+
+/** 子卡片「立即支付」成功后：本地更新订单状态为已支付 */
+const onOrderPaid = (orderNo: string) => {
+  const order = orders.value.find((x) => x.orderNo === orderNo)
+  if (order) {
+    order.status = 'PAID'
+    order.payChannel = order.payChannel || 'WECHAT_MOCK'
+  }
+}
 </script>
 
 <template>
@@ -116,6 +125,7 @@ const onOrderDeleted = (id: number) => {
           :key="o.id"
           :order="o"
           @deleted="onOrderDeleted"
+          @paid="onOrderPaid"
         />
 
         <van-empty v-if="finished && !orders.length" description="暂无订单" />
