@@ -123,6 +123,22 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <!--
+                    本工程 parent 是自定义的 night-snack-platform，不是 spring-boot-starter-parent，
+                    因此 repackage 目标不会自动绑定到 package 阶段，必须显式声明。
+                    否则 mvn package 只产出不可执行的「瘦 jar」（无 BOOT-INF/、无 Main-Class）。
+                -->
+                <configuration>
+                    <mainClass>com.nsp.server.NsPApplication</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>repackage</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
