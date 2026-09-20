@@ -1,0 +1,9 @@
+# ⚠️⚠️⚠️ 生产环境：禁止用本配置执行任何写操作（下单/删除/封禁）
+# 本文件只允许跑：健康检查、只读浏览类冒烟
+# 若不确定后果，宁可不跑 —— 数据无价。
+env:
+  name: prod
+  desc: 生产环境（仅只读冒烟）
+server:
+  base_url: https://api.example.com
+  timeout: 5

@@ -1,0 +1,6 @@
+pytest>=8.2,<9
+pyyaml>=6.0,<7
+requests>=2.32
+allure-pytest>=2.13
+pymysql>=1.1
+redis>=5.0

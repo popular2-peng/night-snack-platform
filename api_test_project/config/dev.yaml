@@ -1,0 +1,33 @@
+# 开发环境
+env:
+  name: dev
+  desc: 本地开发环境
+
+server:
+  base_url: http://localhost:8080 # 项目地址
+  timeout: 10 # 超时时间
+  version: v1 # 接口版本标识
+
+accounts:
+  user:
+    phone: "13800000003"
+    password: test123
+  merchant:
+    phone: "13800000002"
+    password: m123456
+  admin:
+    username: admin
+    password: admin123
+
+database:
+  host: localhost
+  port: 3306
+  db: nsp_db
+  user: ${NSP_DB_USER}
+  password: ${NSP_DB_PASSWORD}
+
+redis:
+  host: localhost
+  port: 6379
+  db: 0
+  password: ${NSP_REDIS_PASSWORD}
