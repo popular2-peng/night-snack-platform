@@ -1,0 +1,39 @@
+[Unit]
+Description=Night Snack Platform 后端服务 (Spring Boot)
+Documentation=file:/opt/nsp/README.md
+After=network-online.target mysql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nsp
+Group=nsp
+WorkingDirectory=/opt/nsp
+
+# 敏感配置（数据库/Redis 密码、JWT 密钥）从此文件注入，权限 600，不进 git
+EnvironmentFile=/opt/nsp/.env
+
+# -Duser.timezone 必须显式指定：商家营业时间跨夜（如 18:00-03:00），
+# 时区错误会导致「是否营业中」判断偏移 8 小时
+ExecStart=/usr/bin/java \
+    -Xms256m -Xmx512m \
+    -Duser.timezone=Asia/Shanghai \
+    -Dfile.encoding=UTF-8 \
+    -jar /opt/nsp/nsp-server.jar \
+    --spring.profiles.active=prod
+
+# Spring Boot 优雅停机收到 SIGTERM 退出码为 143
+SuccessExitStatus=143
+Restart=always
+RestartSec=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nsp-server
+
+# 基础加固
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
