@@ -5,7 +5,7 @@ env:
   desc: 测试环境
 
 server:
-  base_url: http://198.168.100.131 # 项目地址
+  base_url: http://192.168.100.131 # 项目地址
   timeout: 10 # 超时时间
   version: v1 # 接口版本标识
 
