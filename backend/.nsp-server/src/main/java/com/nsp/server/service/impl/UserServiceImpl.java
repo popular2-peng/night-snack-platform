@@ -89,7 +89,7 @@ public class UserServiceImpl implements UserService {
             throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
         }
         if ("DISABLED".equals(user.getStatus())) {
-            throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
+            throw new BizException(ErrorCode.USER_ALREADY_BANNED, MessageConst.USER_BANNED_MSG);
         }
         log.info("用户登录: userId={}, phone={}", user.getId(), user.getPhone());
         updateLastLogin(user.getId());
@@ -116,7 +116,7 @@ public class UserServiceImpl implements UserService {
             throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
         }
         if ("DISABLED".equals(admin.getStatus())) {
-            throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_ACCOUNT_BANNED_MSG);
+            throw new BizException(ErrorCode.USER_ALREADY_BANNED, MessageConst.USER_BANNED_MSG);
         }
         log.info("管理员登录: adminId={}, username={}", admin.getId(), admin.getUsername());
         String accessToken = jwtTokenProvider.createAccessToken(admin.getId(), "ADMIN");

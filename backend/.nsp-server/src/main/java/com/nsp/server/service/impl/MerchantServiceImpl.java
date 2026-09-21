@@ -226,7 +226,7 @@ public class MerchantServiceImpl implements MerchantService {
             throw new BizException(ErrorCode.PASSWORD_ERROR, MessageConst.PASSWORD_ERROR_MSG);
         }
         if ("SUSPENDED".equals(merchant.getStatus())) {
-            throw new BizException(ErrorCode.FORBIDDEN, MessageConst.FORBIDDEN_MERCHANT_BANNED_MSG);
+            throw new BizException(ErrorCode.MERCHANT_ALREADY_BANNED, MessageConst.MERCHANT_BANNED_MSG);
         }
         if ("PENDING".equals(merchant.getStatus())) {
             throw new BizException(ErrorCode.MERCHANT_NOT_APPROVED, MessageConst.MERCHANT_NOT_APPROVED_MSG);

@@ -65,7 +65,7 @@ public class TokenServiceImpl implements TokenService {
                     throw new BizException(ErrorCode.TOKEN_INVALID, MessageConst.TOKEN_REFRESH_INVALID_MSG);
                 }
                 if ("DISABLED".equals(user.getStatus())) {
-                    throw new BizException(ErrorCode.FORBIDDEN, MessageConst.TOKEN_REFRESH_ACCOUNT_BANNED_MSG);
+                    throw new BizException(ErrorCode.USER_ALREADY_BANNED, MessageConst.TOKEN_REFRESH_ACCOUNT_BANNED_MSG);
                 }
             }
             case "MERCHANT" -> {
@@ -74,7 +74,7 @@ public class TokenServiceImpl implements TokenService {
                     throw new BizException(ErrorCode.TOKEN_INVALID, MessageConst.TOKEN_REFRESH_INVALID_MSG);
                 }
                 if ("SUSPENDED".equals(merchant.getStatus())) {
-                    throw new BizException(ErrorCode.FORBIDDEN, MessageConst.TOKEN_REFRESH_ACCOUNT_BANNED_MSG);
+                    throw new BizException(ErrorCode.MERCHANT_ALREADY_BANNED, MessageConst.TOKEN_REFRESH_ACCOUNT_BANNED_MSG);
                 }
                 if ("PENDING".equals(merchant.getStatus())) {
                     throw new BizException(ErrorCode.MERCHANT_NOT_APPROVED, MessageConst.MERCHANT_NOT_APPROVED_MSG);
@@ -86,7 +86,7 @@ public class TokenServiceImpl implements TokenService {
                     throw new BizException(ErrorCode.TOKEN_INVALID, MessageConst.TOKEN_REFRESH_INVALID_MSG);
                 }
                 if ("DISABLED".equals(admin.getStatus())) {
-                    throw new BizException(ErrorCode.FORBIDDEN, MessageConst.TOKEN_REFRESH_ACCOUNT_BANNED_MSG);
+                    throw new BizException(ErrorCode.USER_ALREADY_BANNED, MessageConst.TOKEN_REFRESH_ACCOUNT_BANNED_MSG);
                 }
             }
             default -> throw new BizException(ErrorCode.TOKEN_INVALID, MessageConst.TOKEN_REFRESH_INVALID_MSG);

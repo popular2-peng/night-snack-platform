@@ -8,7 +8,7 @@ package com.nsp.common.constant;
  * 含动态参数的消息用 {@code %s} 占位，调用处以 {@code String.format} 填充。
  *
  * <p>命名：常量名 = 语义前缀 + {@code _MSG} 后缀；同一错误码在不同场景使用不同文案时，
- * 通过前缀区分（如 {@link #FORBIDDEN_MERCHANT_BANNED_MSG} 与 {@link #ADDRESS_FORBIDDEN_MSG}）。
+ * 通过前缀区分（如 {@link #MERCHANT_BANNED_MSG} 与 {@link #ADDRESS_FORBIDDEN_MSG}）。
  */
 public final class MessageConst {
 
@@ -23,12 +23,12 @@ public final class MessageConst {
     public static final String TOKEN_INVALID_MSG = "Token 无效";
     /** 刷新令牌无效（TOKEN_INVALID） */
     public static final String TOKEN_REFRESH_INVALID_MSG = "刷新令牌无效，请重新登录";
-    /** 账号已被封禁，无法刷新登录态（FORBIDDEN） */
+    /** 账号已被封禁，无法刷新登录态（USER_ALREADY_BANNED） */
     public static final String TOKEN_REFRESH_ACCOUNT_BANNED_MSG = "账号已被封禁，无法刷新登录态";
-    /** 商家已被封禁（FORBIDDEN） */
-    public static final String FORBIDDEN_MERCHANT_BANNED_MSG = "商家已被封禁";
-    /** 账号已被封禁（FORBIDDEN） */
-    public static final String FORBIDDEN_ACCOUNT_BANNED_MSG = "账号已被封禁";
+    /** 商家已被封禁，无法登录（MERCHANT_ALREADY_BANNED） */
+    public static final String MERCHANT_BANNED_MSG = "商家已被封禁";
+    /** 账号已被封禁，无法登录（USER_ALREADY_BANNED） */
+    public static final String USER_BANNED_MSG = "账号已被封禁";
     /** 申请缺少商家登录密码（PARAM_ERROR） */
     public static final String PARAM_APPLICATION_MISSING_PASSWORD_MSG = "申请缺少商家登录密码";
     /** 不支持的支付渠道（PARAM_ERROR） */
