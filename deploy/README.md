@@ -13,16 +13,25 @@
         └───────────────┼───────────────┘
                         │  /api/*  /ws/*  /v3/api-docs  (Nginx 反代)
                         ▼
-             127.0.0.1:8080  Spring Boot (systemd: nsp-server)
+                :8080  Spring Boot (systemd: nsp-server)   ← 绑定所有网卡，局域网可直连
                         ├── 127.0.0.1:3306  MySQL 8  → nsp_db
                         └── 127.0.0.1:6379  Redis   → db3
 ```
 
-- 后端**只监听 127.0.0.1:8080**，外部一律经 Nginx 访问，不直接暴露
-- MySQL / Redis 同样只监听本机
+- 后端监听 **8080**（Spring Boot 默认绑定所有网卡，即 `0.0.0.0:8080`，**局域网内可直接访问**）
+- MySQL / Redis 只监听 127.0.0.1，外部无法直连（需 SSH 隧道，见下文）
 - 三个前端按**端口**分站点，因为它们的 vite 构建产物资源路径是绝对的 `/assets/...`，
   且 axios `baseURL` 是相对路径 `/api`（见各工程 `src/apis/request.ts`），
   所以走同源反代即可，**无需改代码或重新构建 base 路径**
+
+> ⚠️ 若希望后端只允许本机访问（外部一律经 Nginx），在 `application.yml` 加：
+> ```yaml
+> server:
+>   port: 8080
+>   address: 127.0.0.1    # 绑定回环地址
+> ```
+> 或给 systemd 的 `ExecStart` 追加 `--server.address=127.0.0.1`。改完需 `systemctl restart nsp-server`。
+> 改后 Apifox 等外部工具将只能通过 Nginx（80 端口）访问。
 
 ## 目录内容
 
