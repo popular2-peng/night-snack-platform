@@ -74,3 +74,11 @@ def admin_client(base_url, timeout, admin_token):
 def anon_client(base_url, timeout):
     """匿名客户端（不带 token，测未登录/公开接口用）"""
     return ApiClient(base_url, timeout=timeout)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _close_db_after_all():
+    """会话结束后关闭数据库连接"""
+    yield
+    from utils import da_helper
+    da_helper.close()
