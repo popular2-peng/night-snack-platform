@@ -21,14 +21,14 @@ accounts:
     password: admin123
 
 database:
-  host: localhost
+  host: 192.168.100.131
   port: 3306
   db: nsp_db
   user: ${NSP_DB_USER}
   password: ${NSP_DB_PASSWORD}
 
 redis:
-  host: localhost
+  host: 192.168.100.131
   port: 6379
-  db: 0
+  db: 3
   password: ${NSP_REDIS_PASSWORD}

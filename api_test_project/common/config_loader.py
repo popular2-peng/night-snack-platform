@@ -87,11 +87,13 @@ def load_config(env: str | None = None) -> dict[str, Any]:
     :return: 完整配置 dict
     :raises FileNotFoundError: 配置文件不存在
     """
+    # 必须先加载 .env：_resolve_env_name 依赖 os.getenv("NSP_ENV")，
+    # 若在加载 .env 之前解析环境名，NSP_ENV 永远读不到，会静默回退到 dev。
+    _load_dotenv_once()
+
     env_name = _resolve_env_name(env)
     if env_name in _config_cache:
         return _config_cache[env_name]
-
-    _load_dotenv_once()
 
     config_file = CONFIG_DIR / f"{env_name}.yaml"
     if not config_file.exists():

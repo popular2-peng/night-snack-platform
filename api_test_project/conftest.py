@@ -82,3 +82,11 @@ def _close_db_after_all():
     yield
     from utils import da_helper
     da_helper.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _close_redis_after_all():
+    """会话结束后关闭redis数据库连接"""
+    yield
+    from utils import redis_helper
+    redis_helper.close()
