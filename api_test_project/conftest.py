@@ -3,6 +3,7 @@ import pytest
 
 from common.config_loader import load_config
 from common.requests_client import ApiClient
+from common.data_loader import load_yaml
 from api import AdminApi, AuthApi, MerchantApi, PayApi, UploadApi, UserApi
 
 
@@ -91,6 +92,27 @@ def _close_redis_after_all():
     yield
     from utils import redis_helper
     redis_helper.close()
+
+
+@pytest.fixture(scope="session")
+def yaml_data():
+    """通用取数工厂：用例里 yaml_data("login") 拿到整个文件（dict）"""
+    def _load(name: str):
+        return load_yaml(name)
+
+    return _load()
+
+
+@pytest.fixture(scope="session")
+def seed_data(yaml_data):
+    """种子数据锚点：商家 / 商品 / 规格 / 地址的固定 id 与固定属性"""
+    return yaml_data("seed")
+
+
+@pytest.fixture(scope="session")
+def login_data(yaml_data):
+    """登录相关数据：成功账号引用 + 失败矩阵"""
+    return yaml_data("login")
 
 
 # ── 业务接口对象（function 级：与 client 同生命周期，用例间不串状态）──

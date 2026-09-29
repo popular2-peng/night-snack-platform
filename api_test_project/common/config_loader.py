@@ -56,15 +56,15 @@ def _load_dotenv_once() -> None:
     _loaded = True
 
 
-def _replace_placeholders(value: Any) -> Any:
+def resolve_placeholders(value: Any) -> Any:
     """
     递归把配置里的 ${XXX} 替换为环境变量值。
     找不到对应环境变量时保留原样（便于定位漏配项），但打印告警。
     """
     if isinstance(value, dict):
-        return {k: _replace_placeholders(v) for k, v in value.items()}
+        return {k: resolve_placeholders(v) for k, v in value.items()}
     if isinstance(value, list):
-        return [_replace_placeholders(v) for v in value]
+        return [resolve_placeholders(v) for v in value]
     if not isinstance(value, str):
         return value
 
@@ -102,7 +102,7 @@ def load_config(env: str | None = None) -> dict[str, Any]:
     with open(config_file, encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
 
-    config = _replace_placeholders(raw)
+    config = resolve_placeholders(raw)
     _config_cache[env_name] = config
     return config
 
