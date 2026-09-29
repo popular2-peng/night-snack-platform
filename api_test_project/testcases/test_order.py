@@ -20,21 +20,49 @@ QTY = 2
 @pytest.mark.order
 @pytest.mark.db
 def test_create_order_persist_and_stock(user_client, env_config):
+    """下单成功：订单落库 + 库存扣减 + 幂等键绑定（接口层 + 数据层三层验证）"""
+    # ⚠️ clientToken 必须每次运行都唯一。
+    # 后端用它做幂等（Redis key `order:client-token:{userId}:{token}`，TTL 10 分钟），
+    # 写死会导致 10 分钟内重复运行不创建新订单、而是返回上一单。
+    client_token = str(uuid.uuid4())
+
+    # 库存基准值。
+    # ⚠️ Redis 的 stock key 是「懒加载」的：只有该规格第一次被下单扣减时才从
+    #    product_spec.stock 载入。所以首次运行时 key 还不存在，
+    #    此时必须以 MySQL 的值作为基准，不能直接跳过断言（否则用例会静默失去校验能力）。
+    before_stock = redis_helper.stock(SPEC_ID)
+    if before_stock is None:
+        spec_row = da_helper.query_one(
+            "select stock from product_spec where id=%s", (SPEC_ID,))
+        assert spec_row is not None, f"规格不存在： spec_id={SPEC_ID}"
+        before_stock = spec_row["stock"]
+
     resp = user_client.post("/api/user/order", json_body={
-        "addressId": 1,
-        "merchantId": 1,
+        "addressId": ADDRESS_ID,
+        "merchantId": MERCHANT_ID,
         "payChannel": "WECHAT_MOCK",
-        "clientToken": str(uuid.uuid4()),
+        "clientToken": client_token,
         "items": [{
-            "productId": 2,
-            "specId": 4,
-            "quantity": 2
-        }]
+            "productId": PRODUCT_ID,
+            "specId": SPEC_ID,
+            "quantity": QTY,
+        }],
     })
-    assert_success(user_client.post("/api/user/pay", json_body={
-        "orderNo": resp.data["orderNo"],
-        "channel": "WECHAT_MOCK"
-    }))
+    data = assert_success(resp)
+    order_no = data["orderNo"]
+    user_id = data["userId"]
+
+    # ① 数据库：订单已落库且状态正确
+    row = da_helper.query_one(
+        "select status, total_amount from `order` where order_no=%s", (order_no,))
+    assert row is not None, f"订单未落库： {order_no}"
+    assert row["status"] == "PENDING_PAY"
+
+    # ② Redis：库存已按购买数量预扣（注意是 QTY，不是 1）
+    redis_helper.assert_stock_decreased(SPEC_ID, before_stock, QTY)
+
+    # ③ Redis：幂等键已绑定到本次订单号
+    redis_helper.assert_client_token_bound(user_id, client_token, order_no)
 
 
 @pytest.mark.p2

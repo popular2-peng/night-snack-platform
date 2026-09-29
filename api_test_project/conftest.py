@@ -122,13 +122,13 @@ def auth_api(anon_client):
 
 
 @pytest.fixture
-def upload_api(merchant_client):
-    return UploadApi(merchant_client)
+def upload_api(anon_client):
+    return UploadApi(anon_client)
 
 
 @pytest.fixture
-def pay_api(merchant_client):
-    return PayApi(merchant_client)
+def pay_api(anon_client):
+    return PayApi(anon_client)
 
 
 # ── 按角色名取接口对象（越权矩阵这类批量用例用）──
