@@ -3,6 +3,7 @@ import pytest
 
 from common.config_loader import load_config
 from common.requests_client import ApiClient
+from api import AdminApi, AuthApi, MerchantApi, PayApi, UploadApi, UserApi
 
 
 @pytest.fixture(scope="session")
@@ -90,3 +91,48 @@ def _close_redis_after_all():
     yield
     from utils import redis_helper
     redis_helper.close()
+
+
+# ── 业务接口对象（function 级：与 client 同生命周期，用例间不串状态）──
+@pytest.fixture
+def user_api(user_client):
+    """已登录的用户端接口"""
+    return UserApi(user_client)
+
+
+@pytest.fixture
+def anon_api(anon_client):
+    """匿名视角（登录 / 注册 / 浏览搜索这类接口用）"""
+    return UserApi(anon_client)
+
+
+@pytest.fixture
+def merchant_api(merchant_client):
+    return MerchantApi(merchant_client)
+
+
+@pytest.fixture
+def admin_api(admin_client):
+    return AdminApi(admin_client)
+
+
+@pytest.fixture
+def auth_api(anon_client):
+    return AuthApi(anon_client)
+
+
+@pytest.fixture
+def upload_api(merchant_client):
+    return UploadApi(merchant_client)
+
+
+@pytest.fixture
+def pay_api(merchant_client):
+    return PayApi(merchant_client)
+
+
+# ── 按角色名取接口对象（越权矩阵这类批量用例用）──
+@pytest.fixture
+def apis(user_api, merchant_api, admin_api):
+    return {"user": user_api, "merchant": merchant_api, "admin": admin_api}
+

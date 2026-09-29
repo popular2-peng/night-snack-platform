@@ -5,7 +5,7 @@ env:
   desc: 测试环境
 
 server:
-  base_url: http://192.168.100.131 # 项目地址
+  base_url: http://192.168.100.132 # 项目地址
   timeout: 10 # 超时时间
   version: v1 # 接口版本标识
 
@@ -21,14 +21,14 @@ accounts:
     password: admin123
 
 database:
-  host: 192.168.100.131
+  host: 192.168.100.132
   port: 3306
   db: nsp_db
   user: ${NSP_DB_USER}
   password: ${NSP_DB_PASSWORD}
 
 redis:
-  host: 192.168.100.131
+  host: 192.168.100.132
   port: 6379
   db: 3
   password: ${NSP_REDIS_PASSWORD}

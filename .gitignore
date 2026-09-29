@@ -36,6 +36,11 @@ Thumbs.db
 *.swp
 *~
 
+# --- 数据库导出/备份（含真实业务数据，绝不提交） ---
+backup/
+*.sql
+!backend/.nsp-server/src/main/resources/db/migration/*.sql
+
 # 忽略测试用例目录及其所有内容
 测试用例/
 
