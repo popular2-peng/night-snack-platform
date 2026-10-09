@@ -1,0 +1,114 @@
+# 商家端接口（/api/merchant/**），merchantId 由 JWT 解析，不用传
+
+shop:
+  update_fields:
+    name: 深夜食堂
+    notice: 自动测试公告-可改
+    description: 自动测试描述
+  # ⚠️ 改了要记得在 teardown 里改回去，否则影响其他用例的展示断言
+  bad_list:
+    - name: delivery_radius_negative
+      delivery_radius: -1
+      expect_code: 1100
+    - name: business_hours_wrong_format
+      business_hours_start: "25:00"
+      expect_code: 1100
+
+shop_status:
+  set_closed: CLOSED
+  set_open: OPEN
+  bad_status:
+    status: NOT_A_STATUS
+    expect_code: 1100
+  # ⚠️ 把商家改成 CLOSED 会让所有下单用例失败 —— 必须在 teardown 里恢复 OPEN
+
+product:
+  create:
+    name_template: 自动测试商品
+    price: "9.99"
+    category_id: 1
+    description: 自动化测试创建，跑完请删除
+    expect_status: ON
+  bad_list:
+    - name: name_empty
+      name: ''
+      expect_code: 1100
+    - name: price_negative
+      price: "-1.00"
+      expect_code: 1100
+    - name: category_not_found
+      category_id: 99999
+      expect_code: 3201
+  update_status:
+    off: OFF
+    on: ON
+  delete_on_sale:
+    # 在售商品不能直接删 → 3105
+    expect_code: 3105
+
+spec:
+  add:
+    name: 自动测试规格
+    price_delta: "1.00"
+    stock: 50
+  bad_list:
+    - name: name_empty
+      name: ''
+      expect_code: 1100
+    - name: stock_null
+      stock: null
+      expect_code: 1100
+    - name: stock_negative
+      stock: -1
+      expect_code: 1100
+
+category:
+  create:
+    name_template: 自动测试分类
+  bad_list:
+    - name: name_empty
+      name: ''
+      expect_code: 1100
+    - name: name_too_short
+      name: A
+      expect_code: 1100
+  delete_not_empty:                # 分类下还有商品时不能删
+    expect_code: 3201
+
+order_flow:
+  # 商家订单状态流转：PAID → ACCEPTED → COOKING → COMPLETED
+  prepare: create_and_pay_order
+  steps:
+    - name: accept
+      path_suffix: accept
+      expect_status: ACCEPTED
+    - name: cooking
+      path_suffix: cooking
+      expect_status: COOKING
+    - name: complete
+      path_suffix: complete
+      expect_status: COMPLETED
+  illegal_transitions:             # 非法迁移必须被拦住 → 4002
+    - name: accept_pending_pay_order
+      prepare: create_pending_order
+      path_suffix: accept
+      expect_code: 4002
+    - name: cooking_before_accept
+      prepare: create_and_pay_order
+      path_suffix: cooking
+      expect_code: 4002
+    - name: complete_before_cooking
+      prepare: create_and_pay_order
+      path_suffix: complete
+      expect_code: 4002
+
+reject_order:                      # 拒单（自动退款）
+  prepare: create_and_pay_order
+  path_suffix: reject
+  expect_order_status: CANCELLED
+  expect_payment_status: REFUNDED
+
+cross_merchant:                    # 越权：用商家 1 的 token 操作商家 2 的商品
+  target_merchant_key: spicy_crayfish
+  product_key: no_spec_dish
+  expect_code: 3301

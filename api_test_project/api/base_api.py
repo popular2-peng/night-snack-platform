@@ -38,3 +38,7 @@ class BaseApi:
 
     def _delete(self, path: str = "", **kw: Any) -> ApiResponse:
         return self.client.delete(self._url(path), **kw)
+
+    def request(self, method: str, path: str, **kw: Any) -> ApiResponse:
+        """通用请求入口：给越权矩阵 / 冒烟巡检这类『端点即数据』的用例用"""
+        return getattr(self.client, method.lower())(self._url(path), **kw)

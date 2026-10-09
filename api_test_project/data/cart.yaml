@@ -1,0 +1,80 @@
+# 购物车（Redis Hash：cart:{user_id}）
+# cartKey 约定：有规格 = specId 字符串；无规格 = p{productId}
+
+add_with_spec:                     # 有规格商品
+  merchant_key: night_bbq
+  product_key: beef_skewer
+  spec_key: large
+  quantity: 2
+  expect_cart_key: "4"             # specId = 4
+
+add_without_spec:                  # ⭐ 无规格商品：只传 productId，不要传 specId
+  merchant_key: spicy_crayfish
+  product_key: no_spec_dish
+  quantity: 1
+  expect_cart_key: "p61"           # 后端约定：无规格商品 cartKey = p{productId}
+
+# 有规格商品却不传 specId → 3106「商品需选择规格」
+spec_required:
+  merchant_key: night_bbq
+  product_key: beef_skewer
+  quantity: 1
+  expect_code: 3106
+
+# specId 不属于该商品 → 3103
+spec_not_belong:
+  product_key: beef_skewer
+  spec_id: 7                       # 7 是「烤茄子」的规格
+  quantity: 1
+  expect_code: 3103
+
+# 商品不存在 → 3101
+product_not_found:
+  product_id: 99999
+  quantity: 1
+  expect_code: 3101
+
+# 数量边界（后端 MAX_QUANTITY = 99）
+quantity_boundary_list:
+  - name: qty_zero
+    quantity: 0
+    expect_code: 1100
+  - name: qty_negative
+    quantity: -1
+    expect_code: 1100
+  - name: qty_one
+    quantity: 1
+    expect_code: 0
+  - name: qty_max
+    quantity: 99
+    expect_code: 0                 # 99 是允许的（判断是 > 99 才拦）
+  - name: qty_over_max
+    quantity: 100
+    expect_code: 2201
+
+update_quantity:
+  cart_key: "4"
+  new_quantity: 5
+  over_max: 100
+  over_max_expect_code: 2201
+  missing_cart_key:              # 不传 cartKey → 1100（不能变成 500）
+    expect_code: 1100
+
+cross_merchant:
+  # 购物车返回按商家分组的结构，跨商家商品不能合并下单
+  merchant_keys: [night_bbq, spicy_crayfish]
+  expect_groups_len: 2
+
+off_sale_product:
+  # ⚠️ 种子数据里 61 个商品全是 ON，没有下架商品。
+  #    要测 3102「商品已下架」，得先用商家接口把某个商品下架，
+  #    并在 teardown 里恢复上架（否则会污染其他用例）
+  product_id: 61
+  prepare: set_status_off
+  expect_code: 3102
+  teardown: set_status_on
+
+clear_after:
+  # 清理：DELETE /api/user/cart（清空当前用户购物车）
+  # 写类用例的 teardown 里调用，避免污染后续用例
+  path: /api/user/cart

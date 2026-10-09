@@ -1,0 +1,88 @@
+# 平台管理接口（/api/admin/**）
+# ⚠️ 注释里明确写了「不要用 admin 账号做破坏性操作」——
+#    封禁/删除类用例建议只针对自己造出来的数据，跑完清理
+
+dashboard:
+  stats:
+    expect_keys: [totalUsers, totalMerchants, totalOrders, todayRevenue]
+  order_stats:
+    expect_keys: [pendingPayOrders, refundingOrders]
+  trends:
+    user_trend: /api/admin/dashboard/user-trend
+    application_trend: /api/admin/dashboard/application-trend
+
+user_manage:
+  list:
+    page: 1
+    size: 20
+  ban_reason_empty:                # 封禁原因不能为空 → 2302
+    user_key: normal_2
+    reason: ''
+    expect_code: 2302
+  ban_negative_duration:           # 封禁时长不能为负 → 2309
+    user_key: normal_2
+    duration: -1
+    expect_code: 2309
+  ban_already_banned:              # 重复封禁 → 2303
+    user_key: banned
+    reason: 重复封禁测试
+    expect_code: 2303
+  unban_not_banned:                # 解封未封禁的用户 → 2304
+    user_key: normal_2
+    expect_code: 2304
+  delete_active_user:              # 启用账号不可删除 → 2306
+    user_key: normal_2
+    expect_code: 2306
+  # ⭐ 完整闭环用例：封禁 → 该账号登录返回 2303 → 解封 → 登录成功
+  ban_then_login_then_unban:
+    target: __auto_created_user__  # 用生成的手机号注册一个新用户来操作，避免动种子账号
+    expect_after_ban_login_code: 2303
+    expect_after_unban_login_code: 0
+
+merchant_manage:
+  list:
+    page: 1
+    size: 20
+  suspend_and_activate:
+    merchant_key: other_owner      # 张三烧烤：没有商品，动它影响最小
+    expect_status_after_suspend: SUSPENDED
+    expect_status_after_activate: OPEN
+  ban_reason_empty:
+    reason: ''
+    expect_code: 7002
+  ban_already_banned:              # 重复封禁商家 → 7003
+    merchant_key: suspended
+    expect_code: 7003
+  delete_active_merchant:
+    merchant_key: other_owner
+    expect_code: 2307
+
+application_review:
+  pending_list:
+    path: /api/admin/merchant-application/pending
+  reject_reason_empty:
+    expect_code: 7001
+  not_found:
+    id: 99999
+    expect_code: 2003
+
+category_manage:
+  create:
+    name_template: 自动测试品类
+    icon_url: placeholder
+  bad_list:
+    - name: name_too_short
+      name: A
+      expect_code: 8002
+    - name: name_too_long
+      name: 这是一个超过十个字的自动测试品类名称
+      expect_code: 8002
+    - name: name_duplicate
+      name: 烧烤类
+      expect_code: 8001
+  enable_disable:
+    expect_status_after_disable: DISABLED
+    expect_status_after_enable: ENABLED
+  delete_in_use:                   # 品类下还有商家关联 → 8005
+    category_id: 1
+    expect_code: 8005

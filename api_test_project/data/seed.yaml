@@ -1,0 +1,203 @@
+# ============================================================
+# 种子数据锚点（只读）
+#
+# 与 V1__init.sql 的种子数据一致，已对着 nsp_db 实测核对。
+#
+# ⚠️ 只放「稳定锚点」：id / 名称 / 固定业务属性。
+#    用例的输入与期望放各自业务域的 yaml（login.yaml / order.yaml ...）。
+# ⚠️ 若手工加过数据导致自增 id 漂移、或重建过库，请同步刷新本文件；
+#    更稳妥的做法是运行时用接口查真实 id（见 19 号文档第九节）。
+# ============================================================
+
+users:
+  normal:                        # 主测试账号：有地址、有历史订单
+    id: 1
+    phone: "13800000003"
+    password: test123
+    status: ACTIVE
+  normal_2:                      # 第二个正常用户，用于跨用户越权测试
+    id: 2
+    phone: "13811111111"
+    password: test123
+    status: ACTIVE
+  banned:                        # 已封禁 → 登录返回 2303
+    id: 5
+    phone: "13844444444"
+    password: test123
+    status: DISABLED
+  banned_2:
+    id: 13
+    phone: "13822221118"
+    password: test123
+    status: DISABLED
+  not_exists:                    # 库里不存在 → 登录返回 2003
+    phone: "13900000000"
+
+merchants:
+  night_bbq:                     # 深夜食堂：18:00-03:00，配送 5000m
+    id: 1
+    name: 深夜食堂
+    phone: "13800000002"
+    password: m123456
+    status: OPEN
+    delivery_radius: 5000
+  spicy_crayfish:                # 辣翻天小龙虾：16:00-02:00，配送 4000m
+    id: 2
+    name: 辣翻天小龙虾
+    phone: "13855555555"
+    password: m123456
+    status: OPEN
+    delivery_radius: 4000
+  sweet_soup:                    # 老王糖水铺：14:00-23:00，配送 3500m
+    id: 3
+    name: 老王糖水铺
+    phone: "13866666666"
+    password: m123456
+    status: OPEN
+    delivery_radius: 3500
+  closed:                        # 披萨大王：CLOSED → 下单返回 3002 商家已打烊
+    id: 7
+    name: 披萨大王
+    status: CLOSED
+    delivery_radius: 6000
+  suspended:                     # 杨国福麻辣烫：SUSPENDED → 登录返回 7003
+    id: 8
+    name: 杨国福麻辣烫（望京店）
+    phone: "13812345678"
+    password: m123456
+    status: SUSPENDED
+    delivery_radius: 3000
+  other_owner:                   # 张三烧烤：用于「商家 1 操作别家商品」的越权测试
+    id: 9
+    name: 张三烧烤
+    status: OPEN
+    delivery_radius: 4500
+
+# ⚠️ 配送范围实测结论（以地址 1「望京SOHO」为收货点，直线距离）：
+#   商家 1 深夜食堂    0 m     半径 5000  → 范围内（下单用这个组合）
+#   商家 2 辣翻天  10940 m     半径 4000  → 超范围（拿来做 4003 的负面用例）
+#   商家 3 老王糖水铺 12152 m   半径 3500  → 超范围
+#   商家 7 披萨大王   7318 m     半径 6000  → 超范围
+#   商家 8 杨国福      244 m     半径 3000  → 范围內（但已封禁）
+#   商家 9 张三烧烤    637 m     半径 4500  → 范围内（但该商家没有商品）
+#
+# ⭐ 结论：地址 1 + 商家 1 是「营业中 且 在配送范围内」的少数组合之一，
+#    所以下单类用例统一用这一对；要测 4003（超出配送范围），
+#    用「地址 1 + 商家 2」最省事 —— 不用造任何数据。
+
+products:
+  lamb_skewer:                   # 羊肉串 4.00，有 2 个规格
+    id: 1
+    merchant_key: night_bbq
+    name: 羊肉串
+    price: "4.00"
+    status: ON
+    specs:
+      small: { id: 1, name: 小份(5串),  price_delta: "0.00", stock: 100 }
+      large: { id: 2, name: 大份(10串), price_delta: "3.50", stock: 80 }
+
+  beef_skewer:                   # 牛肉串 5.00 ⭐ 下单主用例用这个
+    id: 2
+    merchant_key: night_bbq
+    name: 牛肉串
+    price: "5.00"
+    status: ON
+    specs:
+      small: { id: 3, name: 小份(5串),  price_delta: "0.00", stock: 100 }
+      large: { id: 4, name: 大份(10串), price_delta: "4.50", stock: 80 }
+
+  chicken_wing:                  # 烤鸡翅 8.00
+    id: 3
+    merchant_key: night_bbq
+    name: 烤鸡翅
+    price: "8.00"
+    status: ON
+    specs:
+      three: { id: 5, name: 3只装, price_delta: "0.00", stock: 50 }
+      six:   { id: 6, name: 6只装, price_delta: "7.00", stock: 40 }
+
+  eggplant:                      # 烤茄子 10.00，只有 1 个规格
+    id: 4
+    merchant_key: night_bbq
+    name: 烤茄子
+    price: "10.00"
+    status: ON
+    specs:
+      standard: { id: 7, name: 标准份, price_delta: "0.00", stock: 60 }
+
+  chives:                        # 烤韭菜 5.00，只有 1 个规格
+    id: 6
+    merchant_key: night_bbq
+    name: 烤韭菜
+    price: "5.00"
+    status: ON
+    specs:
+      standard: { id: 10, name: 标准份, price_delta: "0.00", stock: 80 }
+
+  no_spec_dish:                  # ⭐ 全库唯一的无规格商品（spec 数为 0）
+    id: 61
+    merchant_key: spicy_crayfish # 属商家 2，注意它不在地址 1 的配送范围内
+    name: 测试菜品
+    status: ON
+    specs: {}                    # 空 = 加购/下单都不能传 specId，cartKey 为 p61
+
+# ⚠️ 关于无规格商品（很关键的三个事实，都是实测的）：
+#   1. 全库 61 个商品里，只有 id=61「测试菜品」没有规格
+#   2. 商家 1（深夜食堂）的商品**全都有规格**，所以「无规格直接加购」只能用商品 61
+#   3. 商品 61 属商家 2，而商家 2 对地址 1 超出配送范围 →
+#      用例上要区分：
+#        · 购物车用例 → 可以用商品 61（购物车不校验配送范围）
+#        · 下单用例   → 需要先造一个商家 2 附近（4km 内）的地址，否则会先撞 4003
+
+addresses:
+  wangjing_soho:                 # ⭐ 与深夜食堂坐标完全相同 → 距离 0m，必定在范围内
+    id: 1
+    user_key: normal
+    receiver: 测试员
+    phone: "13800000003"
+    detail: 朝阳区望京SOHO T1-1201
+    lat: "39.996320"
+    lng: "116.480900"
+    is_default: 0
+  zhongguancun:                  # 海淀中关村软件园（离所有夜宵商家都远）
+    id: 2
+    user_key: normal
+    detail: 海淀区中关村软件园A座
+    lat: "40.050630"
+    lng: "116.298450"
+    is_default: 0
+  shuangjing_default:            # 当前默认地址（双井）—— 注意距离
+    id: 12
+    user_key: normal
+    detail: 朝阳区双井桥东200米（测试）
+    lat: "39.898470"
+    lng: "116.467550"
+    is_default: 1
+  # ⚠️ 地址 12（双井）虽然是「默认地址」，但它离深夜食堂约 10.9 km，
+  #    远超 5000m 配送半径 —— 如果按「取默认地址下单」的思路写用例，
+  #    会直接拿到 4003 而不是下单成功。这就是 test_order.py 用 addressId=1 的原因。
+
+platform_categories:             # 平台品类（GET /api/user/categories）
+  bbq:      { id: 1,  name: 烧烤类,   status: ENABLED }
+  crayfish: { id: 2,  name: 小龙虾,   status: ENABLED }
+  drink:    { id: 3,  name: 奶茶饮品, status: ENABLED }
+  fried:    { id: 5,  name: 炸鸡汉堡, status: ENABLED }
+
+shop_categories:                 # 商家自定义分组（深夜食堂的菜单分组）
+  bbq:      { id: 1, merchant_key: night_bbq, name: 烧烤类 }
+  drink:    { id: 2, merchant_key: night_bbq, name: 饮品类 }
+  staple:   { id: 3, merchant_key: night_bbq, name: 主食类 }
+  cold:     { id: 4, merchant_key: night_bbq, name: 凉菜类 }
+
+admin:
+  admin:      { id: 1, username: admin,      password: admin123 }
+  superadmin: { id: 2, username: superadmin, password: admin123 }
+
+# ── 业务上限常量（来自后端源码，改代码时这里要同步）──
+limits:
+  cart_max_quantity: 99         # CartServiceImpl.MAX_QUANTITY，超过返回 2201
+  address_max_count: 20         # AddressServiceImpl.MAX_ADDRESS_COUNT，超过返回 2102
+  upload_max_size_mb: 5         # UploadServiceImpl.MAX_FILE_SIZE
+  upload_sign_limit_per_min: 10 # SIGN_LIMIT_PER_MINUTE，超过返回 6001
+  upload_sign_expire_seconds: 60
+  allowed_file_ext: [jpg, jpeg, png, webp]   # ALLOWED_TYPES，其余返回 6002

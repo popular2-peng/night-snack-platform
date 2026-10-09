@@ -1,0 +1,76 @@
+# 越权测试：用「低权限身份」访问「高权限 / 他人资源」，全部应被拒绝
+# 断言口径：
+#   未登录/无 token          → 1001
+#   角色不符（USER 调 MERCHANT 接口等）→ 1002
+#   资源不属于自己           → 4001（订单）/ 3301（非本店商家操作商品）
+
+role_mismatch:                     # 角色不符（用低权限 token 打高权限接口）
+  - name: user_call_merchant_shop
+    actor: user
+    method: get
+    path: /api/merchant/shop
+    expect_code: 1002
+  - name: user_call_merchant_orders
+    actor: user
+    method: get
+    path: /api/merchant/order
+    expect_code: 1002
+  - name: user_call_admin_dashboard
+    actor: user
+    method: get
+    path: /api/admin/dashboard/stats
+    expect_code: 1002
+  - name: user_call_admin_users
+    actor: user
+    method: get
+    path: /api/admin/users
+    expect_code: 1002
+  - name: merchant_call_user_cart
+    actor: merchant
+    method: get
+    path: /api/user/cart
+    expect_code: 1002
+  - name: merchant_call_admin_users
+    actor: merchant
+    method: get
+    path: /api/admin/users
+    expect_code: 1002
+
+no_token:                          # 匿名访问受保护接口
+  - name: anon_call_user_info
+    method: get
+    path: /api/user/info
+    expect_code: 1001
+  - name: anon_call_user_cart
+    method: get
+    path: /api/user/cart
+    expect_code: 1001
+  - name: anon_call_user_order
+    method: get
+    path: /api/user/order
+    expect_code: 1001
+  - name: anon_call_merchant_shop
+    method: get
+    path: /api/merchant/shop
+    expect_code: 1001
+
+cross_resource:                    # 同角色、但操作别人的资源
+  - name: user_read_other_user_order
+    # 用用户 1 的 token 去读用户 2 的订单详情
+    actor: user
+    target_user_key: normal_2
+    order_source: 该用户自己的订单
+    expect_code: 4001              # 后端按 user_id 过滤，查不到 → 订单不存在
+  - name: user_cancel_other_user_order
+    actor: user
+    target_user_key: normal_2
+    expect_code: 4001
+  - name: merchant_operate_other_merchant_product
+    # 商家 1 的 token 去改商家 2 的商品
+    actor: merchant
+    target_merchant_key: spicy_crayfish
+    product_key: no_spec_dish
+    expect_code: 3301              # 非本店商家，无权操作
+
+# ⚠️ cross_resource 这几条的期望码建议首次跑的时候先用「只看响应码、不断言」的方式确认一遍，
+#    确认后写死。因为「查不到」和「无权限」在实现上可能都返回 4001，取决于 Service 写法。

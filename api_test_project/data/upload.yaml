@@ -1,0 +1,67 @@
+# 上传接口（/api/upload/**）
+# 后端常量（UploadServiceImpl）：
+#   ALLOWED_TYPES = jpg / jpeg / png / webp
+#   MAX_FILE_SIZE = 5MB
+#   SIGN_LIMIT_PER_MINUTE = 10
+#   SIGN_EXPIRE_SECONDS = 60
+
+sign:
+  success:
+    biz_type: PRODUCT_IMAGE
+    target_id: 2
+    file_name: auto-test.png
+    expect_keys: [host, dir, policy, signature, ossKey, expireAt]
+  biz_types:
+    - AVATAR
+    - SHOP_LOGO
+    - PRODUCT_IMAGE
+  bad_list:
+    - name: biz_type_unsupported
+      biz_type: NOT_A_TYPE
+      file_name: a.png
+      expect_code: 1100
+    - name: biz_type_empty
+      biz_type: ''
+      file_name: a.png
+      expect_code: 1100
+    - name: file_ext_not_allowed
+      biz_type: PRODUCT_IMAGE
+      file_name: evil.exe          # 6002 文件类型不允许
+      expect_code: 6002
+    - name: file_ext_gif
+      biz_type: PRODUCT_IMAGE
+      file_name: a.gif
+      expect_code: 6002
+  rate_limit:                      # 6001 签名请求过于频繁
+    repeat_times: 11               # 超过 10 次/分钟
+    expect_code: 6001
+
+bind:
+  # POST /api/upload/bind
+  success:
+    biz_type: PRODUCT_IMAGE
+    target_id: 2
+    oss_key: auto-test/placeholder.png
+  bad_list:
+    - name: oss_key_empty
+      oss_key: ''
+      expect_code: 1100
+    - name: biz_type_unsupported
+      biz_type: NOT_A_TYPE
+      expect_code: 1100
+
+url:
+  not_exist_key:
+    oss_key: not/exist/file.png
+    # OSS 未配置（placeholder）时走降级逻辑，断言"不返回 1999 系统错误"即可
+    expect_code_not: 1999
+
+callback:
+  # POST /api/upload/callback（匿名）——必须校验 OSS 回调签名
+  bad_signature:
+    expect_code: 6004
+
+# ⚠️ 这个域的用例强依赖 OSS 配置：
+#    - AK/SK 是 placeholder 时，上传签名会走降级/报错分支
+#    - 想完整测「签名 → 直传 → 回调 → 落库」，需要配好真实沙箱 Bucket
+#    在没配之前，建议只跑「参数校验 / 类型 / 限流」这部分（不依赖真实 OSS）

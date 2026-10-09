@@ -100,7 +100,7 @@ def yaml_data():
     def _load(name: str):
         return load_yaml(name)
 
-    return _load()
+    return _load
 
 
 @pytest.fixture(scope="session")

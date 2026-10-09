@@ -1,0 +1,47 @@
+# 退款两条路径（用户端 POST /api/user/order/{id}/refund）
+# 分界点：pay_time 距今 < 60 秒 → 即时退款；>= 60 秒 → 商家审批
+
+instant_refund:                    # < 1 分钟：直接退
+  prepare: create_and_pay_order    # 支付后立刻申请
+  expect_code: 0
+  expect_order_status: REFUNDED
+  expect_payment_status: REFUNDED
+  expect_refund_status: REFUNDED
+  # 提示语：退款成功（支付 1 分钟内即时退款，无需商家确认）
+
+merchant_approval:                 # >= 1 分钟：走商家审批
+  prepare: create_and_pay_order
+  # ⭐ 关键技巧：把 pay_time 改旧，1 秒内验证"超过 1 分钟"的规则
+  prepare_sql: "UPDATE `order` SET pay_time = NOW() - INTERVAL 5 MINUTE WHERE order_no = %s"
+  apply_expect_order_status: REFUNDING
+  apply_expect_log_to_status: REFUNDING
+  approve_expect_order_status: REFUNDED
+  approve_expect_payment_status: REFUNDED
+
+merchant_reject:                   # 商家拒绝 → 回滚到申请前状态
+  prepare: merchant_approval_without_approve
+  approve: false
+  expect_order_status: PAID        # 回滚到申请前状态（PAID/ACCEPTED/COOKING）
+
+bad_list:
+  - name: refund_pending_pay_order
+    title: 未支付订单不能退款
+    prepare: create_pending_order
+    expect_code: 4002
+  - name: refund_cancelled_order
+    title: 已取消订单不能退款
+    prepare: create_and_cancel_order
+    expect_code: 4002
+  - name: refund_completed_order
+    title: 已完成订单（售后不属本接口范围）
+    prepare: create_completed_order
+    expect_code: 4002
+  - name: refund_other_user_order
+    title: 退别人的订单
+    expect_code: 4001
+
+# 数据库断言用的字段（两个状态列要分清！）
+#   payment_record.status        ∈ PENDING / SUCCESS / FAILED / REFUNDED
+#   payment_record.refund_status ∈ REFUNDING / REFUNDED
+#   退款中：status 仍是 SUCCESS，refund_status = REFUNDING
+#   退款成功：两个都变成 REFUNDED（PaymentServiceImpl 里同时 set）

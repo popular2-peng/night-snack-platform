@@ -1,0 +1,76 @@
+# 无需 token 的公开接口：分类、商家列表、商家详情、商家商品、商品搜索
+# 注意：这些接口依赖「商家营业中」——深夜食堂 18:00-03:00，
+#       白天跑的话商家列表里可能看不到它 → 相关用例建议加时间判断或用固定商家详情接口
+
+categories:
+  expect_not_empty: true
+  expect_first_keys: [id, name]
+
+merchant_list:
+  page: 1
+  size: 20
+  expect_page_keys: [total, list]
+
+merchant_list_filter:
+  - name: by_category
+    category_id: 1
+    expect_all_match: true          # 返回的每个商家都应含该品类
+  - name: by_keyword_hit
+    keyword: 深夜
+    expect_name_contains: 深夜
+  - name: by_keyword_miss
+    keyword: zzz不存在的商家
+    expect_total: 0
+
+merchant_detail:
+  merchant_key: night_bbq
+  expect_name: 深夜食堂
+  not_exist:
+    id: 99999
+    expect_code: 3001
+
+merchant_products:
+  merchant_key: night_bbq
+  expect_all_on_sale: true          # 只返回上架商品
+  not_exist_merchant:
+    id: 99999
+    expect_code: 3001
+
+product_detail:
+  merchant_key: night_bbq
+  product_key: beef_skewer
+  expect_name: 牛肉串
+  mismatch:                         # 商品不属于该商家
+    merchant_key: sweet_soup
+    product_key: beef_skewer
+    expect_code: 3101
+
+search_products:
+  - name: keyword_hit
+    keyword: 牛肉
+    expect_list_not_empty: true
+  - name: keyword_miss
+    keyword: zzz不存在的商品
+    expect_total: 0
+
+pagination:
+  - name: page_1_size_5
+    page: 1
+    size: 5
+    expect_list_size_lte: 5
+  - name: page_2
+    page: 2
+    size: 5
+    expect_list_size_lte: 5
+  - name: size_zero
+    page: 1
+    size: 0
+    expect_code: 1100
+  - name: page_negative
+    page: -1
+    size: 10
+    expect_code: 1100
+  - name: size_over_limit
+    page: 1
+    size: 10000
+    expect_code: 1100

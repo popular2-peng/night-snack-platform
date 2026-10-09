@@ -1,0 +1,52 @@
+# 收货地址（/api/user/address）
+# ⚠️ 这个域是「写类」用例：造出来的地址记得在 teardown 里删掉
+
+create_success:
+  receiver: 自动测试收件人
+  phone: "13800000003"
+  detail: 朝阳区望京SOHO T1 自动测试地址
+  lat: "39.996320"
+  lng: "116.480900"
+  is_default: false
+
+# 手机号格式（@Pattern ^1[3-9]\d{9}$）
+bad_phone_list:
+  - name: phone_empty
+    phone: ''
+    expect_code: 1100
+  - name: phone_too_short
+    phone: "1380000"
+    expect_code: 1100
+  - name: phone_bad_prefix
+    phone: "12800000001"
+    expect_code: 1100
+  - name: phone_with_space
+    phone: "138 0000 0003"
+    expect_code: 1100
+
+# 必填字段（@NotBlank）
+bad_field_list:
+  - name: receiver_empty
+    receiver: ''
+    detail: 正常地址内容
+    expect_code: 1100
+  - name: detail_empty
+    receiver: 测试收件人
+    detail: ''
+    expect_code: 1100
+
+existing:                          # 已存在的地址（用于详情/更新/删除/设默认）
+  wangjing_soho: { id: 1,  user_key: normal, detail: 朝阳区望京SOHO T1-1201 }
+  zhongguancun:  { id: 2,  user_key: normal, detail: 海淀区中关村软件园A座 }
+  default_old:   { id: 12, user_key: normal, detail: 朝阳区双井桥东200米（测试） }
+
+not_found:
+  id: 99999
+  expect_code: 2101
+
+limit:
+  max_count: 20
+  over_limit_expect_code: 2102     # 造到第 21 个地址时触发
+
+# ⚠️ 跑之前确认用户 1 现存的地址条数（SELECT COUNT(*) FROM user_address WHERE user_id=1），
+#    现有 5 条，离 20 条上限还有余量；但如果之前跑挂了没清理，条数会累积。

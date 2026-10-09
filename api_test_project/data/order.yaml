@@ -1,0 +1,105 @@
+# 下单（POST /api/user/order）
+# ⚠️ clientToken 必须每次运行都唯一 → 用例里用 gen_client_token() 生成，不要写进 YAML
+
+create_success:
+  merchant_key: night_bbq
+  address_key: wangjing_soho       # ⭐ 必须是地址 1，地址 12（默认地址）会超配送范围
+  pay_channel: WECHAT_MOCK
+  items:
+    - product_key: beef_skewer
+      spec_key: large
+      quantity: 2
+  expect:
+    status: PENDING_PAY
+    # 牛肉串 5.00 + 大份 4.50 = 9.50/份，2 份 = 19.00
+    total_amount: "19.00"
+
+create_no_spec:                    # 无规格商品下单：items 里不带 specId
+  merchant_key: spicy_crayfish
+  address_key: __need_prepare__    # ⚠️ 需先造一个商家 2 附近 4km 内的地址，否则先撞 4003
+  pay_channel: WECHAT_MOCK
+  items:
+    - product_key: no_spec_dish
+      quantity: 1
+  expect:
+    status: PENDING_PAY
+
+bad_list:
+  - name: out_of_delivery_range
+    title: 超出配送范围
+    merchant_key: spicy_crayfish   # 地址 1 到商家 2 = 10940m > 4000m
+    address_key: wangjing_soho
+    expect_code: 4003
+  - name: merchant_closed
+    title: 商家已打烊
+    merchant_key: closed           # 披萨大王 status=CLOSED
+    address_key: wangjing_soho
+    expect_code: 3002
+  - name: address_not_found
+    title: 地址不存在
+    address_id: 99999
+    expect_code: 2101
+  - name: items_empty
+    title: 订单明细为空
+    address_key: wangjing_soho
+    merchant_key: night_bbq
+    items: []
+    expect_code: 1100
+  - name: merchant_id_missing
+    title: 缺少商家 id
+    address_key: wangjing_soho
+    expect_code: 1100
+  - name: product_not_found
+    title: 商品不存在
+    product_id: 99999
+    quantity: 1
+    expect_code: 3101
+  - name: spec_required
+    title: 有规格商品未选规格
+    product_key: beef_skewer
+    quantity: 1
+    expect_code: 3106
+  - name: stock_not_enough
+    title: 库存不足
+    product_key: beef_skewer
+    spec_key: large
+    quantity: 100000               # 远超 80 的库存
+    expect_code: 3104
+  - name: client_token_missing
+    title: 缺少幂等键
+    client_token: ''               # 不放 clientToken 字段
+    expect_code: 1100
+
+idempotent:
+  # 同一个 clientToken 连发两次 → 第二次返回同一订单号
+  merchant_key: night_bbq
+  address_key: wangjing_soho
+  items:
+    - product_key: beef_skewer
+      spec_key: large
+      quantity: 1
+  expect_same_order_no: true
+  # 或者返回 4006「订单创建中」（并发太快时），两者都算通过
+
+cancel:
+  # 待支付订单可以取消 → CANCELLED，并且释放预扣库存
+  prepare: create_pending_order
+  expect_status: CANCELLED
+  expect_stock_released: true
+
+list_filters:
+  - name: by_status_pending_pay
+    status: PENDING_PAY
+    expect_all_match: true
+  - name: by_status_multi
+    status: "REFUNDING,REFUNDED"   # 逗号分隔多状态
+    expect_all_match: true
+  - name: by_keyword
+    keyword: NSP
+    expect_all_match: false
+  - name: invalid_status_ignored
+    status: NOT_A_STATUS           # 非法值被忽略，不报错
+    expect_code: 0
+
+# ⚠️ 下单会清空购物车（OrderServiceImpl 里 createOrder 最后调 clearCart），
+#    所以「先加购再下单」的用例要注意：下单后购物车是空的，这是预期行为
