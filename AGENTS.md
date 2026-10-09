@@ -39,12 +39,19 @@
 - 支付：alipay-sdk-java（沙箱）+ 自封装微信 mock 通道
 - 地图：百度地图 Web 服务 API（HTTP 调用，AK 走环境变量）
 
-### 前端（三个独立工程，可后续再建）
-- 用户端：Vue3 + Vant 4 + Axios + Pinia
-- 商家后台：Vue3 + Element Plus + Axios + Pinia
-- 管理后台：Vue3 + Element Plus + Axios + Pinia
+### 前端（三个独立工程，均已就绪）
+- `frontend-user`：用户端 H5 —— Vue3 + Vant 4 + Axios + Pinia
+- `frontend-merchant`：商家后台 —— Vue3 + Element Plus + Axios + Pinia
+- `frontend-admin`：平台管理后台 —— Vue3 + Element Plus + Axios + Pinia
 
-> 当前阶段只生成**后端多 Maven 工程**，前端与自动化测试工程暂不生成。
+三个工程都用 Vite 构建（`npm run dev` / `npm run build`，build 含 `vue-tsc` 类型检查），
+并通过 Vite 代理把 `/api`、`/ws` 转发到后端 8080。
+
+### 接口自动化测试工程（已就绪）
+
+`api_test_project/` —— pytest + requests + PyYAML，**独立于 Maven，不参与后端构建**。
+分层：`api/`（接口层，URL 只在这里出现）、`data/*.yaml`（测试数据）、`testcases/`（用例）、
+`utils/`（数据库 / Redis / 数据生成工具）、`config/`（环境配置）。
 
 ---
 
@@ -53,58 +60,56 @@
 > ⚠️ **本节是目录结构的唯一真源（Single Source of Truth）。Agent 生成任何文件前必须先对照本节确认路径。**
 
 ```
-night-snack-platform/
-├── pom.xml                     # parent，统一版本管理
-├── .nsp-common/                # 公共模块：工具类、异常、统一响应、JWT 工具、常量、枚举、OSS 工具
-│   ├── pom.xml
-│   └── src/main/java/com/nsp/common/
-│       ├── result/   exception/   constant/   enum/
-│       ├── jwt/      oss/        util/
+night-snack-platform/                 # 仓库根目录（⚠️ 根目录下没有 pom.xml）
+├── backend/                          # ⭐ 后端工程根（Maven 父工程在这里）
+│   ├── pom.xml                       # parent，统一版本管理
+│   ├── .env / .env.example           # 环境变量（.env 不入库）
+│   ├── run-dev.ps1                   # Windows 本地启动脚本（自动加载 .env）
+│   │
+│   ├── .nsp-common/                  # 公共模块：工具类、异常、统一响应、JWT 工具、常量、枚举、OSS 工具
+│   │   ├── pom.xml
+│   │   └── src/main/java/com/nsp/common/
+│   │       ├── result/   exception/   constant/   enum/
+│   │       ├── jwt/      oss/        util/
+│   │
+│   ├── .nsp-pojo/                    # 实体模块：entity / dto / vo（全模块共享）
+│   │   ├── pom.xml
+│   │   └── src/main/java/com/nsp/pojo/
+│   │       ├── entity/   dto/   vo/
+│   │
+│   └── .nsp-server/                  # 业务启动模块（含 Spring Boot 启动类）
+│       ├── pom.xml
+│       └── src/main/
+│           ├── java/com/nsp/server/
+│           │   ├── NsPApplication.java   # 启动类
+│           │   ├── annotation/           # 自定义注解（@RequireRole 等）
+│           │   ├── aspect/               # 切面（权限校验等）
+│           │   ├── config/               # 配置类（MyBatis-Plus / Redis / Swagger / WebMvc / OSS）
+│           │   ├── security/             # JWT 签发、过滤器
+│           │   ├── common/               # 本模块内部通用（ExceptionHandler 等）
+│           │   ├── cache/                # 缓存封装（首页商家列表 / 商家在售商品）
+│           │   ├── ws/                   # WebSocket（新订单推送、退款申请通知）
+│           │   ├── controller/           # ⭐ 按角色分层（见 3.1）
+│           │   │   ├── user/             #   用户端接口
+│           │   │   ├── merchant/         #   商家后台接口
+│           │   │   └── admin/            #   平台管理后台接口
+│           │   ├── service/              # ⭐ 业务接口（扁平，按业务域）
+│           │   │   └── impl/             #   实现类
+│           │   └── mapper/               # ⭐ 数据访问层（扁平，按业务域）
+│           └── resources/
+│               ├── application.yml              # 主配置
+│               ├── application-dev.yml          # dev（不入库，模板见 .example）
+│               ├── application-prod.yml         # prod
+│               ├── db/migration/V1__init.sql    # Flyway 建表 + 种子数据
+│               └── lua/                         # Redis Lua 脚本（库存扣减）
 │
-├── .nsp-pojo/                  # 实体模块：entity / dto / vo（所有模块共享数据结构）
-│   ├── pom.xml
-│   └── src/main/java/com/nsp/pojo/
-│       ├── entity/   dto/   vo/
-│
-└── .nsp-server/                # 业务启动模块（含 Spring Boot 启动类）
-    ├── pom.xml
-    ├── .gitignore              # 本模块单独忽略 .env / target / IDE 文件
-    └── src/main/java/com/nsp/server/
-        │
-        ├── NsPpplication.java  # 启动类
-        │
-        ├── annotation/         # 自定义注解（@RequireRole 等）
-        ├── aspect/             # 切面（日志、权限、防重）
-        ├── config/             # 配置类（MyBatis-Plus / Redis / OSS / Swagger / WebMvc）
-        ├── security/           # JWT 签发、过滤器、权限拦截
-        ├── common/             # 本模块内部通用（ExceptionHandler、BaseController）
-        │
-        ├── controller/        # ⭐ Controller 按角色分层（见下方说明）
-        │   ├── user/           #   用户端接口（浏览、购物车、订单、地址）
-        │   ├── merchant/       #   商家后台接口（店铺、商品、接单）
-        │   └── admin/          #   平台管理后台接口（审核、封禁、品类）
-        │
-        ├── service/            # ⭐ 业务接口（扁平，按业务域，不按角色分）
-        │   ├── User{Service,ServiceImpl}.java
-        │   ├── Address{Service,ServiceImpl}.java
-        │   ├── Cart{Service,ServiceImpl}.java
-        │   ├── Merchant{Service,ServiceImpl}.java
-        │   ├── Product{Service,ServiceImpl}.java
-        │   ├── Upload{Service,ServiceImpl}.java
-        │   ├── Order{Service,ServiceImpl}.java
-        │   ├── Payment{Service,ServiceImpl}.java
-        │   ├── Map{Service,ServiceImpl}.java
-        │   └── Admin{Service,ServiceImpl}.java
-        │
-        └── mapper/             # ⭐ 数据访问层（扁平，按业务域，不按角色分）
-            ├── UserMapper.java
-            ├── AddressMapper.java
-            ├── CartMapper.java
-            ├── MerchantMapper.java
-            ├── ProductMapper.java
-            ├── OrderMapper.java
-            ├── PaymentMapper.java
-            └── UploadedFileMapper.java
+├── frontend-user/                    # 用户端 H5（Vue3 + Vant）
+├── frontend-merchant/                # 商家后台（Vue3 + Element Plus）
+├── frontend-admin/                   # 平台管理后台（Vue3 + Element Plus）
+├── api_test_project/                 # pytest 接口自动化（独立工程）
+├── deploy/                           # 部署：Nginx 三站点 + systemd + 初始化/发布脚本
+├── api.md                            # ⭐ 接口契约权威文档（112 个端点 + 错误码 + 种子账号）
+└── README.md / AGENTS.md / CLAUDE.md / .gitignore
 ```
 
 ### 3.1 Controller 分层规则（重要）
@@ -113,9 +118,12 @@ night-snack-platform/
 
 | 目录 | URL 前缀 | 调用方 | 示例接口 |
 |---|---|---|---|
-| `controller/user/` | `/api/user/**`、`/api/cart/**`、`/api/order/**` | 移动端用户 | 注册、登录、浏览商家、加购、下单、查订单 |
-| `controller/merchant/` | `/api/merchant/**`、`/api/m/order/**`、`/api/m/product/**` | 商家后台 | 店铺信息、商品 CRUD、规格、接单、拒单 |
-| `controller/admin/` | `/api/admin/**` | 平台管理后台 | 商家审核、品类管理、用户封禁 |
+| `controller/user/` | `/api/user/**`（含 `user/cart`、`user/order`、`user/pay`） | 移动端用户 | 注册、登录、浏览商家、加购、下单、查订单、支付、退款 |
+| `controller/merchant/` | `/api/merchant/**`（含 `merchant/order`、`merchant/product`） | 商家后台 | 店铺信息、商品 CRUD、规格、接单、拒单、退款审批 |
+| `controller/admin/` | `/api/admin/**` | 平台管理后台 | 商家审核、品类管理、用户/商家封禁、订单管理 |
+
+> ⚠️ 早期设计里的 `/api/cart/**`、`/api/order/**`、`/api/m/**` 前缀**并不存在**，
+> 实际全部挂在 `/api/user/**` 与 `/api/merchant/**` 下 —— 以 `api.md` 为准。
 
 **约束**：
 - 一个 Controller 只能放在一个角色目录下，**禁止跨角色复用 Controller 类**
@@ -147,30 +155,45 @@ night-snack-platform/
 > 表名统一小写 + 下划线；主键 `BIGINT AUTO_INCREMENT`；时间字段统一 `DATETIME DEFAULT CURRENT_TIMESTAMP`；软删字段 `deleted TINYINT DEFAULT 0`。
 > 图片字段统一存 **OSS 访问 URL**（不要存二进制）。
 
+### 平台管理域
+- `admin`（id, username, password, phone, status）—— 平台管理员，用 `username` 登录
+
 ### 用户域
-- `user`（id, username, password, phone, role, avatar_url, created_at）
-- `user_address`（id, user_id, receiver, phone, detail, lat, lng, is_default）
-- `cart_item`（Redis Hash，不落 MySQL：`cart:{user_id}` → {sku_id: qty}）
+- `user`（id, username, password, phone, avatar_url, total_orders, total_spent, status, last_login_at, banned_reason, banned_at, banned_by, unbanned_at, unbanned_by, remark, deleted, created_at, updated_at）
+  - ⚠️ **没有 `role` 列** —— 角色由 JWT 携带，不是数据库字段
+  - ⚠️ `username` 是后端生成的展示名（`普通用户` + 8 位随机串），**登录凭证是 `phone`**
+- `user_address`（id, user_id, receiver, phone, detail, lat, lng, is_default, created_at, updated_at）
+- 购物车**不落 MySQL** —— Redis Hash：`cart:{user_id}` → `{cartKey: qty}`
 
 ### 商家域
-- `merchant`（id, name, owner_user_id, phone, address, lat, lng, avatar_url, status 营业中/打烊/审核中, business_hours_start, business_hours_end, delivery_radius）
-- `category`（id, merchant_id, name, sort）
-- `product`（id, merchant_id, category_id, name, price, image_url, status 上架/下架, description）
-- `product_spec`（id, product_id, name 如"大杯/加珍珠", price_delta, stock）
+- `merchant`（id, password, name, phone, owner_name, address, lat, lng, logo_url, status, category_id, description, id_card_no, avg_rating, total_orders, banned_reason, banned_at, banned_by, last_login_at, notice, business_hours_start, business_hours_end, delivery_radius, created_at, updated_at）
+  - ⚠️ **没有 `avatar_url`** —— 店铺图统一用 `logo_url`（与用户头像区分）
+  - ⚠️ **没有 `owner_user_id`** —— 商家是独立账号体系，不挂在 `user` 表下
+  - 登录凭证是 `phone`
+- `category`（id, name, icon, icon_type, sort_order, status, remark, created_at, updated_at, deleted）
+  —— **平台品类**（管理端维护，`ENABLED` / `DISABLED`）
+- `merchant_category`（id, merchant_id, category_id, sort_order）—— 商家 ↔ 平台品类 多对多关联
+- `product_category`（id, merchant_id, name, sort）—— **商家自定义的菜单分组**（如"烧烤类/饮品类"）
+- `product`（id, merchant_id, category_id, name, price, image_url, status, description, created_at, updated_at）
+  - ⚠️ **没有 `stock` 列** —— 库存只存在于 `product_spec`
+  - `category_id` 指向 `product_category`（商家自己的分组），不是平台 `category`
+- `product_spec`（id, product_id, name 如"大份(10串)", price_delta, stock）
 
 ### 订单域
-- `order`（id, order_no, user_id, merchant_id, status, total_amount, address_snapshot, pay_channel, pay_time, created_at）
+- `order`（id, order_no, user_id, merchant_id, status, total_amount, address_snapshot, pay_channel, pay_time, user_deleted, created_at, updated_at）
+  - `user_deleted` 是**用户侧软删**标记（用户删掉订单历史里不再显示，但业务数据保留）
 - `order_item`（id, order_id, product_id, spec_id, name_snapshot, price_snapshot, quantity）
-- `order_status_log`（id, order_id, from_status, to_status, operator, reason, created_at）# 状态机审计
+- `order_status_log`（id, order_id, from_status, to_status, operator, reason, created_at）—— 状态机审计
 
 ### 支付域
-- `payment_record`（id, order_no, channel alipay/wechat, trade_no, amount, status, notify_count, last_notify_at）
+- `payment_record`（id, order_no, channel, trade_no, out_refund_no, amount, refund_amount, status, refund_status, notify_count, last_notify_at, refund_at, created_at）
+  - ⚠️ **两个状态列别混**：`status`（PENDING / SUCCESS / FAILED / REFUNDED）与 `refund_status`（REFUNDING / REFUNDED）；退款中时 `status` 仍是 `SUCCESS`
 
 ### 上传域
-- `uploaded_file`（id, biz_type 商品图/头像/店铺图, target_id, oss_key, url, uploader_id, created_at）
+- `uploaded_file`（id, biz_type, target_id, oss_key, url, uploader_id, created_at）
 
 ### 管理域
-- `merchant_application`（id, applicant_user_id, shop_name, reason, status 待审/通过/拒绝, reviewer_id, reviewed_at）
+- `merchant_application`（id, applicant_user_id, shop_name, password, status, reviewer_id, reviewed_at, logo_url, category_id, description, id_card_no, review_note, reject_reason, owner_name, province, city, district, address, lat, lng, created_at）
 
 ### 枚举/字典（不另建表，用 Java Enum）
 - 订单状态：`PENDING_PAY / PAID / ACCEPTED / COOKING / COMPLETED / CANCELLED / REFUNDING / REFUNDED`
@@ -195,11 +218,12 @@ night-snack-platform/
 
 | 接口 | 方法 | 鉴权 | 说明 |
 |---|---|---|---|
-| `/api/upload/sign` | GET | 登录即可 | 返回 OSS 上传签名（policy + signature + host + dir） |
-| `/api/upload/sts` | GET | 登录即可 | 返回 STS 临时凭证（可选方案） |
-| `/api/upload/bind` | POST | 登录即可 | 前端传 ossKey + 业务类型 + 业务ID，落库关联 |
-| `/api/upload/url` | GET | 登录即可 | 给 ossKey 返回带签名的临时访问 URL（私有桶用） |
-| `/api/upload/callback` | POST | 匿名（白名单 IP） | OSS 上传完成回调，校验签名后落库 |
+| `/api/upload/sign` | GET | **匿名** | 返回 OSS 上传签名（policy + signature + host + dir）—— 商家入驻上传 LOGO 时还没登录，故意开放 |
+| `/api/upload/bind` | POST | USER / MERCHANT / ADMIN | 前端传 ossKey + bizType + targetId + url，落库关联 |
+| `/api/upload/url` | GET | USER / MERCHANT / ADMIN | 给 ossKey 返回带签名的临时访问 URL（私有桶用） |
+| `/api/upload/callback` | POST | 匿名 | OSS 上传完成回调，**必须验签**，失败返回 `6004` |
+
+> ⚠️ **没有 `/api/upload/sts` 接口** —— 那是早期设想的可选方案，未实现。
 
 ### 5.3 配置（走环境变量，不写死）
 
@@ -231,14 +255,15 @@ aliyun:
 
 ## 六、接口设计规范（Agent 生成 Controller 必须遵守）
 
-1. **URL 风格**：RESTful，资源复数，模块前缀
-   - 用户端：`/api/user/**`、`/api/cart/**`、`/api/order/**`
-   - 商家端：`/api/merchant/**`、`/api/m/order/**`、`/api/m/product/**`
+1. **URL 风格**：RESTful，模块前缀（⚠️ 实际只有下面这几组，**不存在** `/api/cart/**`、`/api/order/**`、`/api/m/**`）
+   - 用户端：`/api/user/**` —— 含 `user/cart`、`user/order`、`user/pay`
+   - 商家端：`/api/merchant/**` —— 含 `merchant/order`、`merchant/product`、`merchant/category`
    - 管理端：`/api/admin/**`
    - 上传：`/api/upload/**`
-   - 支付：`/api/pay/**`、`/api/pay/alipay/callback`（匿名，白名单）
+   - 支付回调：`/api/pay/alipay/callback`（匿名）
+   - 令牌刷新：`/api/auth/refresh`（匿名）
 2. **统一响应体**：`Result<T> { code: int, msg: string, data: T }`，业务码非 HTTP 状态码
-3. **鉴权**：除登录/注册/支付宝回调/OSS 回调外，全部走 JWT（Header `Authorization: Bearer <token>`）
+3. **鉴权**：除登录/注册/令牌刷新/支付宝回调/OSS 回调/上传签名（`/api/upload/sign`）外，全部走 JWT（Header `Authorization: Bearer <token>`）
 4. **权限注解**：自定义 `@RequireRole("MERCHANT")` / `@RequireRole("ADMIN")`，网关层拦截
 5. **参数校验**：用 Jakarta Validation（`@NotBlank`、`@Min`），Controller 入口即校验
 6. **文件上传**：不接受 `multipart/form-data` 走后端磁盘，统一走 OSS 直传链路
@@ -253,14 +278,22 @@ aliyun:
 
 | Key 模式 | 类型 | 用途 | TTL |
 |---|---|---|---|
-| `cart:{user_id}` | Hash (sku_id → qty) | 用户购物车 | 7 天 |
-| `product:stock:{sku_id}` | String (int) | 商品库存（扣减用） | 永久 |
-| `stock:lock:{order_id}` | String | 下单预扣库存锁 | 30 分钟（订单超时释放） |
-| `token:blacklist:{jti}` | Set | 登出/改密后 JWT 拉黑 | 与 token 过期一致 |
+| `cart:{user_id}` | Hash（cartKey → qty） | 用户购物车 | 7 天 |
+| `product:stock:{specId}` | String (int) | 规格库存（Lua 原子扣减） | 永久 |
+| `order:client-token:{userId}:{token}` | String | 下单幂等键 | 10 分钟 |
+| `order:no:{yyyyMMdd}` | String (int) | 订单号当天自增序号 | 2 天 |
+| `upload:sign:limit:{userId\|anon}` | String (int) | 上传签名限流计数（未登录时用 `anon`） | 1 分钟 |
 | `shop:distance:cache:{shop}_{user}` | String (int 米) | 地图距离缓存 | 1 小时 |
-| `upload:sign:limit:{user_id}` | String (int) | 上传签名限流计数 | 1 分钟 |
+| `merchant:list:home:v2` | String (JSON) | 首页商家列表缓存 | 见 `HomeMerchantListCache` |
+| `merchant:products:on:v2:{merchantId}` | String (JSON) | 商家在售商品缓存 | 见 `MerchantProductsCache` |
+
+> **库存 key 用的是 `specId`，不是 `productId`**；且库存 key 是**懒加载**的
+> —— 首次下单扣减时才从 `product_spec.stock` 载入。
 
 > **库存扣减必须用 Lua 脚本保证原子性**，禁止先读再写的 Java 代码扣库存。
+
+> ⚠️ `stock:lock:{order_id}` 与 `token:blacklist:{jti}` 属于**早期设计但代码里没实现**
+> —— 登出 / JWT 黑名单功能目前不存在，别按这两个 key 写代码。
 
 ---
 
@@ -396,32 +429,41 @@ Thumbs.db
 
 ---
 
-## 十三、本次需要 Agent 优先生成的模块顺序
+## 十三、当前进度（原「模块生成顺序」已全部完成）
 
-> 用户当前阶段目标：先把**后端骨架 + 核心业务跑通**，前端与测试工程后置。
+> 本节原为「需要 Agent 优先生成的模块顺序」。**下面这些模块现已全部实现**，
+> 保留此节作为进度对照 —— 新 Agent 接手时不用再按这个顺序从头生成。
 
-**Phase 1（先生成这个）**
-1. parent `pom.xml`（统一 Spring Boot / MyBatis-Plus / Hutool / Lombok / 阿里云 OSS SDK 版本）
-2. `.nsp-common`：统一响应 `Result`、业务异常 `BizException`、JWT 工具、OSS 工具类、常量、枚举
-3. `.nsp-pojo`：`entity`（User/Merchant/Product/Order/UploadedFile…）、`dto`、`vo`
-4. `.nsp-server` 骨架：
-   - `NsPpplication.java`、config（MyBatis-Plus/Redis/Swagger/WebMvc/OSS）、security（JWT 签发 + 拦截器）、exception handler
-   - `.gitignore`（含 `.env` 忽略规则，见第九节）
-   - `.env.example` 模板文件
-5. `controller/user/`、`controller/merchant/`、`controller/admin/` 三个目录各放一个示例 Controller（如 `UserController`、`MerchantController`、`AdminController`），验证分层结构
-6. `service/` + `mapper/` 扁平结构：先建 `UserService` + `UserMapper` 等核心几个
-7. `upload` 相关：`UploadService` + `UploadedFileMapper` + 上传接口（放 `controller/user/` 或 `controller/merchant/`）
+**Phase 1 —— 骨架（已完成）**
 
-**Phase 2（验证完 Phase 1 再生成）**
-8. `cart` 相关：Redis 购物车
-9. `order` 相关：下单（含库存预扣 Lua）、状态机、取消、超时释放
-10. `payment` 相关：支付宝沙箱 precreate + 回调验签 + 幂等；微信 mock 通道
-11. `map` 相关：百度地图地理编码 + 距离计算 + Haversine 降级
-12. `admin` 相关：商家入驻审核、品类管理、用户封禁
+- 父 `pom.xml`（在 `backend/` 下，统一 Spring Boot 3.3.5 / MyBatis-Plus 3.5.8 / Hutool / Lombok / OSS SDK 版本）
+- `.nsp-common`：`Result`、`BizException`、`ErrorCode` / `MessageConst`、JWT 工具、OSS 工具
+- `.nsp-pojo`：`entity` / `dto` / `vo`
+- `.nsp-server` 骨架：启动类 **`NsPApplication`**、config、security、exception handler、`.env.example`
+- 按角色分层的 `controller/user|merchant|admin`
+- 扁平的 `service` + `mapper`
 
-**Phase 3（最后）**
-13. 补全 Flyway SQL 初始化脚本
-15. 生成 `README.md` 说明如何启动、如何导入 Swagger 到 Apifox、如何配置 OSS / 百度 AK / 支付宝沙箱
+**Phase 2 —— 核心业务（已完成）**
+
+- 购物车（Redis Hash，按商家分组返回）
+- 下单（Lua 预扣库存 + 幂等 + 状态机 + 超时释放）
+- 支付（支付宝沙箱 precreate + 回调验签幂等 + 微信 mock + 未配置时自动降级）
+- 地图（百度地图 API + Haversine 降级）
+- 管理端（商家入驻审核、品类管理、用户/商家封禁）
+- 退款双分支（1 分钟内即时退 / 超时商家审批 + WebSocket 推送）
+- 商家订单 WebSocket 推送（新订单 + 退款申请）
+
+**Phase 3 —— 收尾（已完成）**
+
+- Flyway 初始化脚本 `V1__init.sql`（建表 + 种子数据，唯一一个 migration）
+- `api.md`（接口契约权威文档）、`README.md`、三个前端工程、`deploy/` 部署脚本
+
+**后续演进方向（不在原计划内，按需实现）**
+
+- 登出 / JWT 黑名单（`token:blacklist:{jti}` 已设计，代码未实现）
+- 修改密码（用户/商家/管理员三端都没有）、管理员重置密码（错误码 `2305` 已定义但未使用）
+- 规格的**更新**接口（目前只有新增 / 删除）
+- 用户头像写回（`user.avatar_url` 字段存在，但没有任何接口写入它）
 
 ---
 
@@ -448,3 +490,5 @@ Thumbs.db
 - 错误码预留段：`1000-1999` 通用 / `2000-2999` 用户 / `3000-3999` 商品 / `4000-4999` 订单 / `5000-5999` 支付 / `6000-6999` 上传
 - Swagger UI 地址：`http://localhost:8080/swagger-ui.html`，确保匿名可访问以便 Apifox 导入
 - 上传接口返回 OSS URL，测试时可直接用 URL 断言图片可访问
+
+请认真工作，claude在看着你

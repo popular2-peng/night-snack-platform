@@ -14,6 +14,9 @@
 .vscode/
 *.iml
 
+# --- AI Agent 本地配置（本机工具权限等，不参与项目） ---
+.claude/
+
 # --- 编译产物 ---
 target/
 *.class
