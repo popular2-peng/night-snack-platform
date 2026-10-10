@@ -40,11 +40,53 @@ failed_list:
     phone: ""
     password: test123
     expect_code: 1100
-  - name: phone_not_string
-    title: 手机号传入整数（类型不符）
-    phone: 13800000003          # ⚠️ 故意不加引号，测类型容错
+  - name: phone_null
+    title: 手机号传 null
+    phone: null                 # null 会被 @AssertTrue credentialPresent 拦截
     password: test123
     expect_code: 1100
+
+# ── 手机号类型容错（2026-10-10 实测确认，别按直觉写「类型不符 → 1100」）──
+# 结论：Jackson 会把 JSON 标量（数字/布尔）**强转**成 String 字段，所以：
+#   · 传整数 13800000003 → 转成 "13800000003" → 查得到 → 登录成功（code=0）
+#   · 传浮点/布尔        → 转成 "1.38E10" / "true" → 查不到 → 2003 手机号未注册
+#   · 传 null            → @AssertTrue 拦截 → 1100
+# 只有传「数组 / 对象」这类非标量才是真的类型不匹配 —— 但那会掉进 1999 兜底（见 known_issues）
+type_cases:
+  - name: phone_int_coerced
+    title: 手机号传整数 → 强转成字符串后登录成功
+    phone: 13800000003
+    password: test123
+    expect_code: 0              # ⚠️ 实测 0，不是 1100
+  - name: phone_float
+    title: 手机号传浮点 → 强转成 "1.38E10" → 查无此账号
+    phone: 13800000000.0
+    password: test123
+    expect_code: 2003           # ⚠️ 实测 2003，不是 1100
+  - name: phone_boolean
+    title: 手机号传布尔 → 强转成 "true" → 查无此账号
+    phone: true
+    password: test123
+    expect_code: 2003
+  - name: phone_array
+    title: 手机号传数组 → 真正的类型不匹配
+    phone: [13800000003]
+    password: test123
+    expect_code: 1100           # 期望 1100；⚠️ 实测 1999 → 见 known_issues（用例里用 xfail 标记）
+
+# ── 实测发现的缺陷（可以提给开发）──
+known_issues:
+  - name: type_mismatch_returns_system_error
+    title: 入参类型不匹配时返回 1999「系统繁忙」，而不是 1100「参数校验失败」
+    reproduce: 'POST /api/user/login  body: {"phone": [13800000003], "password": "test123"}'
+    actual: 1999 系统繁忙，请稍后再试
+    expected: 1100 参数校验失败（类型不匹配属于客户端参数问题，不是服务端故障）
+    impact:
+      - 前端拿到 1999 会提示「系统繁忙」，用户不知道是自己参数传错了
+      - 监控上会误报成服务端错误，污染可用性指标
+      - 排障时容易被当成后端 bug，浪费时间
+    fix_hint: 全局异常处理器捕获 HttpMessageNotReadableException / MethodArgumentTypeMismatchException → 转 1100
+    discovered_at: "2026-10-10"
 
 # 商家登录失败矩阵（POST /api/merchant/login）
 merchant_failed_list:
@@ -95,13 +137,13 @@ register:
       phone: "1380000"
       expect_code: 1100
     - name: bad_prefix
-      phone: "13800000003"                  # 已存在
+      phone: "12800000001"                # 12 开头不合法
       expect_code: 1100
     - name: too_long
-      phone: "138000000031"                 # 过长
+      phone: "138000000031"
       expect_code: 1100
     - name: not_digit
-      phone: "138-0000-0003"               # 不是数字
+      phone: "138-0000-0003"
       expect_code: 1100
 
 # Token 刷新（POST /api/auth/refresh）

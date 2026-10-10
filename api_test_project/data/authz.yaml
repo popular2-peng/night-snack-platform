@@ -60,11 +60,11 @@ cross_resource:                    # 同角色、但操作别人的资源
     actor: user
     target_user_key: normal_2
     order_source: 该用户自己的订单
-    expect_code: 4001              # 后端按 user_id 过滤，查不到 → 订单不存在
+    expect_code: 1002              # 后端按 user_id 过滤，查不到 → 订单不存在
   - name: user_cancel_other_user_order
     actor: user
     target_user_key: normal_2
-    expect_code: 4001
+    expect_code: 1002
   - name: merchant_operate_other_merchant_product
     # 商家 1 的 token 去改商家 2 的商品
     actor: merchant

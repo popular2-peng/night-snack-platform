@@ -39,6 +39,10 @@ class BaseApi:
     def _delete(self, path: str = "", **kw: Any) -> ApiResponse:
         return self.client.delete(self._url(path), **kw)
 
+    # ── 通用入口：给越权矩阵 / 冒烟巡检这类「端点即数据」的用例用 ──
+    # ⚠️ 与上面四个不同：这里的 path 是**完整路径**，**不再**拼 self.prefix
+    #    （原因和踩坑记录见第七节）
     def request(self, method: str, path: str, **kw: Any) -> ApiResponse:
-        """通用请求入口：给越权矩阵 / 冒烟巡检这类『端点即数据』的用例用"""
-        return getattr(self.client, method.lower())(self._url(path), **kw)
+        if not path.startswith("/"):
+            raise ValueError(f"request() 需要完整路径（以 / 开头），实际收到 {path!r}")
+        return getattr(self.client, method.lower())(path, **kw)

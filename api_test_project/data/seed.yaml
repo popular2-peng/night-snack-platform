@@ -166,6 +166,20 @@ addresses:
     lat: "40.050630"
     lng: "116.298450"
     is_default: 0
+  sanlitun:
+    id: 3
+    user_key: normal_2
+    detail: 朝阳区三里屯SOHO 5号楼
+    lat: "39.932120"
+    lng: "116.455300"
+    is_default: 1
+  wangjing_garden:
+    id: 6
+    user_key: normal_2
+    detail: 朝阳区望京花园东区3-501
+    lat: "39.998740"
+    lng: "116.474120"
+    is_default: 0
   shuangjing_default:            # 当前默认地址（双井）—— 注意距离
     id: 12
     user_key: normal
