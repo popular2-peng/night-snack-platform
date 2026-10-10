@@ -199,7 +199,7 @@ def test_no_token_rejected(anon_api, case):
 @pytest.mark.auth
 def test_user_read_other_user_order(api_factory, user_api, order_payload,
                                     yaml_data, seed_data):
-    """读别人的订单 → 4001"""
+    """读别人的订单 → 1002"""
     u2 = seed_data["users"]["normal_2"]
     addr2 = seed_data["addresses"]["wangjing_garden"]
     other_api = api_factory(u2["phone"], u2["password"])
@@ -221,7 +221,7 @@ def test_merchant_operate_other_shop_product(merchant_api, seed_data):
     resp = merchant_api.update_product(target["id"], {
         "name": "越权改名",
         "categoryId": 1,
-        "price": 9.99
+        "price": "9.99"
     })
     assert_biz_code(resp, 3301, msg="[跨店操作商品]")
 
