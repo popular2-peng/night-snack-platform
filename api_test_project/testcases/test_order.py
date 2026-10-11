@@ -71,11 +71,11 @@ class TestOrder:
         assert data["status"] == case["expect"]["status"]
         assert data["items"][0].get("specId") is None, "无规格商品的下单明细不应带 specId"
 
-    BAN_CASES = load_yaml("order")["bad_list"]
+    BAD_CASES = load_yaml("order")["bad_list"]
 
     @pytest.mark.p1
     @pytest.mark.order
-    @pytest.mark.parametrize("case", BAN_CASES, ids=[c["name"] for c in BAN_CASES])
+    @pytest.mark.parametrize("case", BAD_CASES, ids=[c["name"] for c in BAD_CASES])
     def test_create_order_failed(self, user_api, order_payload, case):
         """下单失败矩阵：不同维度的参数/业务校验都要拦住"""
         drop = ("merchantId", ) if case["name"] == "merchant_id_missing" else ()
@@ -141,7 +141,7 @@ class TestOrder:
 
         before = redis_helper.stock(spec["id"])
         if before is None:
-            before = da_helper.query_value("select stock from `product_spec` where id%s", (spec["id"],))
+            before = da_helper.query_value("select stock from `product_spec` where id=%s", (spec["id"],))
 
         order = assert_success(user_api.create_order(order_payload(
             yaml_data("order")["create_success"]

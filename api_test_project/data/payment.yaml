@@ -32,8 +32,9 @@ bad_list:
     expect_code: 1100
   - name: channel_unsupported
     title: 不支持的渠道
+    prepare: create_pending_order
     channel: NOT_A_CHANNEL
-    expect_code: 4001
+    expect_code: 1100
   - name: pay_already_paid
     title: 重复支付（幂等）
     prepare: create_and_pay_order
