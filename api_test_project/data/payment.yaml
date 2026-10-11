@@ -25,7 +25,7 @@ bad_list:
     title: 支付订单不存在
     order_no: NSP99999999999999
     channel: WECHAT_MOCK
-    expect_code: 5001
+    expect_code: 4001
   - name: channel_empty
     title: 渠道为空
     channel: ''
@@ -33,12 +33,12 @@ bad_list:
   - name: channel_unsupported
     title: 不支持的渠道
     channel: NOT_A_CHANNEL
-    expect_code: 1100
+    expect_code: 4001
   - name: pay_already_paid
     title: 重复支付（幂等）
     prepare: create_and_pay_order
     channel: WECHAT_MOCK
-    expect_code: 5002
+    expect_code: 4002
 
 callback_idempotent:               # POST /api/pay/alipay/callback（匿名）
   # 同一个 out_trade_no 连发两次通知 → 只处理一次，不重复写 payment_record

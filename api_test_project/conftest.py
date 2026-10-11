@@ -220,18 +220,22 @@ def order_payload(seed_data, yaml_data):
         return item
 
     def _build(case: dict, drop: tuple = (), **overrides) -> dict:
-        merged = {**base, **case}          # 用 base 补齐缺失字段
+        merged = {**base, **case}          # 用 base 补齐 case 缺失字段
         payload: dict = {}
 
-        if "merchant_key" in merged:
+        if "merchant_id" in case:
+            payload["merchantId"] = case["merchant_id"]
+        elif "merchant_key" in case:
+            payload["merchantId"] = seed_data["merchants"][case["merchant_key"]]["id"]
+        elif "merchant_key" in merged:
             payload["merchantId"] = seed_data["merchants"][merged["merchant_key"]]["id"]
-        elif "merchant_id" in merged:
-            payload["merchantId"] = merged["merchant_id"]
 
-        if "address_key" in merged:
+        if "address_id" in case:
+            payload["addressId"] = case["address_id"]
+        elif "address_key" in case:
+            payload["addressId"] = seed_data["addresses"][case["address_key"]]["id"]
+        elif "address_key" in merged:
             payload["addressId"] = seed_data["addresses"][merged["address_key"]]["id"]
-        elif "address_id" in merged:
-            payload["addressId"] = merged["address_id"]
 
         # items 的三种写法：显式 items / 顶层单个商品 / 回落到 base
         if "items" in case:
