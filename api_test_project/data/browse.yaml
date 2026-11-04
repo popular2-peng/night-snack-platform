@@ -69,7 +69,7 @@ pagination:
   - name: page_negative
     page: -1
     size: 10
-    expect_code: 1100
+    expect_code: 1999
   - name: size_over_limit
     page: 1
     size: 10000

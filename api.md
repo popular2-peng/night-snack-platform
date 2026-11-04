@@ -627,7 +627,7 @@ GET /api/user/address/{id}
 }
 ```
 
-**可能错误码：** `2101`
+**可能错误码：** `1002`
 
 ---
 
@@ -713,7 +713,6 @@ DELETE /api/user/address/{id}
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -826,7 +825,6 @@ POST /api/user/cart?merchantId={merchantId}
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 更新商品数量
@@ -848,7 +846,6 @@ PUT /api/user/cart
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -1094,7 +1091,6 @@ POST /api/user/order/{id}/cancel
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -1710,7 +1706,6 @@ PUT /api/merchant/category/{id}?name={name}&sort={sort}
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 删除品类（仅限本店品类）
@@ -1909,7 +1904,6 @@ PUT /api/merchant/product/{id}/status?status={status}
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 删除商品（仅停售状态可删）
@@ -1926,7 +1920,6 @@ DELETE /api/merchant/product/{id}
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -1951,7 +1944,6 @@ POST /api/merchant/product/{productId}/spec
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 删除规格（仅限本店商品）
@@ -1966,7 +1958,6 @@ DELETE /api/merchant/product/spec/{specId}
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -2105,7 +2096,6 @@ PUT /api/merchant/order/{id}/accept
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 开始制作
@@ -2123,7 +2113,6 @@ PUT /api/merchant/order/{id}/cooking
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 完成制作
@@ -2140,7 +2129,6 @@ PUT /api/merchant/order/{id}/complete
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -2460,7 +2448,6 @@ PUT /api/admin/merchant-application/{id}/approve
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 拒绝申请（V1）
@@ -2483,7 +2470,6 @@ PUT /api/admin/merchant-application/{id}/reject
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -2517,7 +2503,6 @@ POST /api/admin/application/{id}/approve
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 拒绝申请（V2，推荐）
@@ -2544,7 +2529,6 @@ POST /api/admin/application/{id}/reject
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -2720,7 +2704,6 @@ PUT /api/admin/users/{id}/ban
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 解封用户（推荐）
@@ -2737,7 +2720,6 @@ PUT /api/admin/users/{id}/unban
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -2788,7 +2770,6 @@ DELETE /api/admin/users/{id}
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -2893,7 +2874,6 @@ PUT /api/admin/merchants/{id}/suspend
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 解封商家（V1）
@@ -2910,7 +2890,6 @@ PUT /api/admin/merchants/{id}/activate
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -3017,7 +2996,6 @@ PUT /api/admin/merchant/{id}/pause
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 恢复营业
@@ -3034,7 +3012,6 @@ PUT /api/admin/merchant/{id}/resume
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -3059,7 +3036,6 @@ PUT /api/admin/merchant/{id}/ban
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 解封商家（V2）
@@ -3076,7 +3052,6 @@ PUT /api/admin/merchant/{id}/unban
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -3095,7 +3070,6 @@ DELETE /api/admin/merchant/{id}
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
@@ -3364,7 +3338,6 @@ PUT /api/admin/category/{id}/enable
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 停用品类
@@ -3382,7 +3355,6 @@ PUT /api/admin/category/{id}/disable
 { "code": 0, "msg": "ok", "data": null }
 ```
 
-
 ---
 
 #### 删除品类（仅停用状态可删）
@@ -3399,7 +3371,6 @@ DELETE /api/admin/category/{id}
 ```json
 { "code": 0, "msg": "ok", "data": null }
 ```
-
 
 ---
 
